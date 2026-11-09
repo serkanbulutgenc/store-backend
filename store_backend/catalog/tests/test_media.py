@@ -1,4 +1,4 @@
-# ruff: noqa: PLR2004
+# ruff: noqa: PLR2004, SLF001
 from __future__ import annotations
 
 import io
@@ -30,20 +30,28 @@ pytestmark = pytest.mark.django_db
 BASE = "/api/admin"
 
 
-def make_file(
+def make_file(  # noqa: PLR0913
     size=(1200, 900),
     fmt="JPEG",
     name="foto.jpg",
     orientation=None,
     colour=(200, 30, 30),
+    *,
+    gps=False,
 ) -> SimpleUploadedFile:
     img = Image.new("RGB", size, colour)
     buf = io.BytesIO()
     kwargs = {}
-    if orientation:
+    if orientation or gps:
         exif = Image.Exif()
-        exif[0x0112] = orientation
+        exif[0x0112] = orientation or 1
         exif[0x010F] = "SecretCamera"
+        if gps:
+            gps_ifd = exif.get_ifd(0x8825)
+            gps_ifd[1] = "N"
+            gps_ifd[2] = (36.0, 47.0, 30.0)
+            gps_ifd[3] = "E"
+            gps_ifd[4] = (34.0, 38.0, 0.0)
         kwargs["exif"] = exif
     img.save(buf, fmt, **kwargs)
     return SimpleUploadedFile(name, buf.getvalue(), content_type=f"image/{fmt.lower()}")
@@ -230,9 +238,9 @@ def test_alt_text_defaults_to_product_name_and_colour(actor, product, colour):
     plain = media.upload(actor, product, make_file())
     assert with_colour.effective_alt_text == "Yazlık Elbise Siyah"
     assert plain.effective_alt_text == "Yazlık Elbise"
-    media.update(with_colour, alt_text="Önden görünüm")
+    media.update(actor, with_colour, alt_text="Önden görünüm")
     assert with_colour.effective_alt_text == "Önden görünüm"
-    media.update(with_colour, alt_text="")
+    media.update(actor, with_colour, alt_text="")
     assert with_colour.effective_alt_text == "Yazlık Elbise Siyah"
 
 
@@ -240,7 +248,7 @@ def test_only_one_primary_and_first_upload_is_primary(actor, product):
     first = media.upload(actor, product, make_file())
     second = media.upload(actor, product, make_file())
     assert (first.is_primary, second.is_primary) == (True, False)
-    media.update(second, is_primary=True)
+    media.update(actor, second, is_primary=True)
     first.refresh_from_db()
     assert not first.is_primary
     assert ProductPhoto.objects.filter(product=product, is_primary=True).count() == 1
@@ -256,18 +264,18 @@ def test_deleting_primary_promotes_next_image(actor, product):
 
 def test_reorder_requires_exactly_the_products_images(actor, product):
     a, b, c = (media.upload(actor, product, make_file()) for _ in range(3))
-    media.reorder(product, [c.pk, a.pk, b.pk])
+    media.reorder(actor, product, [c.pk, a.pk, b.pk])
     ordered = list(product.photos.order_by("sort_order").values_list("pk", flat=True))
     assert ordered == [c.pk, a.pk, b.pk]
     with pytest.raises(UnprocessableError):
-        media.reorder(product, [a.pk, b.pk])
+        media.reorder(actor, product, [a.pk, b.pk])
 
 
 def test_colour_must_exist_in_update(actor, product, colour):
     image = media.upload(actor, product, make_file())
-    media.update(image, colour=colour)
+    media.update(actor, image, colour=colour)
     assert image.colour == colour
-    media.update(image, colour=None)
+    media.update(actor, image, colour=None)
     assert image.colour is None
 
 
@@ -459,3 +467,101 @@ def test_api_cannot_delete_last_image_of_published_product(staff_api, product, a
     )
     assert response.status_code == HTTPStatus.CONFLICT
     assert response.json()["code"] == "last_image"
+
+
+# --- review fixes -------------------------------------------------------------
+
+
+def stored_original(image) -> bytes:
+    with default_storage.open(image.original) as f:
+        return f.read()
+
+
+@pytest.mark.parametrize(("fmt", "name"), [("JPEG", "a.jpg"), ("PNG", "a.png")])
+def test_gps_is_stripped_from_the_stored_original(actor, product, fmt, name):
+    upload = make_file(fmt=fmt, name=name, gps=True, orientation=6)
+    assert Image.open(io.BytesIO(upload.read())).getexif().get_ifd(0x8825)
+    upload.seek(0)
+    image = media.upload(actor, product, upload)
+    stored = Image.open(io.BytesIO(stored_original(image)))
+    exif = stored.getexif()
+    assert not exif.get_ifd(0x8825)
+    assert exif.get(0x0112) == 6  # the rest of the metadata stays
+    assert stored.size == (1200, 900)
+    assert image.width == 900  # orientation 6 swaps the reported size
+
+
+def test_original_without_gps_is_stored_byte_for_byte(actor, product):
+    upload = make_file(orientation=6)
+    raw = upload.read()
+    upload.seek(0)
+    image = media.upload(actor, product, upload)
+    assert stored_original(image) == raw
+
+
+def test_derivatives_finished_after_a_delete_are_still_scheduled_for_removal(
+    actor,
+    product,
+    monkeypatch,
+):
+    image = media.upload(actor, product, make_file())
+    real_clean = media._clean
+
+    def delete_then_clean(img):
+        ProductPhoto.objects.filter(pk=image.pk).delete()  # deleted mid-processing
+        return real_clean(img)
+
+    monkeypatch.setattr(media, "_clean", delete_then_clean)
+    media.process(image.pk)
+    pending = set(PendingFileRemoval.objects.values_list("name", flat=True))
+    on_disk = {n for n in default_storage.listdir("products")[1] if n.endswith(".webp")}
+    assert on_disk
+    assert {f"products/{n}" for n in on_disk} <= pending
+
+
+def test_failed_upload_leaves_no_original_behind(actor, product, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError
+
+    monkeypatch.setattr(audit, "record", boom)
+    with pytest.raises(RuntimeError):
+        media.upload(actor, product, make_file())
+    files = (
+        default_storage.listdir("products")[1]
+        if default_storage.exists("products")
+        else []
+    )
+    assert files == []
+
+
+def test_edits_and_reorders_are_audited(actor, product, colour):
+    a = media.upload(actor, product, make_file())
+    b = media.upload(actor, product, make_file())
+    media.update(actor, a, colour=colour, alt_text="Önden")
+    media.reorder(actor, product, [b.pk, a.pk])
+    edits = AuditEntry.objects.filter(action=audit.Action.PHOTO_EDIT)
+    assert edits.count() == 2
+    first = edits.order_by("pk")[0]
+    assert first.after is not None
+    assert first.actor == actor
+    assert first.after["alt_text"] == "Önden"
+
+
+def test_deleting_primary_prefers_a_ready_successor(actor, product):
+    primary = upload_ready(actor, product)
+    failed = media.upload(actor, product, make_file())
+    ProductPhoto.objects.filter(pk=failed.pk).update(status=ProductPhoto.Status.FAILED)
+    ready = upload_ready(actor, product)
+    media.delete(actor, primary)
+    ready.refresh_from_db()
+    failed.refresh_from_db()
+    assert ready.is_primary
+    assert not failed.is_primary
+
+
+def test_delete_reads_the_published_status_after_taking_the_lock(actor, product):
+    only = upload_ready(actor, product)
+    stale = ProductPhoto.objects.select_related("product").get(pk=only.pk)
+    catalog.set_status(product, ProductStatus.PUBLISHED)  # after `stale` was loaded
+    with pytest.raises(ConflictError):
+        media.delete(actor, stale)

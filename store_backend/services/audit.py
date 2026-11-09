@@ -29,6 +29,7 @@ class Action(StrEnum):
     ROLE_CHANGE = "role_change"
     PHOTO_UPLOAD = "photo_upload"
     PHOTO_DELETE = "photo_delete"
+    PHOTO_EDIT = "photo_edit"
     INVOICE_EDIT = "invoice_edit"
     EXPORT_RUN = "export_run"
 

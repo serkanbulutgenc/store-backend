@@ -19,8 +19,11 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Case
+from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
+from django.db.models import When
 from django.utils import timezone
 from oscar.apps.catalogue.models import Product
 from PIL import Image
@@ -32,6 +35,7 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import PendingFileRemoval
 from store_backend.catalog.models import ProductPhoto
+from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services import catalog
@@ -54,6 +58,7 @@ _FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
 _HEIC_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
 _ROTATED_ORIENTATIONS = {5, 6, 7, 8}
 _ORIENTATION_TAG = 0x0112
+_GPS_TAG = 0x8825
 
 MSG_FORMAT = "Yalnızca JPEG, PNG veya WebP dosyaları yüklenebilir."
 MSG_HEIC = (
@@ -96,8 +101,35 @@ def _looks_like_heic(data: bytes) -> bool:
     return data[4:8] == b"ftyp" and data[8:12] in _HEIC_BRANDS
 
 
-def _inspect(data: bytes) -> tuple[str, int, int]:
-    """Validate an upload and return (extension, width, height) after orientation."""
+def _without_gps(img: Image.Image, fmt: str, data: bytes) -> tuple[bytes, str]:
+    """Return the file to keep and its extension, with location data removed.
+
+    A file without GPS is kept byte for byte. One with GPS is re-encoded without it
+    (JPEG keeps its quantisation tables, so no further quality loss); everything else
+    in the metadata, such as orientation, stays. HEIC is written back as JPEG.
+    """
+    exif = img.getexif()
+    if not exif.get_ifd(_GPS_TAG):
+        return data, _FORMATS[fmt]
+    del exif[_GPS_TAG]
+    exif._ifds.pop(_GPS_TAG, None)  # noqa: SLF001 - Pillow keeps a cached copy
+    options: dict = {"exif": exif}
+    if icc := img.info.get("icc_profile"):
+        options["icc_profile"] = icc
+    out_fmt = "JPEG" if fmt == "HEIF" else fmt
+    if fmt == "JPEG":
+        options.update(quality="keep", subsampling="keep")
+    elif out_fmt in ("JPEG", "WEBP"):
+        options["quality"] = 95
+    buf = io.BytesIO()
+    img.save(buf, out_fmt, **options)
+    return buf.getvalue(), _FORMATS[out_fmt]
+
+
+def _inspect(data: bytes) -> tuple[bytes, str, int, int]:
+    """Validate an upload; return (bytes to store, extension, width, height) with
+    the size taken after orientation.
+    """
     if len(data) > MAX_BYTES:
         raise _invalid(MSG_SIZE)
     try:
@@ -114,7 +146,8 @@ def _inspect(data: bytes) -> tuple[str, int, int]:
         raise _invalid(MSG_SMALL)
     if orientation in _ROTATED_ORIENTATIONS:
         width, height = height, width
-    return _FORMATS[fmt], width, height
+    data, extension = _without_gps(img, fmt, data)
+    return data, extension, width, height
 
 
 # --- upload -------------------------------------------------------------------
@@ -130,7 +163,7 @@ def upload(
 ) -> ProductPhoto:
     """Validate and store the original, then queue the derivative job."""
     data = file.read(MAX_BYTES + 1)
-    extension, width, height = _inspect(data)
+    data, extension, width, height = _inspect(data)
     Product.objects.select_for_update().get(pk=product.pk)  # serialise uploads
     existing = ProductPhoto.objects.filter(product=product)
     if existing.count() >= MAX_IMAGES:
@@ -147,13 +180,17 @@ def upload(
         height=height,
     )
     default_storage.save(name, ContentFile(data))
-    audit.record(
-        actor,
-        audit.Action.PHOTO_UPLOAD,
-        target=image,
-        summary=f"{product.title}: fotoğraf yüklendi",
-        after={"product_id": product.pk, "image_id": image.pk},
-    )
+    try:
+        audit.record(
+            actor,
+            audit.Action.PHOTO_UPLOAD,
+            target=image,
+            summary=f"{product.title}: fotoğraf yüklendi",
+            after={"product_id": product.pk, "image_id": image.pk},
+        )
+    except Exception:
+        default_storage.delete(name)  # the row rolls back, so the file must not stay
+        raise
     transaction.on_commit(lambda: _enqueue(image.pk))
     return image
 
@@ -204,21 +241,22 @@ def process(image_id: int) -> None:
             derivatives.append({"width": width, "name": name})
     except Exception as exc:
         logger.exception("Image %s could not be processed", image_id)
-        for name in written:
-            default_storage.delete(name)
+        _schedule_names(written)
         ProductPhoto.objects.filter(pk=image_id).update(
             status=ProductPhoto.Status.FAILED,
             error=f"{type(exc).__name__}: {exc}"[:500],
             derivatives=[],
         )
         return
-    ProductPhoto.objects.filter(pk=image_id).update(
+    updated = ProductPhoto.objects.filter(pk=image_id).update(
         status=ProductPhoto.Status.READY,
         error="",
         derivatives=derivatives,
         width=img.width,
         height=img.height,
     )
+    if not updated:  # deleted while we worked: its delete did not know these files
+        _schedule_names(written)
 
 
 # --- editing ------------------------------------------------------------------
@@ -226,14 +264,24 @@ def process(image_id: int) -> None:
 _UNSET = object()
 
 
+def _editable(image: ProductPhoto) -> dict:
+    return {
+        "colour_id": image.colour_id,
+        "alt_text": image.alt_text,
+        "is_primary": image.is_primary,
+    }
+
+
 @transaction.atomic
 def update(
+    actor: User,
     image: ProductPhoto,
     *,
     colour: Colour | object | None = _UNSET,
     alt_text: str | object = _UNSET,
     is_primary: bool | object = _UNSET,
 ) -> ProductPhoto:
+    before = _editable(image)
     if colour is not _UNSET:
         image.colour = colour  # type: ignore[assignment]
     if alt_text is not _UNSET:
@@ -252,11 +300,19 @@ def update(
         msg = "Başka bir fotoğrafı ana fotoğraf yapın."
         raise UnprocessableError(msg, fields={"is_primary": [msg]})
     image.save()
+    audit.record(
+        actor,
+        audit.Action.PHOTO_EDIT,
+        target=image,
+        summary=f"{image.product.title}: fotoğraf düzenlendi",
+        before=before,
+        after=_editable(image),
+    )
     return image
 
 
 @transaction.atomic
-def reorder(product: Product, ids: list[int]) -> list[ProductPhoto]:
+def reorder(actor: User, product: Product, ids: list[int]) -> list[ProductPhoto]:
     """Set the display order; `ids` must be exactly the Product's images."""
     images = {i.pk: i for i in ProductPhoto.objects.filter(product=product)}
     if len(ids) != len(set(ids)) or set(ids) != set(images):
@@ -266,6 +322,13 @@ def reorder(product: Product, ids: list[int]) -> list[ProductPhoto]:
     for position, image in enumerate(ordered, start=1):
         image.sort_order = position
     ProductPhoto.objects.bulk_update(ordered, ["sort_order"])
+    audit.record(
+        actor,
+        audit.Action.PHOTO_EDIT,
+        target=product,
+        summary=f"{product.title}: fotoğraf sırası değişti",
+        after={"order": ids},
+    )
     return ordered
 
 
@@ -282,12 +345,11 @@ def _ready_images(product_id: int):
 @transaction.atomic
 def delete(actor: User, image: ProductPhoto) -> None:
     """Delete the record now; its files go after the grace period (see signals)."""
-    product = (
-        Product.objects.select_for_update(of=("self",))
-        .select_related("profile")
-        .get(pk=image.product_id)
+    product = Product.objects.select_for_update().get(pk=image.product_id)
+    # Read after the lock: a publish that just committed must be seen.
+    published = (
+        ProductProfile.objects.get(product=product).status == ProductStatus.PUBLISHED
     )
-    published = product.profile.status == ProductStatus.PUBLISHED
     others = _ready_images(product.pk).exclude(pk=image.pk).exists()
     if published and image.status == ProductPhoto.Status.READY and not others:
         msg = "Yayındaki ürünün son fotoğrafı silinemez."
@@ -302,17 +364,32 @@ def delete(actor: User, image: ProductPhoto) -> None:
     was_primary = image.is_primary
     image.delete()
     if was_primary:
-        successor = ProductPhoto.objects.filter(product=product).first()
+        successor = (
+            ProductPhoto.objects.filter(product=product)
+            .annotate(
+                usable=Case(
+                    When(status=ProductPhoto.Status.READY, then=0),
+                    default=1,
+                    output_field=IntegerField(),
+                ),
+            )
+            .order_by("usable", "sort_order", "pk")
+            .first()
+        )
         if successor is not None:
             ProductPhoto.objects.filter(pk=successor.pk).update(is_primary=True)
 
 
-def schedule_removal(image: ProductPhoto) -> None:
-    """Queue an image's files for deletion after the grace period."""
+def _schedule_names(names: list[str]) -> None:
     due = timezone.now() + timedelta(days=settings.MEDIA_REMOVAL_GRACE_DAYS)
     PendingFileRemoval.objects.bulk_create(
-        PendingFileRemoval(name=name, remove_after=due) for name in image.file_names()
+        PendingFileRemoval(name=name, remove_after=due) for name in names
     )
+
+
+def schedule_removal(image: ProductPhoto) -> None:
+    """Queue an image's files for deletion after the grace period."""
+    _schedule_names(image.file_names())
 
 
 def _in_use(name: str) -> bool:

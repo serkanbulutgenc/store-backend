@@ -873,7 +873,7 @@ def update_product_image(request, image_id: int, data: ProductImagePatch):
         changes["alt_text"] = sent["alt_text"]
     if sent.get("is_primary") is not None:
         changes["is_primary"] = sent["is_primary"]
-    media.update(image, **changes)
+    media.update(request.auth, image, **changes)
     return _image_dict(_image(image_id))
 
 
@@ -896,5 +896,5 @@ def delete_product_image(request, image_id: int):
 )
 def reorder_product_images(request, product_id: int, data: ImageOrderIn):
     product = _product(product_id)
-    media.reorder(product, data.ids)
+    media.reorder(request.auth, product, data.ids)
     return [_image_dict(i) for i in _images(product)]

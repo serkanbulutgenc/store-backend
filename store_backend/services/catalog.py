@@ -288,6 +288,8 @@ PUBLISH_CHECKS: list[Callable[[Product], None]] = []
 @transaction.atomic
 def set_status(product: Product, status: ProductStatus) -> Product:
     if status == ProductStatus.PUBLISHED:
+        # Serialises with photo deletes, which take the same lock.
+        Product.objects.select_for_update().get(pk=product.pk)
         if not product.children.exists():
             raise _invalid("status", "Yayınlamak için en az bir varyant ekleyin.")
         for check in PUBLISH_CHECKS:
