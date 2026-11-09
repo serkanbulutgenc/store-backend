@@ -353,6 +353,15 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-hijack-root-logger
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+# Removes files of deleted product images once their grace period has passed.
+CELERY_BEAT_SCHEDULE = {
+    "purge-removed-media": {
+        "task": "store_backend.catalog.tasks.purge_removed_files",
+        "schedule": 60 * 60 * 6,
+    },
+}
+# Days a deleted image's files stay on disk (an undo window and backup safety).
+MEDIA_REMOVAL_GRACE_DAYS = 7
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)

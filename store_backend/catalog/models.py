@@ -203,3 +203,94 @@ class VariantProfile(models.Model):
 
     def __str__(self) -> str:
         return self.sku
+
+
+class ProductPhoto(models.Model):
+    """A photo of a Product, optionally tagged with a Colour.
+
+    Colour-less images are shared by every colour. The original upload is kept as
+    is; WebP derivatives are made by a background job. Files are named by us (a UUID
+    for the original, a content hash for derivatives), never by the uploader.
+    """
+
+    class Status(models.TextChoices):
+        PROCESSING = "processing", "Processing"
+        READY = "ready", "Ready"
+        FAILED = "failed", "Failed"
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="photos",
+    )
+    colour = models.ForeignKey(
+        Colour,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    is_primary = models.BooleanField(default=False)
+    alt_text = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Empty means product name and colour.",
+    )
+    original = models.CharField(max_length=255, help_text="Storage name.")
+    width = models.PositiveIntegerField()
+    height = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PROCESSING,
+    )
+    derivatives = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='[{"width": 400, "name": "<storage name>"}, ...]',
+    )
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product"],
+                condition=Q(is_primary=True),
+                name="catalog_one_primary_photo",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id}:{self.original}"
+
+    @property
+    def effective_alt_text(self) -> str:
+        if self.alt_text:
+            return self.alt_text
+        parts = [self.product.title]
+        if self.colour is not None:
+            parts.append(self.colour.name)
+        return " ".join(parts)
+
+    def file_names(self) -> list[str]:
+        return [self.original, *(d["name"] for d in self.derivatives)]
+
+    def derivative_urls(self) -> list[dict]:
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        return [
+            {"width": d["width"], "url": media_url(d["name"])} for d in self.derivatives
+        ]
+
+
+class PendingFileRemoval(models.Model):
+    """A stored file waiting out the grace period before it is deleted from disk."""
+
+    name = models.CharField(max_length=255)
+    remove_after = models.DateTimeField(db_index=True)
+
+    def __str__(self) -> str:
+        return self.name

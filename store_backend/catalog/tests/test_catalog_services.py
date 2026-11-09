@@ -15,6 +15,7 @@ from store_backend.api.errors import ConflictError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import SlugRedirect
+from store_backend.catalog.tests.conftest import add_ready_photo
 from store_backend.services import catalog
 
 pytestmark = pytest.mark.django_db
@@ -286,6 +287,7 @@ def test_kdv_rate_comes_from_class_unless_overridden(product):
 
 def test_publish_mirrors_to_oscar_visibility(product, kirmizi):
     v = catalog.create_variant(product, colour=kirmizi, size="M")
+    add_ready_photo(product)
     catalog.set_status(product, ProductStatus.PUBLISHED)
     product.refresh_from_db()
     v.refresh_from_db()

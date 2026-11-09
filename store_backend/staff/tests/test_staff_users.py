@@ -121,7 +121,9 @@ def test_deactivate_keeps_the_user_and_audits_it(owner, owner_api, staff_user):
 
 
 def test_a_deactivated_members_existing_token_stops_working(
-    owner_api, staff_user, api_for,
+    owner_api,
+    staff_user,
+    api_for,
 ):
     member_api = api_for(staff_user)
     owner_api.post(f"/api/admin/staff/{staff_user.pk}/deactivate")

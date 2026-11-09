@@ -7,6 +7,7 @@ from oscar.apps.catalogue.models import ProductClass
 from oscar.core.loading import get_class
 
 from store_backend.catalog.models import ProductStatus
+from store_backend.catalog.tests.conftest import add_ready_photo
 from store_backend.services import catalog
 from store_backend.services import pricing
 
@@ -147,6 +148,7 @@ def test_sold_out_variant_has_a_price_but_cannot_be_bought(variants):
 
 def test_parent_price_is_the_cheapest_variant(variants):
     product, _, _ = variants
+    add_ready_photo(product)
     catalog.set_status(product, ProductStatus.PUBLISHED)  # Oscar lists public children
     price = Selector().strategy().fetch_for_parent(product).price
     assert price.incl_tax == D("299.90")

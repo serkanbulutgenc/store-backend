@@ -1,0 +1,349 @@
+"""Product photos: upload rules, WebP derivatives, delivery URLs and delayed removal.
+
+The original upload is kept as it came. A background job (`process`) makes content-
+hashed WebP derivatives with EXIF stripped and orientation applied; if that fails the
+image is marked failed and the original stays usable. All URLs go through
+`media_url()` so a later move to object storage touches one function.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import io
+import logging
+import uuid
+from datetime import timedelta
+from typing import TYPE_CHECKING
+
+from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.db import transaction
+from django.db.models import Max
+from django.db.models import Q
+from django.utils import timezone
+from oscar.apps.catalogue.models import Product
+from PIL import Image
+from PIL import ImageOps
+from PIL import UnidentifiedImageError
+
+from store_backend.api.errors import ConflictError
+from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import Colour
+from store_backend.catalog.models import PendingFileRemoval
+from store_backend.catalog.models import ProductPhoto
+from store_backend.catalog.models import ProductStatus
+from store_backend.services import audit
+from store_backend.services import catalog
+
+if TYPE_CHECKING:
+    from django.core.files.uploadedfile import UploadedFile
+
+    from store_backend.users.models import User
+
+logger = logging.getLogger(__name__)
+
+MAX_BYTES = 15 * 1024 * 1024
+MAX_IMAGES = 12
+MIN_LONG_EDGE = 800
+WIDTHS = (400, 800, 1600)
+WEBP_QUALITY = 82
+MAX_ALT_LENGTH = 255
+
+_FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
+_HEIC_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
+_ROTATED_ORIENTATIONS = {5, 6, 7, 8}
+_ORIENTATION_TAG = 0x0112
+
+MSG_FORMAT = "Yalnızca JPEG, PNG veya WebP dosyaları yüklenebilir."
+MSG_HEIC = (
+    "HEIC biçimi desteklenmiyor. Fotoğrafı JPEG olarak kaydedip yeniden yükleyin "
+    "(iPhone: Ayarlar > Kamera > Biçimler > En Uyumlu)."
+)
+MSG_SIZE = "Dosya en fazla 15 MB olabilir."
+MSG_SMALL = f"Görselin uzun kenarı en az {MIN_LONG_EDGE} piksel olmalı."
+MSG_LIMIT = f"Bir ürüne en fazla {MAX_IMAGES} fotoğraf eklenebilir."
+
+
+def _register_heif() -> bool:
+    """Teach Pillow to read HEIC if `pillow-heif` is installed (optional)."""
+    try:
+        from pillow_heif import register_heif_opener  # noqa: PLC0415
+    except ImportError:
+        return False
+    register_heif_opener()
+    _FORMATS["HEIF"] = ".heic"
+    return True
+
+
+_HEIC = _register_heif()
+
+
+def heic_supported() -> bool:
+    return _HEIC
+
+
+def media_url(name: str) -> str:
+    """The public URL of a stored media file. The only place URLs are built."""
+    return default_storage.url(name)
+
+
+def _invalid(message: str) -> UnprocessableError:
+    return UnprocessableError(message, fields={"file": [message]})
+
+
+def _looks_like_heic(data: bytes) -> bool:
+    return data[4:8] == b"ftyp" and data[8:12] in _HEIC_BRANDS
+
+
+def _inspect(data: bytes) -> tuple[str, int, int]:
+    """Validate an upload and return (extension, width, height) after orientation."""
+    if len(data) > MAX_BYTES:
+        raise _invalid(MSG_SIZE)
+    try:
+        img = Image.open(io.BytesIO(data))
+        fmt = img.format
+        width, height = img.size
+        orientation = img.getexif().get(_ORIENTATION_TAG)
+        img.load()  # decode fully: catches truncated or corrupt files
+    except UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError:
+        raise _invalid(MSG_HEIC if _looks_like_heic(data) else MSG_FORMAT) from None
+    if fmt not in _FORMATS:
+        raise _invalid(MSG_FORMAT)
+    if max(width, height) < MIN_LONG_EDGE:
+        raise _invalid(MSG_SMALL)
+    if orientation in _ROTATED_ORIENTATIONS:
+        width, height = height, width
+    return _FORMATS[fmt], width, height
+
+
+# --- upload -------------------------------------------------------------------
+
+
+@transaction.atomic
+def upload(
+    actor: User,
+    product: Product,
+    file: UploadedFile,
+    *,
+    colour: Colour | None = None,
+) -> ProductPhoto:
+    """Validate and store the original, then queue the derivative job."""
+    data = file.read(MAX_BYTES + 1)
+    extension, width, height = _inspect(data)
+    Product.objects.select_for_update().get(pk=product.pk)  # serialise uploads
+    existing = ProductPhoto.objects.filter(product=product)
+    if existing.count() >= MAX_IMAGES:
+        raise _invalid(MSG_LIMIT)
+    top = existing.aggregate(top=Max("sort_order"))["top"] or 0
+    name = f"products/{uuid.uuid4().hex}{extension}"
+    image = ProductPhoto.objects.create(
+        product=product,
+        colour=colour,
+        sort_order=top + 1,
+        is_primary=not existing.exists(),
+        original=name,
+        width=width,
+        height=height,
+    )
+    default_storage.save(name, ContentFile(data))
+    audit.record(
+        actor,
+        audit.Action.PHOTO_UPLOAD,
+        target=image,
+        summary=f"{product.title}: fotoğraf yüklendi",
+        after={"product_id": product.pk, "image_id": image.pk},
+    )
+    transaction.on_commit(lambda: _enqueue(image.pk))
+    return image
+
+
+def _enqueue(image_id: int) -> None:
+    from store_backend.catalog.tasks import process_product_image  # noqa: PLC0415
+
+    process_product_image.delay(image_id)
+
+
+# --- processing -------------------------------------------------------------
+
+
+def _clean(img: Image.Image) -> Image.Image:
+    """Orientation applied, colour mode WebP can store, no metadata."""
+    img = ImageOps.exif_transpose(img)
+    has_alpha = img.mode in ("RGBA", "LA", "PA") or "transparency" in img.info
+    img = img.convert("RGBA" if has_alpha else "RGB")
+    img.info = {}
+    return img
+
+
+def process(image_id: int) -> None:
+    """Make the WebP derivatives of one image. Never raises: a failure marks the
+    image failed and leaves the original in place.
+    """
+    image = ProductPhoto.objects.filter(pk=image_id).first()
+    if image is None:
+        return
+    written: list[str] = []
+    try:
+        with default_storage.open(image.original) as f:
+            opened = Image.open(f)
+            opened.load()
+        img = _clean(opened)
+        widths = [w for w in WIDTHS if w <= img.width] or [img.width]
+        derivatives = []
+        for width in widths:
+            height = max(1, round(img.height * width / img.width))
+            resized = img if width == img.width else img.resize((width, height))
+            buf = io.BytesIO()
+            resized.save(buf, "WEBP", quality=WEBP_QUALITY)
+            data = buf.getvalue()
+            name = f"products/{hashlib.sha256(data).hexdigest()[:16]}-{width}.webp"
+            if not default_storage.exists(name):
+                default_storage.save(name, ContentFile(data))
+                written.append(name)
+            derivatives.append({"width": width, "name": name})
+    except Exception as exc:
+        logger.exception("Image %s could not be processed", image_id)
+        for name in written:
+            default_storage.delete(name)
+        ProductPhoto.objects.filter(pk=image_id).update(
+            status=ProductPhoto.Status.FAILED,
+            error=f"{type(exc).__name__}: {exc}"[:500],
+            derivatives=[],
+        )
+        return
+    ProductPhoto.objects.filter(pk=image_id).update(
+        status=ProductPhoto.Status.READY,
+        error="",
+        derivatives=derivatives,
+        width=img.width,
+        height=img.height,
+    )
+
+
+# --- editing ------------------------------------------------------------------
+
+_UNSET = object()
+
+
+@transaction.atomic
+def update(
+    image: ProductPhoto,
+    *,
+    colour: Colour | object | None = _UNSET,
+    alt_text: str | object = _UNSET,
+    is_primary: bool | object = _UNSET,
+) -> ProductPhoto:
+    if colour is not _UNSET:
+        image.colour = colour  # type: ignore[assignment]
+    if alt_text is not _UNSET:
+        alt = str(alt_text).strip()
+        if len(alt) > MAX_ALT_LENGTH:
+            msg = f"Alternatif metin en fazla {MAX_ALT_LENGTH} karakter olabilir."
+            raise UnprocessableError(msg, fields={"alt_text": [msg]})
+        image.alt_text = alt
+    if is_primary is True and not image.is_primary:
+        Product.objects.select_for_update().get(pk=image.product_id)
+        ProductPhoto.objects.filter(product_id=image.product_id).update(
+            is_primary=False,
+        )
+        image.is_primary = True
+    elif is_primary is False and image.is_primary:
+        msg = "Başka bir fotoğrafı ana fotoğraf yapın."
+        raise UnprocessableError(msg, fields={"is_primary": [msg]})
+    image.save()
+    return image
+
+
+@transaction.atomic
+def reorder(product: Product, ids: list[int]) -> list[ProductPhoto]:
+    """Set the display order; `ids` must be exactly the Product's images."""
+    images = {i.pk: i for i in ProductPhoto.objects.filter(product=product)}
+    if len(ids) != len(set(ids)) or set(ids) != set(images):
+        msg = "Sıralama tüm fotoğrafları bir kez içermelidir."
+        raise UnprocessableError(msg, fields={"ids": [msg]})
+    ordered = [images[pk] for pk in ids]
+    for position, image in enumerate(ordered, start=1):
+        image.sort_order = position
+    ProductPhoto.objects.bulk_update(ordered, ["sort_order"])
+    return ordered
+
+
+# --- delete and delayed removal ---------------------------------------------
+
+
+def _ready_images(product_id: int):
+    return ProductPhoto.objects.filter(
+        product_id=product_id,
+        status=ProductPhoto.Status.READY,
+    )
+
+
+@transaction.atomic
+def delete(actor: User, image: ProductPhoto) -> None:
+    """Delete the record now; its files go after the grace period (see signals)."""
+    product = (
+        Product.objects.select_for_update(of=("self",))
+        .select_related("profile")
+        .get(pk=image.product_id)
+    )
+    published = product.profile.status == ProductStatus.PUBLISHED
+    others = _ready_images(product.pk).exclude(pk=image.pk).exists()
+    if published and image.status == ProductPhoto.Status.READY and not others:
+        msg = "Yayındaki ürünün son fotoğrafı silinemez."
+        raise ConflictError(msg, code="last_image")
+    audit.record(
+        actor,
+        audit.Action.PHOTO_DELETE,
+        target=image,
+        summary=f"{product.title}: fotoğraf silindi",
+        before={"product_id": product.pk, "image_id": image.pk},
+    )
+    was_primary = image.is_primary
+    image.delete()
+    if was_primary:
+        successor = ProductPhoto.objects.filter(product=product).first()
+        if successor is not None:
+            ProductPhoto.objects.filter(pk=successor.pk).update(is_primary=True)
+
+
+def schedule_removal(image: ProductPhoto) -> None:
+    """Queue an image's files for deletion after the grace period."""
+    due = timezone.now() + timedelta(days=settings.MEDIA_REMOVAL_GRACE_DAYS)
+    PendingFileRemoval.objects.bulk_create(
+        PendingFileRemoval(name=name, remove_after=due) for name in image.file_names()
+    )
+
+
+def _in_use(name: str) -> bool:
+    return ProductPhoto.objects.filter(
+        Q(original=name) | Q(derivatives__contains=[{"name": name}]),
+    ).exists()
+
+
+def purge_removed_files() -> int:
+    """Delete files whose grace period is over, unless an image still uses them
+    (identical photos share content-hashed derivative names). Returns rows handled.
+    """
+    due = list(PendingFileRemoval.objects.filter(remove_after__lte=timezone.now()))
+    for pending in due:
+        if not _in_use(pending.name):
+            default_storage.delete(pending.name)
+    PendingFileRemoval.objects.filter(pk__in=[p.pk for p in due]).delete()
+    return len(due)
+
+
+# --- publish rule -----------------------------------------------------------
+
+
+def require_ready_image(product: Product) -> None:
+    if _ready_images(product.pk).exists():
+        return
+    msg = "Yayınlamak için en az bir fotoğraf ekleyin."
+    if ProductPhoto.objects.filter(product=product).exists():
+        msg = "Fotoğraflar işleniyor veya işlenemedi; yayınlamadan önce kontrol edin."
+    raise UnprocessableError(msg, fields={"status": [msg]})
+
+
+if require_ready_image not in catalog.PUBLISH_CHECKS:
+    catalog.PUBLISH_CHECKS.append(require_ready_image)

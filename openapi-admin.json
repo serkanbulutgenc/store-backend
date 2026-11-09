@@ -150,6 +150,40 @@
         "title": "ColourPatch",
         "type": "object"
       },
+      "ImageDerivativeOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "url"
+        ],
+        "title": "ImageDerivativeOut",
+        "type": "object"
+      },
+      "ImageOrderIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ImageOrderIn",
+        "type": "object"
+      },
       "Input": {
         "properties": {
           "page": {
@@ -476,6 +510,127 @@
           "is_hygiene"
         ],
         "title": "ProductClassOut",
+        "type": "object"
+      },
+      "ProductImageOut": {
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          },
+          "colour": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ColourOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "custom_alt_text": {
+            "title": "Custom Alt Text",
+            "type": "string"
+          },
+          "derivatives": {
+            "items": {
+              "$ref": "#/components/schemas/ImageDerivativeOut"
+            },
+            "title": "Derivatives",
+            "type": "array"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_primary": {
+            "title": "Is Primary",
+            "type": "boolean"
+          },
+          "original_url": {
+            "title": "Original Url",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "integer"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "colour",
+          "sort_order",
+          "is_primary",
+          "status",
+          "alt_text",
+          "custom_alt_text",
+          "original_url",
+          "width",
+          "height",
+          "derivatives",
+          "error"
+        ],
+        "title": "ProductImageOut",
+        "type": "object"
+      },
+      "ProductImagePatch": {
+        "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          },
+          "colour_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colour Id"
+          },
+          "is_primary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Primary"
+          }
+        },
+        "title": "ProductImagePatch",
         "type": "object"
       },
       "ProductIn": {
@@ -1650,6 +1805,81 @@
         ]
       }
     },
+    "/api/admin/images/{image_id}": {
+      "delete": {
+        "operationId": "catalog_delete_product_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Product Image",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "catalog_update_product_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductImagePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Product Image",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/admin/me": {
       "get": {
         "description": "The caller's role and permission list. The UI hides controls from it; the API\nstill enforces every permission. An Owner without TOTP gets an empty list.",
@@ -1937,6 +2167,166 @@
           }
         ],
         "summary": "Update Product",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/products/{product_id}/images": {
+      "get": {
+        "operationId": "catalog_list_product_images",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductImageOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Product Images",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "post": {
+        "description": "One photo per request (JPEG, PNG or WebP); processing continues in the\nbackground and the image reports `processing` until its derivatives exist.",
+        "operationId": "catalog_upload_product_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "colour_id": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Colour Id"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductImageOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Product Image",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/products/{product_id}/images/order": {
+      "post": {
+        "operationId": "catalog_reorder_product_images",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductImageOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reorder Product Images",
         "tags": [
           "catalog"
         ]

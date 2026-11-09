@@ -6,6 +6,7 @@ import pytest
 from oscar.apps.catalogue.models import ProductClass
 
 from store_backend.catalog.models import ProductStatus
+from store_backend.catalog.tests.conftest import add_ready_photo
 from store_backend.services import audit
 from store_backend.services import catalog
 from store_backend.staff.models import AuditEntry
@@ -120,6 +121,7 @@ def test_staff_cannot_use_supplier_and_colour_management(staff_api, seed):
 
 
 def test_staff_can_publish_but_not_archive_or_unarchive(staff_api, owner_api, seed):
+    add_ready_photo(seed["product"])
     url = f"{BASE}/products/{seed['product'].pk}/status"
     assert staff_api.post(url, {"status": "published"}).status_code == HTTPStatus.OK
     assert (

@@ -1,4 +1,4 @@
-# ruff: noqa: TC001, TC003
+# ruff: noqa: TC001, TC002, TC003
 """Dashboard catalog endpoints: Products and Variants, Categories, Brands, Suppliers,
 the Colour list, stock adjustments and the low-stock list.
 
@@ -15,8 +15,11 @@ from django.db.models import F
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from ninja import Field
+from ninja import File
+from ninja import Form
 from ninja import Router
 from ninja import Schema
+from ninja.files import UploadedFile
 from ninja.pagination import paginate
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
@@ -30,10 +33,12 @@ from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
 from store_backend.catalog.models import Brand
 from store_backend.catalog.models import Colour
+from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import Supplier
 from store_backend.catalog.sizes import sizes_for
 from store_backend.services import catalog
+from store_backend.services import media
 from store_backend.services import stock
 from store_backend.staff.permissions import Perm
 from store_backend.staff.permissions import omit_owner_only
@@ -751,3 +756,145 @@ def _low_stock_dict(v: Product) -> dict:
         "on_hand": v.on_hand,
         "threshold": v.parent.profile.low_stock_threshold,
     }
+
+
+# --- product photos -------------------------------------------------------------
+
+
+class ImageDerivativeOut(Schema):
+    width: int
+    url: str
+
+
+class ProductImageOut(Schema):
+    id: int
+    product_id: int
+    colour: ColourOut | None
+    sort_order: int
+    is_primary: bool
+    status: str
+    alt_text: str  # what is shown: the custom text, else product name and colour
+    custom_alt_text: str  # empty when the default applies
+    original_url: str
+    width: int
+    height: int
+    derivatives: list[ImageDerivativeOut]
+    error: str
+
+
+class ProductImagePatch(Schema):
+    colour_id: int | None = None
+    alt_text: str | None = None
+    is_primary: bool | None = None
+
+
+class ImageOrderIn(Schema):
+    ids: list[int]
+
+
+def _image_dict(image: ProductPhoto) -> dict:
+    return {
+        "id": image.pk,
+        "product_id": image.product_id,
+        "colour": _colour(image.colour) if image.colour else None,
+        "sort_order": image.sort_order,
+        "is_primary": image.is_primary,
+        "status": image.status,
+        "alt_text": image.effective_alt_text,
+        "custom_alt_text": image.alt_text,
+        "original_url": media.media_url(image.original),
+        "width": image.width,
+        "height": image.height,
+        "derivatives": image.derivative_urls(),
+        "error": image.error,
+    }
+
+
+def _images(product: Product) -> list[ProductPhoto]:
+    return list(
+        ProductPhoto.objects.filter(product=product).select_related(
+            "colour",
+            "product",
+        ),
+    )
+
+
+def _image(pk: int) -> ProductPhoto:
+    return get_object_or_404(
+        ProductPhoto.objects.select_related("colour", "product"),
+        pk=pk,
+    )
+
+
+@router.get(
+    "/products/{product_id}/images",
+    auth=requires(Perm.VIEW_PRODUCTS),
+    operation_id="catalog_list_product_images",
+    response=list[ProductImageOut],
+)
+def list_product_images(request, product_id: int):
+    return [_image_dict(i) for i in _images(_product(product_id))]
+
+
+@router.post(
+    "/products/{product_id}/images",
+    auth=requires(Perm.MANAGE_PRODUCT_PHOTOS),
+    operation_id="catalog_upload_product_image",
+    response={201: ProductImageOut},
+)
+def upload_product_image(
+    request,
+    product_id: int,
+    file: File[UploadedFile],
+    colour_id: Form[int | None] = None,
+):
+    """One photo per request (JPEG, PNG or WebP); processing continues in the
+    background and the image reports `processing` until its derivatives exist.
+    """
+    product = _product(product_id)
+    colour = _ref(Colour, colour_id, "colour_id")
+    image = media.upload(request.auth, product, file, colour=colour)
+    return 201, _image_dict(_image(image.pk))
+
+
+@router.patch(
+    "/images/{image_id}",
+    auth=requires(Perm.MANAGE_PRODUCT_PHOTOS),
+    operation_id="catalog_update_product_image",
+    response=ProductImageOut,
+)
+def update_product_image(request, image_id: int, data: ProductImagePatch):
+    image = _image(image_id)
+    sent = data.model_dump(exclude_unset=True)
+    changes: dict[str, Any] = {}
+    if "colour_id" in sent:
+        changes["colour"] = _ref(Colour, sent["colour_id"], "colour_id")
+    if sent.get("alt_text") is not None:
+        changes["alt_text"] = sent["alt_text"]
+    if sent.get("is_primary") is not None:
+        changes["is_primary"] = sent["is_primary"]
+    media.update(image, **changes)
+    return _image_dict(_image(image_id))
+
+
+@router.delete(
+    "/images/{image_id}",
+    auth=requires(Perm.MANAGE_PRODUCT_PHOTOS),
+    operation_id="catalog_delete_product_image",
+    response={204: None},
+)
+def delete_product_image(request, image_id: int):
+    media.delete(request.auth, _image(image_id))
+    return 204, None
+
+
+@router.post(
+    "/products/{product_id}/images/order",
+    auth=requires(Perm.MANAGE_PRODUCT_PHOTOS),
+    operation_id="catalog_reorder_product_images",
+    response=list[ProductImageOut],
+)
+def reorder_product_images(request, product_id: int, data: ImageOrderIn):
+    product = _product(product_id)
+    media.reorder(product, data.ids)
+    return [_image_dict(i) for i in _images(product)]
