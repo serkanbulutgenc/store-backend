@@ -35,6 +35,7 @@ from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.signals import has_orders
 from store_backend.catalog.sizes import sizes_for
 from store_backend.services import audit
+from store_backend.services import shop_settings
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -246,9 +247,14 @@ def create_product(  # noqa: PLR0913
         product_class=product_class,
         is_public=False,
     )
-    extra = {}
-    if low_stock_threshold is not None:
-        extra["low_stock_threshold"] = low_stock_threshold
+    # An unset threshold takes the Store settings default.
+    extra = {
+        "low_stock_threshold": (
+            low_stock_threshold
+            if low_stock_threshold is not None
+            else shop_settings.get().low_stock_default
+        ),
+    }
     ProductProfile.objects.create(
         product=product,
         slug=final_slug,

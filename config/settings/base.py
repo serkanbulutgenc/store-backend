@@ -133,6 +133,7 @@ LOCAL_APPS = [
     "store_backend.api",
     "store_backend.staff",
     "store_backend.catalog",
+    "store_backend.shop",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

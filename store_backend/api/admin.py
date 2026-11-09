@@ -16,3 +16,4 @@ admin_api = create_api(
 
 admin_api.add_router("/", "store_backend.staff.api.router")
 admin_api.add_router("/", "store_backend.catalog.api.router")
+admin_api.add_router("/", "store_backend.shop.api.router")

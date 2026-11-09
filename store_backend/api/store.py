@@ -19,3 +19,4 @@ def get_csrf(request):
 
 
 store_api.add_router("/", "store_backend.catalog.store_api.router")
+store_api.add_router("/", "store_backend.shop.store_api.router")

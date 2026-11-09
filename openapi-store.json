@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "BannerOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image_url",
+          "link",
+          "alt"
+        ],
+        "title": "BannerOut",
+        "type": "object"
+      },
       "BrandFacet": {
         "properties": {
           "count": {
@@ -681,6 +704,114 @@
         "title": "ProductPageOut",
         "type": "object"
       },
+      "PublicSettingsOut": {
+        "properties": {
+          "banner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BannerOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "free_shipping_threshold": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Shipping Threshold"
+          },
+          "legal_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Legal Versions",
+            "type": "object"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/SellerOut"
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipping_fee",
+          "free_shipping_threshold",
+          "cod_fee",
+          "banner",
+          "seller",
+          "legal_versions"
+        ],
+        "title": "PublicSettingsOut",
+        "type": "object"
+      },
+      "SellerOut": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "complaint_contact": {
+            "title": "Complaint Contact",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "return_carrier": {
+            "title": "Return Carrier",
+            "type": "string"
+          },
+          "tax_number": {
+            "title": "Tax Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "tax_number",
+          "address",
+          "email",
+          "phone",
+          "return_carrier",
+          "complaint_contact"
+        ],
+        "title": "SellerOut",
+        "type": "object"
+      },
       "SizeFacet": {
         "properties": {
           "count": {
@@ -972,6 +1103,29 @@
         "summary": "Get Product",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/store/settings": {
+      "get": {
+        "description": "What the storefront needs: fees, banner, seller identity and Legal versions.\nBank details, KDV rate, recipients and the stock default stay private.",
+        "operationId": "settings_get_public",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSettingsOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Public Settings",
+        "tags": [
+          "settings"
         ]
       }
     }

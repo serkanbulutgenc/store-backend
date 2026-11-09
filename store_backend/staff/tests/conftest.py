@@ -51,6 +51,15 @@ class Api:
             **kwargs,
         )
 
+    def patch(self, path, data=None, **kwargs):
+        return self.client.patch(
+            path,
+            data or {},
+            content_type="application/json",
+            headers=self.headers,
+            **kwargs,
+        )
+
 
 @pytest.fixture
 def api_for(log_in):

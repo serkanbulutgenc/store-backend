@@ -1102,6 +1102,372 @@
         "title": "ProductStatus",
         "type": "string"
       },
+      "SettingsOut": {
+        "properties": {
+          "bank_account_holder": {
+            "title": "Bank Account Holder",
+            "type": "string"
+          },
+          "bank_iban": {
+            "title": "Bank Iban",
+            "type": "string"
+          },
+          "bank_name": {
+            "title": "Bank Name",
+            "type": "string"
+          },
+          "banner_alt": {
+            "title": "Banner Alt",
+            "type": "string"
+          },
+          "banner_image_url": {
+            "title": "Banner Image Url",
+            "type": "string"
+          },
+          "banner_link": {
+            "title": "Banner Link",
+            "type": "string"
+          },
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "complaint_contact": {
+            "title": "Complaint Contact",
+            "type": "string"
+          },
+          "fee_kdv_rate": {
+            "title": "Fee Kdv Rate",
+            "type": "string"
+          },
+          "free_shipping_threshold": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Shipping Threshold"
+          },
+          "legal_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Legal Versions",
+            "type": "object"
+          },
+          "low_stock_default": {
+            "title": "Low Stock Default",
+            "type": "integer"
+          },
+          "notification_emails": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notification Emails",
+            "type": "array"
+          },
+          "return_carrier": {
+            "title": "Return Carrier",
+            "type": "string"
+          },
+          "seller_address": {
+            "title": "Seller Address",
+            "type": "string"
+          },
+          "seller_email": {
+            "title": "Seller Email",
+            "type": "string"
+          },
+          "seller_name": {
+            "title": "Seller Name",
+            "type": "string"
+          },
+          "seller_phone": {
+            "title": "Seller Phone",
+            "type": "string"
+          },
+          "seller_tax_number": {
+            "title": "Seller Tax Number",
+            "type": "string"
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipping_fee",
+          "free_shipping_threshold",
+          "cod_fee",
+          "fee_kdv_rate",
+          "low_stock_default",
+          "bank_name",
+          "bank_account_holder",
+          "bank_iban",
+          "notification_emails",
+          "banner_image_url",
+          "banner_link",
+          "banner_alt",
+          "seller_name",
+          "seller_tax_number",
+          "seller_address",
+          "seller_email",
+          "seller_phone",
+          "return_carrier",
+          "complaint_contact",
+          "legal_versions"
+        ],
+        "title": "SettingsOut",
+        "type": "object"
+      },
+      "SettingsPatch": {
+        "description": "Every field optional; only the ones sent change. Money arrives as strings.",
+        "properties": {
+          "bank_account_holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Account Holder"
+          },
+          "bank_iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Iban"
+          },
+          "bank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Name"
+          },
+          "banner_alt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Alt"
+          },
+          "banner_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Image Url"
+          },
+          "banner_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Link"
+          },
+          "cod_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cod Fee"
+          },
+          "complaint_contact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complaint Contact"
+          },
+          "fee_kdv_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee Kdv Rate"
+          },
+          "free_shipping_threshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Shipping Threshold"
+          },
+          "legal_versions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Versions"
+          },
+          "low_stock_default": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Stock Default"
+          },
+          "notification_emails": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notification Emails"
+          },
+          "return_carrier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Carrier"
+          },
+          "seller_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller Address"
+          },
+          "seller_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller Email"
+          },
+          "seller_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller Name"
+          },
+          "seller_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller Phone"
+          },
+          "seller_tax_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller Tax Number"
+          },
+          "shipping_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipping Fee"
+          }
+        },
+        "title": "SettingsPatch",
+        "type": "object"
+      },
       "StaffUserOut": {
         "properties": {
           "email": {
@@ -2424,6 +2790,68 @@
         "summary": "Create Variant",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/admin/settings": {
+      "get": {
+        "operationId": "settings_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "settings_update",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Settings",
+        "tags": [
+          "settings"
         ]
       }
     },
