@@ -318,6 +318,18 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
 # --- product page --------------------------------------------------------------
 
 
+def category_tree() -> list[dict]:
+    """Top-level Categories with their children, in tree order, for the menu."""
+    roots: list[dict] = []
+    for c in Category.objects.all().order_by("path"):
+        node = {"name": c.name, "slug": c.slug, "children": []}
+        if c.depth == 1:
+            roots.append(node)
+        else:
+            roots[-1]["children"].append(node)
+    return roots
+
+
 def detail(slug: str) -> dict:
     """A published Product for its page; drafts and archived Products are not found."""
     profile = (

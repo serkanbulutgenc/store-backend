@@ -116,6 +116,27 @@ def list_products(request, params: Query[ProductListQuery]):
     return browse.listing(filters, sort=params.sort, page=params.page)
 
 
+class CategoryChildOut(Schema):
+    name: str
+    slug: str
+
+
+class CategoryNodeOut(Schema):
+    name: str
+    slug: str
+    children: list[CategoryChildOut]
+
+
+@router.get(
+    "/categories",
+    operation_id="catalog_list_categories",
+    response=list[CategoryNodeOut],
+)
+def list_categories(request):
+    """The two-level category tree for the header menu and the homepage."""
+    return browse.category_tree()
+
+
 class BrandOut(Schema):
     id: int
     name: str

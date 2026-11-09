@@ -63,6 +63,50 @@
         "title": "CardImageOut",
         "type": "object"
       },
+      "CategoryChildOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "CategoryChildOut",
+        "type": "object"
+      },
+      "CategoryNodeOut": {
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryChildOut"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "children"
+        ],
+        "title": "CategoryNodeOut",
+        "type": "object"
+      },
       "ColourFacet": {
         "properties": {
           "count": {
@@ -687,6 +731,33 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/store/categories": {
+      "get": {
+        "description": "The two-level category tree for the header menu and the homepage.",
+        "operationId": "catalog_list_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryNodeOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Categories",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/store/csrf": {
       "get": {
         "description": "CSRF token for guest endpoints. The cookie is HttpOnly, so JS cannot read it.",
