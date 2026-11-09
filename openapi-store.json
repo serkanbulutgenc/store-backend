@@ -1,6 +1,20 @@
 {
   "components": {
-    "schemas": {}
+    "schemas": {
+      "CsrfOut": {
+        "properties": {
+          "csrf_token": {
+            "title": "Csrf Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "csrf_token"
+        ],
+        "title": "CsrfOut",
+        "type": "object"
+      }
+    }
   },
   "info": {
     "description": "",
@@ -8,6 +22,27 @@
     "version": "1"
   },
   "openapi": "3.1.0",
-  "paths": {},
+  "paths": {
+    "/api/store/csrf": {
+      "get": {
+        "description": "CSRF token for guest endpoints. The cookie is HttpOnly, so JS cannot read it.",
+        "operationId": "auth_get_csrf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsrfOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Csrf"
+      }
+    }
+  },
   "servers": []
 }

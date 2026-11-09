@@ -15,6 +15,8 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["auratekstil.com"])
 CSRF_TRUSTED_ORIGINS = [
     env.str("DJANGO_FRONTEND_ORIGIN", default="https://auratekstil.com"),
 ]
+# allauth's OpenAPI document is for development; don't publish it.
+HEADLESS_SERVE_SPECIFICATION = False
 # Oscar's signed basket cookie.
 OSCAR_BASKET_COOKIE_SECURE = True
 

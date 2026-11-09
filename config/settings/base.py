@@ -93,6 +93,7 @@ THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
     "allauth.mfa",
+    "allauth.headless",
     "allauth.socialaccount",
     "django_celery_beat",
     "corsheaders",
@@ -188,6 +189,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "store_backend.users.middleware.SessionTokenMiddleware",
     "oscar.apps.basket.middleware.BasketMiddleware",
 ]
 
@@ -388,6 +390,27 @@ OSCAR_HOMEPAGE = "/"
 OSCAR_ALLOW_ANON_CHECKOUT = True
 OSCAR_BASKET_COOKIE_LIFETIME = 14 * 24 * 60 * 60
 OSCAR_DEFAULT_CURRENCY = "TRY"
+
+# allauth headless: app mode only. The Start server holds the session token and sends
+# it as `X-Session-Token`; there is no browser (cookie) client.
+# https://docs.allauth.org/en/latest/headless/
+HEADLESS_CLIENTS = ("app",)
+HEADLESS_SERVE_SPECIFICATION = True
+# Email links open storefront pages (the account area is built in ticket 25).
+HEADLESS_FRONTEND_URLS = {
+    "account_confirm_email": f"{FRONTEND_ORIGIN}/hesap/eposta-dogrula/{{key}}",
+    "account_reset_password": f"{FRONTEND_ORIGIN}/hesap/sifre-sifirla",
+    "account_reset_password_from_key": f"{FRONTEND_ORIGIN}/hesap/sifre-sifirla/{{key}}",
+    "account_signup": f"{FRONTEND_ORIGIN}/hesap/kayit",
+}
+# Rate limits for the abuse-prone endpoints (allauth syntax: rate/period/scope).
+# The cache is Redis in production. Other limits keep allauth's defaults.
+ACCOUNT_RATE_LIMITS = {
+    "login": "10/m/ip",
+    "login_failed": "10/m/ip,5/5m/key",
+    "signup": "5/m/ip",
+    "reset_password": "5/m/ip,3/m/key",
+}
 
 # Your stuff...
 # ------------------------------------------------------------------------------

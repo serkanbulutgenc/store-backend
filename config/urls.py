@@ -23,6 +23,8 @@ urlpatterns = [
     # User management
     path("users/", include("store_backend.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
+    # allauth headless, app mode only (HEADLESS_CLIENTS): /_allauth/app/v1/...
+    path("_allauth/", include("allauth.headless.urls")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files
