@@ -3,15 +3,9 @@
 from http import HTTPStatus
 
 import pytest
-from django.contrib.auth.models import AnonymousUser
 from django.core.management import CommandError
 from django.core.management import call_command
 from django.urls import reverse
-from ninja import Router
-from ninja.testing import TestClient
-
-from store_backend.api.admin import StaffSessionAuth
-from store_backend.api.base import create_api
 
 pytestmark = pytest.mark.django_db
 
@@ -36,44 +30,6 @@ def test_each_api_serves_its_own_openapi_document(
     assert url == f"{prefix}openapi.json"
     assert response.status_code == HTTPStatus.OK
     assert response.json()["info"]["title"] == title
-
-
-def _staff_gated_client():
-    api = create_api(title="T", urls_namespace="gate_api", auth=StaffSessionAuth())
-    router = Router()
-
-    @router.get("/x", operation_id="gate_x", response={200: dict})
-    def x(request):
-        return {"ok": True}
-
-    api.add_router("/", router)
-    return TestClient(api)
-
-
-def test_admin_auth_rejects_anonymous_with_the_envelope():
-    response = _staff_gated_client().get("/x", user=AnonymousUser())
-
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
-    assert response.json() == {
-        "code": "unauthorized",
-        "message": "Oturum açmanız gerekiyor.",
-        "fields": {},
-    }
-
-
-def test_admin_auth_forbids_signed_in_non_staff(user):
-    response = _staff_gated_client().get("/x", user=user)
-
-    assert response.status_code == HTTPStatus.FORBIDDEN
-    assert response.json()["code"] == "forbidden"
-
-
-def test_admin_auth_accepts_active_staff(user):
-    user.is_staff = True
-
-    response = _staff_gated_client().get("/x", user=user)
-
-    assert response.status_code == HTTPStatus.OK
 
 
 def test_committed_specs_match_the_code():

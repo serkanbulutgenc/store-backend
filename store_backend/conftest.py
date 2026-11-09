@@ -33,17 +33,21 @@ PASSWORD = "correct-horse-battery-staple"  # noqa: S105
 LOGIN_URL = "/_allauth/app/v1/auth/login"
 
 
-@pytest.fixture
-def customer(db) -> User:
-    """A customer with a verified email address."""
-    customer = UserFactory.create(password=PASSWORD)
+def make_verified_user(**kwargs) -> User:
+    """A user with a known password and a verified email address."""
+    user = UserFactory.create(password=PASSWORD, **kwargs)
     EmailAddress.objects.create(
-        user=customer,
-        email=customer.email,
+        user=user,
+        email=user.email,
         verified=True,
         primary=True,
     )
-    return customer
+    return user
+
+
+@pytest.fixture
+def customer(db) -> User:
+    return make_verified_user()
 
 
 @pytest.fixture
