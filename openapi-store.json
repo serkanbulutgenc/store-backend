@@ -21,6 +21,73 @@
         "title": "AddIn",
         "type": "object"
       },
+      "AddressIn": {
+        "properties": {
+          "il": {
+            "maxLength": 100,
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "maxLength": 100,
+            "title": "Ilce",
+            "type": "string"
+          },
+          "mahalle": {
+            "maxLength": 150,
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "postal_code": {
+            "default": "",
+            "maxLength": 10,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "maxLength": 200,
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "il",
+          "ilce",
+          "mahalle",
+          "street"
+        ],
+        "title": "AddressIn",
+        "type": "object"
+      },
+      "BankOut": {
+        "properties": {
+          "account_holder": {
+            "title": "Account Holder",
+            "type": "string"
+          },
+          "iban": {
+            "title": "Iban",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reference": {
+            "description": "Write this Order number in the transfer.",
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "account_holder",
+          "iban",
+          "reference"
+        ],
+        "title": "BankOut",
+        "type": "object"
+      },
       "BannerOut": {
         "properties": {
           "alt": {
@@ -283,6 +350,75 @@
         "title": "CategoryNodeOut",
         "type": "object"
       },
+      "CheckoutIn": {
+        "properties": {
+          "billing_address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressIn"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit when billing is the same as shipping."
+          },
+          "cod_fee_consent": {
+            "default": false,
+            "description": "Required for cash on delivery, even when the fee is zero.",
+            "title": "Cod Fee Consent",
+            "type": "boolean"
+          },
+          "contract_acknowledged": {
+            "description": "The unticked, mandatory distance-sales contract box.",
+            "title": "Contract Acknowledged",
+            "type": "boolean"
+          },
+          "email": {
+            "maxLength": 254,
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 150,
+            "title": "Full Name",
+            "type": "string"
+          },
+          "marketing_consent": {
+            "default": false,
+            "title": "Marketing Consent",
+            "type": "boolean"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "phone": {
+            "maxLength": 30,
+            "title": "Phone",
+            "type": "string"
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/AddressIn"
+          },
+          "website": {
+            "default": "",
+            "description": "Honeypot: hidden from people, must stay empty.",
+            "maxLength": 200,
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "email",
+          "phone",
+          "shipping_address",
+          "payment_method",
+          "contract_acknowledged"
+        ],
+        "title": "CheckoutIn",
+        "type": "object"
+      },
       "ColourFacet": {
         "properties": {
           "count": {
@@ -414,6 +550,102 @@
         "title": "ImageSizeOut",
         "type": "object"
       },
+      "OrderPlacedOut": {
+        "properties": {
+          "bank": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "items_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Items Total",
+            "type": "string"
+          },
+          "kdv_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Kdv Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PlacedLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_status": {
+            "title": "Payment Status",
+            "type": "string"
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "status",
+          "payment_status",
+          "payment_method",
+          "email",
+          "lines",
+          "items_total",
+          "shipping_fee",
+          "cod_fee",
+          "total",
+          "kdv_total",
+          "bank"
+        ],
+        "title": "OrderPlacedOut",
+        "type": "object"
+      },
       "PagePhotoOut": {
         "properties": {
           "alt": {
@@ -513,6 +745,65 @@
           "remaining"
         ],
         "title": "PageVariantOut",
+        "type": "object"
+      },
+      "PaymentMethod": {
+        "enum": [
+          "bank_transfer",
+          "cod"
+        ],
+        "title": "PaymentMethod",
+        "type": "string"
+      },
+      "PlacedLineOut": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "line_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "title",
+          "colour",
+          "size",
+          "quantity",
+          "unit_price",
+          "line_total"
+        ],
+        "title": "PlacedLineOut",
         "type": "object"
       },
       "PriceFacet": {
@@ -1225,6 +1516,44 @@
         "summary": "List Categories",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/store/checkout": {
+      "post": {
+        "description": "Place the Order for the current basket.\n\n409 when stock changed since the basket was filled (the basket is left as is);\n422 with `fields` for form errors; 429 when this address tries too often.",
+        "operationId": "checkout_place_order",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPlacedOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Place Order",
+        "tags": [
+          "checkout"
         ]
       }
     },

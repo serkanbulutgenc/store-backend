@@ -76,3 +76,100 @@ class StoreSettings(models.Model):
 
     def __str__(self) -> str:
         return "Store settings"
+
+
+class PaymentMethod(models.TextChoices):
+    BANK_TRANSFER = "bank_transfer", "Havale/EFT"
+    COD = "cod", "Kapıda ödeme"
+
+
+class ConsentRecord(models.Model):
+    """What the Shopper agreed to at checkout, with proof of when and from where."""
+
+    order = models.OneToOneField(
+        "order.Order",
+        on_delete=models.PROTECT,
+        related_name="consent",
+    )
+    contract_acknowledged = models.BooleanField()
+    cod_fee_consent = models.BooleanField(default=False)
+    marketing_consent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Set when the optional marketing box was ticked.",
+    )
+    legal_versions = models.JSONField(
+        help_text="Version of every Legal page current at placement.",
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Consent for order {self.order_id}"
+
+
+class PreInformationSnapshot(models.Model):
+    """The frozen pre-information text shown for this Order. Never edited."""
+
+    order = models.OneToOneField(
+        "order.Order",
+        on_delete=models.PROTECT,
+        related_name="pre_information",
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Pre-information for order {self.order_id}"
+
+
+class _KdvSnapshot(models.Model):
+    kdv_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    total_incl = _money()
+    total_excl = _money()
+    total_kdv = _money()
+
+    class Meta:
+        abstract = True
+
+
+class OrderLineSnapshot(_KdvSnapshot):
+    """An Order line's KDV split, frozen at placement and never recomputed."""
+
+    line = models.OneToOneField(
+        "order.Line",
+        on_delete=models.PROTECT,
+        related_name="kdv_snapshot",
+    )
+    quantity = models.PositiveIntegerField()
+    unit_price_incl = _money()
+
+    def __str__(self) -> str:
+        return f"KDV snapshot of line {self.line_id}"
+
+
+class OrderFeeSnapshot(_KdvSnapshot):
+    """The KDV split of a shipping or COD fee line."""
+
+    class Kind(models.TextChoices):
+        SHIPPING = "shipping", "Kargo"
+        COD = "cod", "Kapıda ödeme bedeli"
+
+    order = models.ForeignKey(
+        "order.Order",
+        on_delete=models.PROTECT,
+        related_name="fee_snapshots",
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "kind"],
+                name="one_fee_snapshot_per_kind",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.kind} fee of order {self.order_id}"

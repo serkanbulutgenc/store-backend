@@ -92,6 +92,10 @@ class UnprocessableError(ApiError):
     status = HTTPStatus.UNPROCESSABLE_ENTITY
 
 
+class TooManyRequestsError(ApiError):
+    status = HTTPStatus.TOO_MANY_REQUESTS
+
+
 def envelope(
     status: int,
     *,

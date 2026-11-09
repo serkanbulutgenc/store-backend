@@ -43,6 +43,8 @@ CACHES = {
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Turn on once the proxy chain sets the real client address in `X-Forwarded-For`.
+TRUST_FORWARDED_FOR = env.bool("DJANGO_TRUST_FORWARDED_FOR", default=False)
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-ssl-redirect
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 # Container healthchecks hit /health over plain HTTP inside the private network.

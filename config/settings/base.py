@@ -406,6 +406,11 @@ OSCAR_DEFAULT_CURRENCY = "TRY"
 OSCAR_DYNAMIC_CLASS_LOADER = "store_backend.catalog.loader.class_loader"
 # KDV rate for shipping and COD fee lines until Store settings (ticket 20) hold it.
 FEE_KDV_RATE = 20
+# Checkout attempts allowed per client IP: (count, window in seconds).
+CHECKOUT_RATE_LIMIT = (10, 600)
+# Read the client address from the first `X-Forwarded-For` entry. Only turn this on
+# behind a proxy that sets the header itself; otherwise a client can forge it.
+TRUST_FORWARDED_FOR = False
 
 # allauth headless: app mode only. The Start server holds the session token and sends
 # it as `X-Session-Token`; there is no browser (cookie) client.

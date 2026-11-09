@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from django.db import transaction
+from oscar.apps.basket.models import Basket as BasketModel
 from oscar.apps.catalogue.models import Product
 from oscar.apps.partner.models import StockRecord
 
@@ -40,7 +41,8 @@ def _available(variant: Product) -> int:
 def _lock(basket: Basket) -> None:
     """Serialise concurrent changes to one basket (two tabs adding at once)."""
     if basket.id:
-        type(basket).objects.select_for_update().filter(pk=basket.pk).first()
+        # `request.basket` is a lazy proxy, so `type(basket)` is not the model.
+        BasketModel.objects.select_for_update().filter(pk=basket.pk).first()
 
 
 def _purchasable_variant(variant_id: int) -> Product:
