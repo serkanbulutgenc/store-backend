@@ -16,3 +16,6 @@ class CsrfOut(Schema):
 def get_csrf(request):
     """CSRF token for guest endpoints. The cookie is HttpOnly, so JS cannot read it."""
     return {"csrf_token": get_token(request)}
+
+
+store_api.add_router("/", "store_backend.catalog.store_api.router")

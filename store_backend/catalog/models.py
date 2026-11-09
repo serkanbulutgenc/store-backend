@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.core.validators import MaxValueValidator
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -140,8 +142,19 @@ class ProductProfile(models.Model):
     low_stock_threshold = models.PositiveIntegerField(
         default=DEFAULT_LOW_STOCK_THRESHOLD,
     )
+    # Storefront search; maintained only by `services.search.reindex`.
+    search_text = models.TextField(blank=True, editable=False)
+    search_vector = SearchVectorField(null=True, editable=False)
 
     class Meta:
+        indexes = [
+            GinIndex(fields=["search_vector"], name="catalog_search_vector_gin"),
+            GinIndex(
+                fields=["search_text"],
+                name="catalog_search_text_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=Q(shelf_price__gte=0),
