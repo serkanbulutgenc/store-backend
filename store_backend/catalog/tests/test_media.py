@@ -221,13 +221,45 @@ def test_long_edge_counts_for_minimum(actor, product):
     media.upload(actor, product, make_file(size=(500, 800)))  # 800 on the long edge
 
 
-@pytest.mark.skipif(media.heic_supported(), reason="HEIC library is installed")
-def test_heic_without_library_is_rejected_in_turkish(actor, product):
+def make_heic(size=(1200, 900), *, gps=False) -> SimpleUploadedFile:
+    buf = io.BytesIO()
+    exif = Image.Exif()
+    exif[0x010F] = "SecretCamera"
+    if gps:
+        exif.get_ifd(0x8825)[1] = "N"
+        exif.get_ifd(0x8825)[2] = (36.0, 47.0, 30.0)
+    Image.new("RGB", size, (20, 90, 200)).save(buf, "HEIF", exif=exif)
+    return SimpleUploadedFile("IMG_1.HEIC", buf.getvalue())
+
+
+def test_heic_is_supported():
+    assert media.heic_supported()
+
+
+def test_heic_upload_is_kept_and_converted_to_webp(actor, product):
+    image = media.upload(actor, product, make_heic())
+    assert image.original.endswith(".heic")
+    media.process(image.pk)
+    image.refresh_from_db()
+    assert image.status == ProductPhoto.Status.READY
+    with default_storage.open(image.derivatives[0]["name"]) as f:
+        assert Image.open(f).format == "WEBP"
+
+
+def test_heic_with_gps_is_stored_as_jpeg_without_it(actor, product):
+    image = media.upload(actor, product, make_heic(gps=True))
+    assert image.original.endswith(".jpg")
+    stored = Image.open(io.BytesIO(stored_original(image)))
+    assert stored.format == "JPEG"
+    assert not stored.getexif().get_ifd(0x8825)
+
+
+def test_corrupt_heic_is_rejected(actor, product):
     heic = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 64
     with pytest.raises(UnprocessableError) as exc:
         media.upload(actor, product, SimpleUploadedFile("IMG_1.HEIC", heic))
-    assert "HEIC" in exc.value.fields["file"][0]
-    assert "JPEG" in exc.value.fields["file"][0]
+    assert "bozuk" in exc.value.fields["file"][0]
+    assert not ProductPhoto.objects.exists()
 
 
 # --- alt text, colour, primary, order ------------------------------------------

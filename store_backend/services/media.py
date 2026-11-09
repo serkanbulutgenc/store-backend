@@ -65,6 +65,7 @@ MSG_HEIC = (
     "HEIC biçimi desteklenmiyor. Fotoğrafı JPEG olarak kaydedip yeniden yükleyin "
     "(iPhone: Ayarlar > Kamera > Biçimler > En Uyumlu)."
 )
+MSG_CORRUPT = "Fotoğraf okunamadı; dosya bozuk olabilir. Yeniden çekip yükleyin."
 MSG_SIZE = "Dosya en fazla 15 MB olabilir."
 MSG_SMALL = f"Görselin uzun kenarı en az {MIN_LONG_EDGE} piksel olmalı."
 MSG_LIMIT = f"Bir ürüne en fazla {MAX_IMAGES} fotoğraf eklenebilir."
@@ -139,7 +140,9 @@ def _inspect(data: bytes) -> tuple[bytes, str, int, int]:
         orientation = img.getexif().get(_ORIENTATION_TAG)
         img.load()  # decode fully: catches truncated or corrupt files
     except UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError:
-        raise _invalid(MSG_HEIC if _looks_like_heic(data) else MSG_FORMAT) from None
+        if not _looks_like_heic(data):
+            raise _invalid(MSG_FORMAT) from None
+        raise _invalid(MSG_CORRUPT if _HEIC else MSG_HEIC) from None
     if fmt not in _FORMATS:
         raise _invalid(MSG_FORMAT)
     if max(width, height) < MIN_LONG_EDGE:
