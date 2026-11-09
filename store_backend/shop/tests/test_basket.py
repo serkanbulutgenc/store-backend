@@ -246,3 +246,27 @@ def test_login_merges_the_guest_basket_into_the_customer_basket(shop, customer, 
     assert body["item_count"] == 2
     # Next request needs no cookie: the basket belongs to the customer now.
     assert Guest(token).get(BASKET).json()["item_count"] == 2
+
+
+def test_a_line_that_outgrew_its_stock_can_be_lowered_but_not_raised(shop):
+    _, v = shop
+    guest = Guest()
+    line_id = guest.post(LINES, {"variant_id": v["M"].pk, "quantity": 5}).json()[
+        "lines"
+    ][0]["id"]
+    StockRecord.objects.filter(product=v["M"]).update(num_in_stock=2)
+
+    assert guest.patch(f"{LINES}/{line_id}", {"quantity": 4}).status_code == 200
+    assert guest.patch(f"{LINES}/{line_id}", {"quantity": 5}).status_code == 409
+
+
+def test_an_unavailable_line_can_still_be_reduced_or_removed(shop):
+    product, v = shop
+    guest = Guest()
+    line_id = guest.post(LINES, {"variant_id": v["M"].pk, "quantity": 3}).json()[
+        "lines"
+    ][0]["id"]
+    ProductProfile.objects.filter(product=product).update(status=ProductStatus.ARCHIVED)
+
+    assert guest.patch(f"{LINES}/{line_id}", {"quantity": 1}).status_code == 200
+    assert guest.delete(f"{LINES}/{line_id}").status_code == 200

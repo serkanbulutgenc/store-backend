@@ -26,11 +26,21 @@ if TYPE_CHECKING:
 MAX_QUANTITY = 99
 
 
-def _available(variant: Product) -> int:
-    record = StockRecord.objects.filter(product=variant).first()
+def _units(record: StockRecord | None) -> int:
     if record is None:
         return 0
     return max(record.num_in_stock - (record.num_allocated or 0), 0)
+
+
+def _available(variant: Product) -> int:
+    # Same record Oscar's strategy uses (UseFirstStockRecord): the first by id.
+    return _units(StockRecord.objects.filter(product=variant).order_by("pk").first())
+
+
+def _lock(basket: Basket) -> None:
+    """Serialise concurrent changes to one basket (two tabs adding at once)."""
+    if basket.id:
+        type(basket).objects.select_for_update().filter(pk=basket.pk).first()
 
 
 def _purchasable_variant(variant_id: int) -> Product:
@@ -62,6 +72,7 @@ def _check_stock(variant: Product, wanted: int) -> None:
 @transaction.atomic
 def add(basket: Basket, variant_id: int, quantity: int) -> None:
     """Add units; a line for the same Variant grows and the new total is checked."""
+    _lock(basket)
     variant = _purchasable_variant(variant_id)
     existing = basket.lines.filter(product=variant).first() if basket.id else None
     wanted = quantity + (existing.quantity if existing else 0)
@@ -85,9 +96,11 @@ def _line(basket: Basket, line_id: int):
 
 @transaction.atomic
 def set_quantity(basket: Basket, line_id: int, quantity: int) -> None:
+    _lock(basket)
     line = _line(basket, line_id)
-    variant = _purchasable_variant(line.product_id)
-    _check_stock(variant, quantity)
+    # Lowering is always allowed, so a Shopper can fix a line that outgrew its stock.
+    if quantity > line.quantity:
+        _check_stock(_purchasable_variant(line.product_id), quantity)
     line.quantity = quantity
     line.save(update_fields=["quantity"])
 
@@ -125,6 +138,11 @@ def view(basket: Basket) -> dict:
     )
     parent_ids = list({line.product.parent_id for line in lines})
     photos = browse.photos_by_product(parent_ids)
+    records: dict[int, StockRecord] = {}
+    for record in StockRecord.objects.filter(
+        product_id__in=[line.product_id for line in lines],
+    ).order_by("-pk"):
+        records[record.product_id] = record  # lowest pk wins, as in _available
     out = []
     subtotal = pricing.ZERO
     for line in lines:
@@ -132,11 +150,15 @@ def view(basket: Basket) -> dict:
         profile = variant.variant_profile
         parent = variant.parent
         published = parent.profile.status == ProductStatus.PUBLISHED
-        available = _available(variant)
-        unit = catalog.shelf_price_for(variant)
-        total = pricing.kurus(unit) * line.quantity
+        available = _units(records.get(variant.pk))
+        unit = pricing.kurus(catalog.shelf_price_for(variant))
+        total = unit * line.quantity
         subtotal += total
-        coloured = [p for p in photos[parent.pk] if p.colour_id == profile.colour_id]
+        coloured = [
+            p
+            for p in photos[parent.pk]
+            if p.colour_id == profile.colour_id and p.status == p.Status.READY
+        ]
         out.append(
             {
                 "id": line.pk,
@@ -149,7 +171,7 @@ def view(basket: Basket) -> dict:
                     "hex_code": profile.colour.hex_code,
                 },
                 "size": profile.size,
-                "image": browse._image(coloured or photos[parent.pk]),  # noqa: SLF001
+                "image": browse.card_image(coloured or photos[parent.pk]),
                 "quantity": line.quantity,
                 "unit_price": unit,
                 "line_total": total,

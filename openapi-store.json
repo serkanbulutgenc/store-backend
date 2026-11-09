@@ -60,7 +60,7 @@
           "image": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/LineImageOut"
+                "$ref": "#/components/schemas/CardImageOut"
               },
               {
                 "type": "null"
@@ -88,7 +88,7 @@
                 "type": "null"
               }
             ],
-            "description": "sold_out, insufficient_stock or unavailable; empty when fine.",
+            "description": "sold_out, insufficient_stock or unavailable; null when fine.",
             "title": "Problem"
           },
           "quantity": {
@@ -408,31 +408,10 @@
           }
         },
         "required": [
-          "url",
-          "width"
+          "width",
+          "url"
         ],
         "title": "ImageSizeOut",
-        "type": "object"
-      },
-      "LineImageOut": {
-        "properties": {
-          "alt": {
-            "title": "Alt",
-            "type": "string"
-          },
-          "sizes": {
-            "items": {
-              "$ref": "#/components/schemas/ImageSizeOut"
-            },
-            "title": "Sizes",
-            "type": "array"
-          }
-        },
-        "required": [
-          "alt",
-          "sizes"
-        ],
-        "title": "LineImageOut",
         "type": "object"
       },
       "PagePhotoOut": {

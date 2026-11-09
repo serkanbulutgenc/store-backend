@@ -210,7 +210,7 @@ def _price_range(f: Filters) -> dict:
 # --- cards ---------------------------------------------------------------------
 
 
-def _image(photos: list[ProductPhoto]) -> dict | None:
+def card_image(photos: list[ProductPhoto]) -> dict | None:
     ready = [p for p in photos if p.status == ProductPhoto.Status.READY]
     if not ready:
         return None
@@ -238,7 +238,7 @@ def _card(profile: ProductProfile, variants: list, photos: list) -> dict:
         # Only meaningful against the Product price, not a Variant's override.
         "old_price": profile.old_price if price == profile.shelf_price else None,
         "sold_out": not in_stock,
-        "image": _image(photos),
+        "image": card_image(photos),
         "colours": [
             {"id": c.pk, "name": c.name, "hex_code": c.hex_code}
             for c in sorted(seen.values(), key=lambda c: c.name)
@@ -396,7 +396,7 @@ def detail(slug: str) -> dict:
                 "id": p.pk,
                 "colour_id": p.colour_id,
                 "is_primary": p.is_primary,
-                **(_image([p]) or {"alt": "", "sizes": []}),
+                **(card_image([p]) or {"alt": "", "sizes": []}),
             }
             for p in photos
             if p.status == ProductPhoto.Status.READY

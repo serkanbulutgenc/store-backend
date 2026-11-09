@@ -9,6 +9,7 @@ from ninja import Schema
 
 from store_backend.api.auth import GuestAuth
 from store_backend.api.money import Money
+from store_backend.catalog.store_api import CardImageOut
 from store_backend.services import basket as basket_service
 
 router = Router(tags=["basket"], auth=GuestAuth())
@@ -21,16 +22,6 @@ class ColourOut(Schema):
     hex_code: str
 
 
-class ImageSizeOut(Schema):
-    url: str
-    width: int
-
-
-class LineImageOut(Schema):
-    alt: str
-    sizes: list[ImageSizeOut]
-
-
 class BasketLineOut(Schema):
     id: int
     variant_id: int
@@ -39,15 +30,15 @@ class BasketLineOut(Schema):
     slug: str
     colour: ColourOut
     size: str
-    image: LineImageOut | None
+    image: CardImageOut | None
     quantity: int
-    unit_price: Money
+    unit_price: Money  # KDV-inclusive, whole kuruş
     line_total: Money
     available: int
     is_hygiene: bool
     problem: str | None = Field(
         None,
-        description="sold_out, insufficient_stock or unavailable; empty when fine.",
+        description="sold_out, insufficient_stock or unavailable; null when fine.",
     )
 
 
