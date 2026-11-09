@@ -67,6 +67,12 @@ class StoreSettings(models.Model):
 
     class Meta:
         verbose_name_plural = "store settings"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(pk=1),
+                name="store_settings_singleton",
+            ),
+        ]
 
     def __str__(self) -> str:
         return "Store settings"

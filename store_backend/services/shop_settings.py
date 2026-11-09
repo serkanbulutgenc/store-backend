@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 
 MONEY_FIELDS = ("shipping_fee", "free_shipping_threshold", "cod_fee")
 MAX_KDV_RATE = Decimal(100)
+MAX_MONEY = Decimal("99999999.99")
+MAX_LOW_STOCK = 10_000
+MAX_EMAILS = 20
+URL_FIELDS = ("banner_image_url", "banner_link")
 IBAN = re.compile(r"^TR\d{24}$")
 EDITABLE = (
     *MONEY_FIELDS,
@@ -45,8 +49,16 @@ EDITABLE = (
 )
 
 
+def _row(*, lock: bool = False) -> StoreSettings:
+    qs = StoreSettings.objects.select_for_update() if lock else StoreSettings.objects
+    obj, created = qs.get_or_create(pk=1)
+    if created:
+        obj.refresh_from_db()  # DB-normalised values, not the Python defaults
+    return obj
+
+
 def get() -> StoreSettings:
-    return StoreSettings.objects.get_or_create(pk=1)[0]
+    return _row()
 
 
 def _invalid(field: str, message: str) -> UnprocessableError:
@@ -58,7 +70,8 @@ def _decimal(field: str, value: Any, *, upper: Decimal | None = None) -> Decimal
         d = Decimal(str(value))
     except InvalidOperation:
         raise _invalid(field, "Geçerli bir tutar girin.") from None
-    if not d.is_finite() or d < 0 or (upper is not None and d > upper):
+    cap = upper if upper is not None else MAX_MONEY
+    if not d.is_finite() or d < 0 or d > cap:
         raise _invalid(field, "Geçerli bir tutar girin.")
     return d.quantize(Decimal("0.01"))
 
@@ -71,8 +84,8 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
     if field == "fee_kdv_rate":
         return _decimal(field, value, upper=MAX_KDV_RATE)
     if field == "low_stock_default":
-        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-            raise _invalid(field, "Eşik negatif olamaz.")
+        if not isinstance(value, int) or not 0 <= value <= MAX_LOW_STOCK:
+            raise _invalid(field, "Eşik 0 ile 10000 arasında olmalı.")
         return value
     if field == "bank_iban":
         iban = re.sub(r"\s+", "", str(value)).upper()
@@ -82,7 +95,9 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
                 "Geçerli bir IBAN girin (TR ile başlayan 26 karakter).",
             )
         return iban
-    if field in ("notification_emails",):
+    if field == "notification_emails":
+        if len(value) > MAX_EMAILS:
+            raise _invalid(field, "En fazla 20 alıcı girilebilir.")
         emails = [str(e).strip().lower() for e in value]
         for e in emails:
             try:
@@ -103,7 +118,13 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
         if unknown or any(not str(v).strip() for v in value.values()):
             raise _invalid(field, "Geçersiz yasal sayfa sürümü.")
         return {k: str(v).strip() for k, v in value.items()}
-    return str(value).strip()
+    text = str(value).strip()
+    limit = StoreSettings._meta.get_field(field).max_length  # noqa: SLF001
+    if limit and len(text) > limit:
+        raise _invalid(field, f"En fazla {limit} karakter girilebilir.")
+    if field in URL_FIELDS and text and not re.match(r"^(https?://|/(?!/))", text):
+        raise _invalid(field, "Adres http(s):// ile veya / ile başlamalı.")
+    return text
 
 
 def _snapshot(settings: StoreSettings, fields) -> dict[str, Any]:
@@ -119,7 +140,7 @@ def update(actor: User, **changes: Any) -> StoreSettings:
     unknown = set(changes) - set(EDITABLE)
     if unknown:
         raise _invalid(sorted(unknown)[0], "Bilinmeyen ayar.")
-    settings = StoreSettings.objects.select_for_update().get_or_create(pk=1)[0]
+    settings = _row(lock=True)
     if "legal_versions" in changes:
         changes["legal_versions"] = {
             **settings.legal_versions,

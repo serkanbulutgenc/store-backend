@@ -131,3 +131,34 @@ def test_new_products_take_the_low_stock_default(owner):
     )
 
     assert product.profile.low_stock_threshold == 5
+
+
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [
+        ({"shipping_fee": "99999999999"}, "shipping_fee"),
+        ({"shipping_fee": "1e30"}, "shipping_fee"),
+        ({"low_stock_default": 99999999999}, "low_stock_default"),
+        ({"seller_phone": "5" * 31}, "seller_phone"),
+        ({"banner_link": "javascript:alert(1)"}, "banner_link"),
+        ({"banner_image_url": "//evil.example/x.png"}, "banner_image_url"),
+        ({"bank_name": None}, "bank_name"),
+    ],
+)
+def test_out_of_range_and_unsafe_values_are_422_not_500(owner, api_for, payload, field):
+    response = api_for(owner, enrol=True).patch(ADMIN, payload)
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert field in response.json()["fields"]
+
+
+def test_safe_urls_are_accepted(owner, api_for):
+    response = api_for(owner, enrol=True).patch(
+        ADMIN,
+        {
+            "banner_link": "/kategori/giyim",
+            "banner_image_url": "https://cdn.example/b.webp",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK

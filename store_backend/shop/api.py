@@ -6,6 +6,7 @@ from __future__ import annotations
 from ninja import Router
 from ninja import Schema
 
+from store_backend.api.errors import UnprocessableError
 from store_backend.api.money import Money
 from store_backend.api.permissions import requires
 from store_backend.services import shop_settings
@@ -84,8 +85,9 @@ def get_settings(request):
 )
 def update_settings(request, data: SettingsPatch):
     sent = data.model_dump(exclude_unset=True)
-    # Null clears the free-shipping threshold; for every other field it means "absent".
-    changes = {
-        k: v for k, v in sent.items() if v is not None or k == "free_shipping_threshold"
-    }
-    return shop_settings.update(request.auth, **changes)
+    # Null clears the free-shipping threshold; for any other field it is an error.
+    nulls = [k for k, v in sent.items() if v is None and k != "free_shipping_threshold"]
+    if nulls:
+        msg = "Bu alan boş bırakılamaz."
+        raise UnprocessableError(msg, fields={k: [msg] for k in nulls})
+    return shop_settings.update(request.auth, **sent)
