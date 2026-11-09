@@ -128,6 +128,7 @@ OSCAR_APPS = [
 
 LOCAL_APPS = [
     "store_backend.users",
+    "store_backend.api",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

@@ -78,6 +78,9 @@ jobs:
       - name: Check DB Migrations
         run: docker compose -f docker-compose.local.yml run --rm django python manage.py makemigrations --check
 
+      - name: Check OpenAPI specs are current
+        run: docker compose -f docker-compose.local.yml run --rm django python manage.py export_openapi --check
+
       - name: Run DB Migrations
         run: docker compose -f docker-compose.local.yml run --rm django python manage.py migrate
 

@@ -6,9 +6,9 @@ from django.urls import path
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
 
+from store_backend.api.admin import admin_api
+from store_backend.api.store import store_api
 from store_backend.health import health
-
-from .api import api
 
 urlpatterns = [
     path("health", health, name="health"),
@@ -32,8 +32,8 @@ urlpatterns = [
 
 # API URLS
 urlpatterns += [
-    # API base url
-    path("api/", api.urls),
+    path("api/store/", store_api.urls),
+    path("api/admin/", admin_api.urls),
 ]
 
 if settings.DEBUG:
