@@ -1,0 +1,97 @@
+# Research 01: django-oscar fit for a headless Turkish store
+
+Researched 2026-11-09. Facts only; no design decisions. "Unverified" marks things I could not confirm in a primary source. Docs root: https://docs.oscarcommerce.com/en/latest/ . Source root: https://github.com/django-oscar/django-oscar (master).
+
+## Summary
+
+- Current release is Oscar 4.2.1 (2026-09-29). Supports Django 4.2/5.2/6.0 and Python 3.8-3.14, so it is compatible on paper with a current cookiecutter-django (Python 3.14, unpinned latest Django).
+- Oscar is not designed headless. Its docs have no headless guide. The pieces (models, strategy, basket, order creation) are usable without templates, but checkout views, the middleware-based basket and the dashboard are template/view driven. The only REST package, django-oscar-api, targets Oscar 3.2 / Django 3.2.
+- Pricing: Oscar stores one price per stockrecord and has a per-product tax hook (`get_rate`), but the built-in `FixedRateTax` treats the stored price as tax-exclusive and adds tax.
+- Anonymous basket (signed cookie) and guest checkout (`OSCAR_ALLOW_ANON_CHECKOUT`, `Order.guest_email`) are supported natively.
+- Variants (parent/child), stock records with allocation, payment Sources, order status pipeline are all native and configurable.
+
+## 1. Versions and compatibility
+
+- Latest release: 4.2.1, published 2026-09-29; 4.2 on 2026-08-05; 4.1 on 2025-10-29; 4.0 on 2025-04-23. Source: https://api.github.com/repos/django-oscar/django-oscar/releases and https://pypi.org/pypi/django-oscar/json
+- 4.2 adds Django 6.0 support and django-treebeard 5.0 support. 4.0 added Django 5.2 and Python 3.13. Source: https://github.com/django-oscar/django-oscar/blob/master/docs/source/releases/v4.2.rst and GitHub release notes above.
+- Packaging (`pyproject.toml`): `requires-python >=3.8`; `django >=4.2,<6.2`; classifiers list Django 4.2, 5.2, 6.0 and Python 3.8-3.14. Runtime deps include django-haystack >=3.0b1, django-treebeard >=4.7.0, django-tables2 >=2.3,<=2.7, django-extra-views >=0.13,<0.17, django-phonenumber-field >=4.0,<9.0, factory-boy >=3.3.1 (a runtime dependency), Babel, Pillow, purl, phonenumbers, django-widget-tweaks. Source: https://github.com/django-oscar/django-oscar/blob/master/pyproject.toml
+- CI matrix in `tox.ini` covers Python 3.8-3.13 x Django 4.2/5.2 (Django 6.0 and Python 3.14 appear in classifiers but not in that tox matrix as fetched). Source: https://github.com/django-oscar/django-oscar/blob/master/tox.ini
+- cookiecutter-django (master) pins `requires-python = "==3.14.*"` and declares plain unpinned `django`. Its `User` extends Django `AbstractUser`, has a single `name` field (no first/last name), and with `username_type == "email"` sets `username = None`, `USERNAME_FIELD = "email"`, unique email, custom `UserManager`. Sources: https://github.com/cookiecutter/cookiecutter-django (`{{cookiecutter.project_slug}}/pyproject.toml`, `.../users/models.py`).
+- Oscar's own `AbstractUser` is "basically a copy of the core AbstractUser model but without a username field": email unique, `first_name`, `last_name`, `is_staff`, `is_active`, `date_joined`. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/customer/abstract_models.py . Oscar's getting-started doc says nothing about `AUTH_USER_MODEL`; whether Oscar code paths need `first_name`/`last_name` on a custom user (cookiecutter has only `name`) is unverified.
+- Oscar docs configure `oscar.apps.customer.auth_backends.EmailBackend` plus `ModelBackend` for email login. Source: https://docs.oscarcommerce.com/en/latest/internals/getting_started.html
+
+## 2. Headless use (no templates, no dashboard)
+
+- No headless guide found in official docs. Web search for a documented way to omit dashboard apps found none. Source: searched docs + https://docs.oscarcommerce.com/en/latest/internals/getting_started.html
+- Getting-started INSTALLED_APPS requires: `django.contrib.sites` (+ `SITE_ID = 1`), `django.contrib.flatpages`, `oscar.config.Shop`, Oscar core apps, dashboard sub-apps (listed in the doc's block), and third-party `widget_tweaks`, `haystack`, `treebeard`, `sorl.thumbnail`, `django_tables2`. The doc says sorl-thumbnail and widget-tweaks are optional "really". Middleware: `oscar.apps.basket.middleware.BasketMiddleware` and `FlatpageFallbackMiddleware`. Context processors listed: search form, checkout, notifications, metadata. Haystack: simple backend OK for basic search; Solr is "currently the only supported production-grade backend". Source: getting_started URL above.
+- `oscar.config.Shop.ready()` looks up eight app configs (catalogue, customer, basket, checkout, search, dashboard, offer, wishlists) and mounts their URLs (dashboard at `dashboard/`). Whether omitting the dashboard config breaks `Shop.ready()` is not stated; unverified. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/config.py
+- Docs say: "When managing your catalogue you should always use the Oscar dashboard" and "the Django admin site is not supported." Source: getting_started URL above.
+- Oscar apps (16): address, analytics, basket, catalogue, checkout, communication, customer, dashboard, offers, order, partner, payment, search, shipping, voucher, wishlists. `payment` "has no views" (models only). Source: https://docs.oscarcommerce.com/en/latest/ref/apps/index.html , https://docs.oscarcommerce.com/en/latest/ref/apps/payment.html
+- Setting `OSCAR_HIDDEN_FEATURES` (default `[]`) "disables specific features in the application and templates". Source: https://docs.oscarcommerce.com/en/latest/ref/settings.html
+- Reusable non-view logic: `OrderCreator.place_order(basket, total, shipping_method, shipping_charge, user=None, shipping_address=None, billing_address=None, order_number=None, status=None, request=None, surcharges=None, **kwargs)`; `guest_email` passes via `**kwargs` into order fields; currency taken from `total.currency` with no conversion/validation; empty basket raises `ValueError`; basket line without stockrecord raises `UnableToPlaceOrder`; stock allocated (ordered by stockrecord_id) only if product class `track_stock`; order number default `100000 + basket.id`. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/order/utils.py
+- `OrderPlacementMixin` (checkout views mixin) holds `handle_payment` (no-op hook), `add_payment_source`, `add_payment_event`, `handle_order_placement`, `send_order_placed_email`. It renders no templates, but redirects to `checkout:thank-you`, and anonymous order emails use the `customer:anon-order` URL with a verification hash. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/checkout/mixins.py
+- Checkout flow (views): gateway (login/register/guest), shipping address, shipping method, payment method, payment details, preview, thank-you. Checkout state lives in a session (`CheckoutSessionData`). Source: https://docs.oscarcommerce.com/en/latest/ref/apps/checkout.html
+- REST option: `django-oscar-api` 3.3.0 (2024-09-20) requires `django-oscar>=3.2`, `Django>=3.2`, DRF >=3.9; classifiers Django 3.2, Python 3.7-3.11; docs state compatibility Oscar 3.2 / Django 3.2. Last commits 2026-02 to 2026-08 (lint, Jenkinsfile, an imageURLField change and its revert). Compatibility with Oscar 4.x is not stated in its metadata. Sources: https://pypi.org/pypi/django-oscar-api/json , https://django-oscar-api.readthedocs.io/en/latest/ , https://api.github.com/repos/django-oscar/django-oscar-api/commits
+- The project's stack uses django-ninja, not DRF; django-oscar-api would add DRF. (Stack fact from map.md.)
+
+## 3. Single currency TRY and tax-inclusive pricing
+
+- `OSCAR_DEFAULT_CURRENCY` default `GBP`; used by default and by the currency template tag. `StockRecord.price_currency` and `Order.currency` default via `get_default_currency`. Source: https://docs.oscarcommerce.com/en/latest/ref/settings.html , partner/abstract_models.py, order/abstract_models.py (links in section 5/6).
+- Docs: Oscar expects one currency per basket but does not enforce it; it does not detect/store user currency; currency is for formatting, configured with `OSCAR_CURRENCY_FORMAT`. Source: https://docs.oscarcommerce.com/en/latest/topics/prices_and_availability.html
+- Pricing is via a Selector returning a strategy; a strategy yields `PurchaseInfo` (stockrecord, pricing policy, availability policy). Default strategy: `Default(UseFirstStockRecord, StockRequired, NoTax, Structured)`. Source: prices_and_availability URL; https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/partner/strategy.py
+- Tax mixins: `NoTax`, `FixedRateTax`, `DeferredTax`. `FixedRateTax` computes `tax = (stockrecord.price * rate).quantize(exponent)` and returns a price with `excl_tax=stockrecord.price` plus tax; i.e. the stored `StockRecord.price` is treated as tax-exclusive. Per-product rates: override `get_rate(product, stockrecord)`; currency-dependent exponent: `get_exponent(stockrecord)`. Source: strategy.py and prices_and_availability URLs.
+- `Price` object attributes: `currency`, `excl_tax`, `incl_tax`, `tax`, `is_tax_known`. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/core/prices.py
+- Offers: `FixedPrice` uses tax-exclusive prices even when tax is known; `TaxInclusiveFixedPrice` exists for tax-inclusive offers. Source: prices_and_availability URL.
+- Order stores `total_incl_tax`/`total_excl_tax` (decimal 12,2); lines store incl/excl tax prices and an optional `tax_code` ("VAT rate code"). Surcharges have incl/excl amounts. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/order/abstract_models.py
+- Docs contain no Turkish KDV example and no built-in tax-inclusive stored-price strategy; a custom pricing policy would be needed (docs: "Writing your own strategy": subclass `Structured`, override `pricing_policy`/`get_rate`). The 4.0 notes mention "four-decimal calculations" (GitHub release 4.0).
+
+## 4. Anonymous basket and guest checkout
+
+- Basket middleware: anonymous basket identified by a signed cookie (`OSCAR_BASKET_COOKIE_OPEN`), not the session; the cookie holds a signed basket id, `httponly=True`, lifetime `OSCAR_BASKET_COOKIE_LIFETIME` (default 604800 s), `OSCAR_BASKET_COOKIE_SECURE`. Nothing persisted until items are added. On login the cookie basket is merged with `merge(slave, add_quantities=False)` into the user's basket and the cookie is deleted. Middleware attaches `request.strategy` before loading the basket, and injects `basket` into template-response context. Source: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/basket/middleware.py
+- `OSCAR_ALLOW_ANON_CHECKOUT` default `False`; `True` lets guests buy. Checkout gateway offers log in / register / checkout anonymously and collects an email. Source: settings URL; checkout URL above.
+- `Order.guest_email` (EmailField, blank) holds the guest email; `OrderDispatcher` falls back to it. `AnonymousOrderDetailView` shows an order without login; anonymous order emails link via a verification hash (4.1 notes mention "email verification for anonymous order status"). Sources: order/abstract_models.py; customer docs https://docs.oscarcommerce.com/en/latest/ref/apps/customer.html ; checkout mixins.py ; 4.1 GitHub release notes.
+- Baskets can be frozen during checkout and submitted afterwards (`freeze`, `thaw`, `submit`). Source: https://docs.oscarcommerce.com/en/latest/ref/apps/basket.html
+
+## 5. Variants, stock records, allocation
+
+- `Product.structure`: standalone, parent, child. `parent` FK with `related_name="children"`. Parent products cannot have stock records and need at least one category; child products need a parent, no product class (inherit parent's), no categories, no own options; standalone needs title and class. Source: https://docs.oscarcommerce.com/en/latest/ref/apps/catalogue.html ; https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/catalogue/abstract_models.py
+- Attributes: `ProductClass` defines `ProductAttribute`s; values in `ProductAttributeValue`; fixed choices via `AttributeOptionGroup`/`AttributeOption`. Attribute types: text, integer, boolean, float, richtext, date, datetime, option, multi_option, entity, file, image. Child attribute values override the parent's; child falls back to parent images. `ProductClass.track_stock` and `requires_shipping` both default True. Product also has `upc` (unique, nullable), `code` (unique, nullable, added in 4.0), `priority`, `is_public`. Same sources.
+- Docs: avoid subclassing concrete Product; "Use `ProductClass` and `ProductAttribute` to model product types". Source: https://docs.oscarcommerce.com/en/latest/howto/how_to_customise_models.html
+- `StockRecord`: product + partner FKs, `partner_sku` (unique with partner), `price` (nullable decimal 12,2), `price_currency`, `num_in_stock`, `num_allocated` (both nullable ints), `low_stock_threshold`. `net_stock_level` = in_stock - allocated (0 if in_stock None) and is the customer-facing figure. Methods: `allocate`, `consume_allocation`, `cancel_allocation`, `is_allocation_consumption_possible`, `can_track_allocations`. `allocate` is an atomic queryset update. Docs: a stock update typically sets `num_in_stock` and resets `num_allocated` to zero. Sources: https://github.com/django-oscar/django-oscar/blob/master/src/oscar/apps/partner/abstract_models.py ; https://docs.oscarcommerce.com/en/latest/ref/apps/partner.html
+- Availability: `StockRequired` blocks purchase when stock insufficient (no back-orders); `Available`, `Unavailable` also exist. `UseFirstStockRecord` is the default selector; multiple-partner choice requires custom `select_stockrecord`. Source: prices_and_availability URL.
+- Allocation occurs at order placement (OrderCreator); consumption on shipping; cancellation via order `cancel_stock_allocations`. Source: https://docs.oscarcommerce.com/en/latest/ref/apps/order.html
+
+## 6. Payments and order status pipeline
+
+- Payment app is models only: `Source` (tracks amount allocated/debited/refunded; `allocate`, `debit`, `refund`), `SourceType` (named category, e.g. an external provider or an internal source), `Transaction`, `Bankcard` (docs warn storing card name/expiry has PCI implications). Docs: orders can have several sources "such as cheques, credit accounts, or gift cards". Source: https://docs.oscarcommerce.com/en/latest/ref/apps/payment.html
+- No payment is taken by default; project subclasses the payment details view and overrides `handle_payment` to record sources/events. Sources: checkout URL; mixins.py.
+- Order pipeline: `OSCAR_ORDER_STATUS_PIPELINE` (default `{}`), `OSCAR_LINE_STATUS_PIPELINE` (default `{}`), `OSCAR_INITIAL_ORDER_STATUS`, `OSCAR_INITIAL_LINE_STATUS` (must exist in respective pipelines), `OSCAR_ORDER_STATUS_CASCADE` (order status -> line status, ignores line pipeline restrictions). Source: settings URL.
+- `Order.set_status` raises `InvalidOrderStatus` for transitions outside the pipeline, cascades to lines, sends `order_status_changed`, records a status change. `Order.status` is a free CharField (max 100, blank allowed). Docs describe a default pipeline Pending -> Being processed/Cancelled -> Complete/Cancelled with "Complete" cascading to line "Shipped"; the model-level default read from settings is `{}` (docs and code as fetched differ in wording; the sandbox/example settings are where the sample pipeline lives; unverified which). Sources: order docs URL; order/abstract_models.py.
+- A shipping method object is a required argument to `place_order`; built-ins: `Free`, `FixedPrice`, `NoShippingRequired` (codes `free-shipping`, `fixed-price-shipping`, `no-shipping-required`); custom: subclass `Base`, implement `calculate(basket)`, expose via `Repository.get_available_shipping_methods()`. Source: https://docs.oscarcommerce.com/en/latest/ref/apps/shipping.html
+
+## 7. Extension patterns: Supplier and Brand
+
+- Oscar's `Partner` = "A fulfilment partner. An individual or company who can fulfil products." Fields: `code` (unique AutoSlug from name), `name`, `users` M2M to `AUTH_USER_MODEL`; permission `dashboard_access`. StockRecord links product to partner, with `partner_sku` unique per partner. Source: partner/abstract_models.py; partner docs URL.
+- Because StockRecord is per partner and `UseFirstStockRecord` is default, one product with stockrecords from several partners requires a custom selector. Source: prices_and_availability URL.
+- Oscar has no Brand model; no brand concept found in the catalogue docs. Options in the docs: add attributes via `ProductClass`/`ProductAttribute` (including `entity`, `option` types), or fork `catalogue` and add a model/FK to `AbstractProduct`. Source: catalogue docs and how_to_customise_models URLs.
+- Forking/overriding: `./manage.py oscar_fork_app <app> <folder>`; replace the app entry in INSTALLED_APPS with the dotted path to the forked AppConfig; custom models must be declared before `from oscar.apps.<app>.models import *`; copy Oscar's `migrations` directory into the fork before `makemigrations`; django uses the first model with a given name; dashboards must be forked after the core apps they depend on; forking `dashboard`/`catalogue.reviews` requires also forking their parent app. Sources: https://docs.oscarcommerce.com/en/latest/topics/customisation.html , https://docs.oscarcommerce.com/en/latest/topics/fork_app.html , how_to_customise_models URL.
+- Docs: adding a field to Product is done by subclassing the abstract model in a forked `catalogue`; `ForeignKey` to Oscar models is not covered in the page I fetched.
+
+## 8. Known pitfalls (from primary sources)
+
+- Django admin "is not supported" for catalogue management; docs direct to Oscar dashboard (which the project will not use). Source: getting_started.
+- Search stack: Haystack is a hard dependency; only Solr is called production-grade. Source: getting_started; pyproject.
+- `sites` + `flatpages` apps required; `BasketMiddleware` pulls Django messages and template context; merge warning only visible if templates render messages. Source: getting_started; basket/middleware.py.
+- Model customisation is import-order sensitive and needs copied migrations; future Oscar upgrades that add fields to models need migration review in forks (4.2 notes: new `code` on address and review models; `ShippingEventQuantity` now extendable). Sources: how_to_customise_models URL; GitHub release 4.2.
+- Oscar's strategy is the one source of pricing/tax; `FixedRateTax` assumes tax-exclusive stored price (section 3).
+- `OSCAR_ALLOW_ANON_CHECKOUT` defaults to False; pipeline settings default to `{}` so project must define them. Source: settings URL.
+- `django-oscar-api` metadata targets Oscar 3.2 / Django 3.2 (section 2).
+- `factory-boy` is in Oscar's runtime requirements. Source: pyproject.toml.
+- Oscar 4.2.1 upgrade notes: `no` locale directory renamed to `nb`; custom benefits without a range raise `ImproperlyConfigured`; email subjects no longer HTML-escaped. Source: GitHub release 4.2.1.
+
+## Open / unverified
+
+- Whether Oscar runs with cookiecutter-django's `User` (no first/last name) and what `AUTH_USER_MODEL` expectations exist.
+- Whether the dashboard apps can be omitted from INSTALLED_APPS without breaking `Shop.ready()` / URL loading.
+- django-oscar-api working on Oscar 4.2 / Django 6.
+- Which default order pipeline ships in code vs. docs/sandbox settings.

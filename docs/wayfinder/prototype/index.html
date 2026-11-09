@@ -1,0 +1,153 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what do "compact and easy to use" and the colour/type direction mean for the Aura Tekstil storefront and dashboard?
+     3 variants (A editorial/airy, B boutique/balanced, C utilitarian/compact) x 3 screens (product, checkout, admin orders).
+     Open directly in a browser. URL: ?screen=product|checkout|admin&variant=A|B|C. Keys: left/right = variant, up/down = screen. -->
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE - Aura Tekstil UI</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; font-family: var(--font-body); background: var(--bg); color: var(--fg); font-size: var(--fs); line-height:1.5; padding-bottom:70px }
+  :root[data-v="A"] { --bg:#faf7f2; --fg:#2b2622; --muted:#8a8178; --card:#fff; --line:#e8e1d8; --accent:#8c4a4a; --accent-fg:#fff; --soft:#f1e9e0; --r:2px; --fs:16px; --pad:28px; --gap:28px; --font-body:'Inter',sans-serif; --font-head:'Cormorant Garamond',serif; --h:2.4rem; --row:64px }
+  :root[data-v="B"] { --bg:#fbf8fa; --fg:#2a2230; --muted:#7d7285; --card:#fff; --line:#ece3ee; --accent:#6b2d5c; --accent-fg:#fff; --soft:#f5ecf3; --r:10px; --fs:15px; --pad:18px; --gap:18px; --font-body:'Inter',sans-serif; --font-head:'Inter',sans-serif; --h:1.6rem; --row:48px }
+  :root[data-v="C"] { --bg:#f6f6f7; --fg:#18181b; --muted:#71717a; --card:#fff; --line:#e4e4e7; --accent:#18181b; --accent-fg:#fff; --soft:#f0f0f2; --r:6px; --fs:13px; --pad:10px; --gap:10px; --font-body:'Inter',sans-serif; --font-head:'Inter',sans-serif; --h:1.25rem; --row:32px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:var(--pad) }
+  .h { font-family:var(--font-head); font-size:var(--h); font-weight:600; line-height:1.15 }
+  .muted { color:var(--muted) }
+  .btn { background:var(--accent); color:var(--accent-fg); border-radius:var(--r); padding:calc(var(--pad)*.45) calc(var(--pad)*1.1); font-weight:500; display:inline-block; cursor:pointer; border:0 }
+  .btn-o { background:transparent; color:var(--fg); border:1px solid var(--line) }
+  .chip { border:1px solid var(--line); border-radius:var(--r); padding:calc(var(--pad)*.25) calc(var(--pad)*.6); background:var(--card); cursor:pointer; display:inline-block }
+  .chip.on { border-color:var(--accent); background:var(--accent); color:var(--accent-fg) }
+  .chip.off { color:#bbb; text-decoration:line-through; cursor:not-allowed }
+  .in { border:1px solid var(--line); border-radius:var(--r); padding:calc(var(--pad)*.4) calc(var(--pad)*.6); background:var(--card); width:100%; font:inherit }
+  label.l { font-size:.85em; color:var(--muted); display:block; margin-bottom:2px }
+  table { border-collapse:collapse; width:100% } th { text-align:left; color:var(--muted); font-weight:500; font-size:.85em }
+  td,th { padding:0 var(--pad); height:var(--row); border-bottom:1px solid var(--line) }
+  .badge { border-radius:999px; padding:1px 8px; font-size:.82em; font-weight:500; white-space:nowrap }
+  .g-ph { background:linear-gradient(135deg,var(--soft),var(--line)); border-radius:var(--r); display:flex; align-items:center; justify-content:center; color:var(--muted) }
+  #bar { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:#111; color:#fff; border-radius:999px; padding:8px 14px; display:flex; gap:14px; align-items:center; font:13px Inter,sans-serif; box-shadow:0 4px 20px #0005; z-index:99 }
+  #bar button { background:#333; color:#fff; border:0; border-radius:999px; width:26px; height:26px; cursor:pointer }
+  #bar a { color:#aaa; cursor:pointer } #bar a.on { color:#fff; font-weight:600; text-decoration:underline }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="bar"></div>
+<script>
+const P = new URLSearchParams(location.search);
+let variant = P.get('variant') || 'A', screen = P.get('screen') || 'product';
+const VARIANTS = {A:'Editorial / airy', B:'Boutique / balanced', C:'Utilitarian / compact'};
+const SCREENS = {product:'Ürün', checkout:'Ödeme', admin:'Siparişler (admin)'};
+const TL = n => n.toLocaleString('tr-TR',{minimumFractionDigits:2})+' ₺';
+const sizes = [['36',1],['38',1],['40',1],['42',0],['44',1]];
+const colors = ['Bordo','Siyah','Krem'];
+const nav = (items)=>`<div class="flex gap-6 items-center muted">${items.map(i=>`<span>${i}</span>`).join('')}</div>`;
+
+function storeHeader(){
+  const v=variant;
+  if(v==='A') return `<header class="text-center" style="padding:24px 0;border-bottom:1px solid var(--line)"><div class="h" style="font-size:2rem">Aura Tekstil</div><div class="mt-3">${nav(['Giyim','İç Giyim','Ayakkabı','Aksesuar']).replace('flex gap-6','flex gap-8 justify-center')}</div></header>`;
+  if(v==='B') return `<header class="flex items-center justify-between" style="padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line)"><b style="color:var(--accent)">Aura Tekstil</b>${nav(['Giyim','İç Giyim','Ayakkabı','Aksesuar'])}<span>Sepet (2)</span></header>`;
+  return `<header class="flex items-center justify-between" style="padding:6px 12px;background:var(--card);border-bottom:1px solid var(--line)"><b>Aura</b>${nav(['Giyim','İç Giyim','Ayakkabı','Aksesuar']).replace('gap-6','gap-3')}<span>Sepet (2)</span></header>`;
+}
+const sizePick = ()=>`<div class="flex gap-2 flex-wrap">${sizes.map(([s,ok],i)=>`<span class="chip ${ok?(i==1?'on':''):'off'}">${s}</span>`).join('')}</div>`;
+const colorPick = ()=>`<div class="flex gap-2">${colors.map((c,i)=>`<span class="chip ${i==0?'on':''}">${c}</span>`).join('')}</div>`;
+
+function product(){
+  const v=variant;
+  const info = `
+    <div class="muted">Aura Collection · Elbise</div>
+    <div class="h mt-1">Midi Saten Elbise</div>
+    <div class="mt-2" style="font-size:1.3em;font-weight:600">${TL(1499)} <span class="muted" style="font-size:.7em;font-weight:400">KDV dahil</span></div>
+    <div class="mt-4"><label class="l">Renk: Bordo</label>${colorPick()}</div>
+    <div class="mt-3"><label class="l">Beden: 38 <a class="underline">Beden tablosu</a></label>${sizePick()}</div>
+    <div class="mt-4 flex gap-2"><span class="btn" style="flex:1;text-align:center">Sepete ekle</span><span class="btn btn-o">♡</span></div>
+    <div class="muted mt-3">Stokta · Sabit kargo 59,90 ₺ · Kapıda ödeme mevcut</div>
+    <div class="mt-4 muted">Saten dokulu, midi boy, gizli fermuarlı elbise. %96 polyester, %4 elastan. 30°C'de yıkayın.</div>`;
+  if(v==='A') return storeHeader()+`<main style="max-width:1100px;margin:40px auto;padding:0 24px" class="grid md:grid-cols-[1.4fr_1fr] gap-12">
+      <div class="grid gap-4"><div class="g-ph" style="height:560px">Fotoğraf 1</div><div class="grid grid-cols-2 gap-4"><div class="g-ph" style="height:280px">2</div><div class="g-ph" style="height:280px">3</div></div></div>
+      <div style="position:sticky;top:24px;align-self:start">${info}</div></main>`;
+  if(v==='B') return storeHeader()+`<main style="max-width:1100px;margin:24px auto;padding:0 20px" class="grid md:grid-cols-[64px_1fr_1fr] gap-5">
+      <div class="grid gap-2 content-start">${[1,2,3,4].map(i=>`<div class="g-ph" style="height:80px">${i}</div>`).join('')}</div>
+      <div class="g-ph" style="height:520px">Ana fotoğraf</div>
+      <div class="card">${info}</div></main>`;
+  return storeHeader()+`<main style="max-width:1000px;margin:10px auto;padding:0 10px" class="grid md:grid-cols-[300px_1fr] gap-3">
+      <div class="g-ph" style="height:380px">Fotoğraf</div>
+      <div class="grid gap-3"><div class="card">${info}</div>
+      <div class="card"><b>Stok durumu</b><table style="margin-top:4px"><tr><th>Renk</th>${sizes.map(s=>`<th>${s[0]}</th>`).join('')}</tr>${colors.map(c=>`<tr><td>${c}</td>${sizes.map(([s,ok])=>`<td>${ok?'●':'–'}</td>`).join('')}</tr>`).join('')}</table></div></div></main>`;
+}
+
+const summary = `<div class="card"><b>Sipariş özeti</b>
+  <div class="flex justify-between mt-2"><span>Midi Saten Elbise · 38 · Bordo</span><span>${TL(1499)}</span></div>
+  <div class="flex justify-between"><span>Basic Tişört · M · Krem</span><span>${TL(349)}</span></div>
+  <div class="flex justify-between muted mt-2"><span>Kargo</span><span>${TL(59.9)}</span></div>
+  <div class="flex justify-between muted"><span>Kapıda ödeme bedeli</span><span>${TL(29.9)}</span></div>
+  <div class="flex justify-between mt-2" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>Toplam (KDV dahil)</span><span>${TL(1937.8)}</span></div></div>`;
+const field=(l,w='')=>`<div class="${w}"><label class="l">${l}</label><input class="in" placeholder="${l}"></div>`;
+const payOpts = `<div class="grid gap-2"><label class="card flex gap-2"><input type="radio" name="p" checked> <span><b>Havale / EFT</b><br><span class="muted">48 saat içinde ödeme; IBAN siparişten sonra gösterilir.</span></span></label>
+  <label class="card flex gap-2"><input type="radio" name="p"> <span><b>Kapıda ödeme</b> <span class="muted">(+29,90 ₺)</span><br><span class="muted">Telefon numarası zorunlu.</span></span></label></div>`;
+const consent = `<label class="flex gap-2 muted"><input type="checkbox"> <span>Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi'ni okudum, onaylıyorum.</span></label>`;
+function checkout(){
+  const v=variant;
+  const contact = `<div class="grid md:grid-cols-2 gap-3">${field('Ad Soyad')}${field('Telefon')}${field('E-posta','md:col-span-2')}</div>`;
+  const addr = `<div class="grid md:grid-cols-3 gap-3">${field('İl')}${field('İlçe')}${field('Mahalle')}${field('Açık adres','md:col-span-3')}</div>`;
+  if(v==='A') return storeHeader()+`<main style="max-width:640px;margin:40px auto;padding:0 20px" class="grid gap-10">
+     <div class="h">Ödeme</div>
+     ${[['1 · İletişim',contact],['2 · Teslimat',addr],['3 · Ödeme',payOpts],['Sipariş özeti',summary]].map(([t,b])=>`<section><div class="h" style="font-size:1.4rem;margin-bottom:12px">${t}</div>${b}</section>`).join('')}
+     ${consent}<span class="btn" style="text-align:center;padding:16px">Siparişi onayla</span></main>`;
+  if(v==='B') return storeHeader()+`<main style="max-width:1000px;margin:24px auto;padding:0 20px" class="grid md:grid-cols-[1fr_340px] gap-5">
+     <div class="grid gap-4"><div class="card"><b>İletişim</b><div class="mt-3">${contact}</div><div class="muted mt-2">Hesabınız var mı? <a class="underline">Giriş yapın</a></div></div>
+     <div class="card"><b>Teslimat adresi</b><div class="mt-3">${addr}</div></div>
+     <div class="card"><b>Ödeme yöntemi</b><div class="mt-3">${payOpts}</div></div></div>
+     <aside class="grid gap-3 content-start">${summary}${consent}<span class="btn" style="text-align:center">Siparişi onayla</span></aside></main>`;
+  return storeHeader()+`<main style="max-width:900px;margin:8px auto;padding:0 10px" class="grid md:grid-cols-[1fr_280px] gap-3">
+     <div class="card grid gap-2"><b>İletişim ve teslimat</b><div class="grid grid-cols-3 gap-2">${field('Ad Soyad')}${field('Telefon')}${field('E-posta')}${field('İl')}${field('İlçe')}${field('Mahalle')}${field('Açık adres','col-span-3')}</div>
+       <b class="mt-2">Ödeme</b>${payOpts}</div>
+     <aside class="grid gap-2 content-start" style="position:sticky;top:8px">${summary}${consent}<span class="btn" style="text-align:center">Siparişi onayla</span></aside></main>`;
+}
+
+const orders = [
+ ['AT-1042','Ayşe Y.','Mersin','Havale','Ödeme bekliyor','Beklemede',1937.8],
+ ['AT-1041','Fatma K.','Adana','Kapıda','—','Hazırlanıyor',879.9],
+ ['AT-1040','Zeynep A.','İstanbul','Havale','Ödendi','Kargoda',2310],
+ ['AT-1039','Elif D.','Mersin','Kapıda','—','Teslim edildi',649.9],
+ ['AT-1038','Merve S.','Ankara','Havale','Ödendi','Hazırlanıyor',1249],
+ ['AT-1037','Selin T.','İzmir','Havale','Süresi doldu','İptal',459.9],
+ ['AT-1036','Burcu C.','Mersin','Kapıda','—','İade',1099],
+];
+const tone = s => ({'Beklemede':'#fef3c7;color:#92400e','Ödeme bekliyor':'#fef3c7;color:#92400e','Hazırlanıyor':'#dbeafe;color:#1e40af','Kargoda':'#e0e7ff;color:#3730a3','Teslim edildi':'#dcfce7;color:#166534','Ödendi':'#dcfce7;color:#166534','İptal':'#f4f4f5;color:#52525b','Süresi doldu':'#fee2e2;color:#991b1b','İade':'#fee2e2;color:#991b1b','—':'transparent;color:#a1a1aa'}[s]);
+const bdg = s=>`<span class="badge" style="background:${tone(s)}">${s}</span>`;
+function admin(){
+  const v=variant;
+  const side = (w,pad)=>`<aside style="width:${w}px;background:var(--card);border-right:1px solid var(--line);padding:${pad}px;min-height:100vh" class="grid content-start gap-1"><b style="margin-bottom:8px">Aura Yönetim</b>${['Panel','Siparişler','Ürünler','Stok','Müşteriler','Tedarikçiler','Raporlar','Ayarlar'].map((x,i)=>`<div style="padding:5px 8px;border-radius:var(--r);${x==='Siparişler'?'background:var(--soft);font-weight:600':''}" class="${x==='Siparişler'?'':'muted'}">${x}</div>`).join('')}</aside>`;
+  if(v==='A') return `<div style="max-width:960px;margin:0 auto;padding:40px 24px"><div class="h">Siparişler</div><div class="muted mb-6">7 sipariş · 2 işlem bekliyor</div>
+    <div class="grid gap-3">${orders.map(o=>`<div class="card flex items-center justify-between"><div><b>${o[0]}</b> · ${o[1]}<div class="muted">${o[2]} · ${o[3]}</div></div><div class="flex gap-2 items-center">${bdg(o[4])}${bdg(o[5])}<b style="width:110px;text-align:right">${TL(o[6])}</b></div></div>`).join('')}</div></div>`;
+  const tbl = (dense)=>`<table><thead><tr>${dense?'<th style="width:24px"><input type=checkbox></th>':''}<th>No</th><th>Müşteri</th><th>İl</th><th>Ödeme</th><th>Ödeme durumu</th><th>Sipariş durumu</th><th style="text-align:right">Tutar</th></tr></thead><tbody>${orders.map(o=>`<tr>${dense?'<td><input type=checkbox></td>':''}<td><b>${o[0]}</b></td><td>${o[1]}</td><td>${o[2]}</td><td>${o[3]}</td><td>${bdg(o[4])}</td><td>${bdg(o[5])}</td><td style="text-align:right">${TL(o[6])}</td></tr>`).join('')}</tbody></table>`;
+  if(v==='B') return `<div class="flex">${side(210,16)}<main class="grow" style="padding:24px"><div class="flex justify-between items-center mb-4"><div class="h">Siparişler</div><span class="btn">Yeni sipariş</span></div>
+    <div class="flex gap-2 mb-3"><input class="in" style="max-width:260px" placeholder="Sipariş no / müşteri ara"><span class="chip">Tümü</span><span class="chip on">İşlem bekleyen (2)</span><span class="chip">Kargoda</span><span class="chip">İade</span></div>
+    <div class="card" style="padding:0;overflow:hidden">${tbl(false)}</div><div class="muted mt-2">1–7 / 7 · Sayfa 1</div></main></div>`;
+  return `<div class="flex">${side(150,8)}<main class="grow" style="padding:10px"><div class="flex justify-between items-center mb-2"><b style="font-size:1.1em">Siparişler</b><div class="flex gap-1"><input class="in" style="width:200px" placeholder="Ara (/)"><span class="chip">Durum ▾</span><span class="chip">Ödeme ▾</span><span class="chip">Tarih ▾</span><span class="btn">+ Yeni</span></div></div>
+    <div class="flex gap-2 mb-2 muted"><span>2 seçili:</span><a class="underline">Ödendi işaretle</a><a class="underline">Kargoya ver</a><a class="underline">İptal</a></div>
+    <div class="card" style="padding:0;overflow:hidden">${tbl(true)}</div><div class="muted mt-1">7 kayıt · 50/sayfa</div></main></div>`;
+}
+
+function render(){
+  document.documentElement.dataset.v = variant;
+  document.getElementById('app').innerHTML = {product,checkout,admin}[screen]();
+  document.getElementById('bar').innerHTML = `<button onclick="step(-1)">←</button><b>${variant} · ${VARIANTS[variant]}</b><button onclick="step(1)">→</button><span style="opacity:.3">|</span>${Object.entries(SCREENS).map(([k,n])=>`<a class="${k===screen?'on':''}" onclick="go('${k}')">${n}</a>`).join('')}`;
+  const q = new URLSearchParams({screen,variant}); history.replaceState(null,'','?'+q);
+}
+const step = d => { const k=Object.keys(VARIANTS); variant = k[(k.indexOf(variant)+d+k.length)%k.length]; render(); };
+const go = s => { screen = s; render(); };
+addEventListener('keydown',e=>{
+  if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const sk=Object.keys(SCREENS);
+  if(e.key==='ArrowLeft') step(-1); if(e.key==='ArrowRight') step(1);
+  if(e.key==='ArrowUp') go(sk[(sk.indexOf(screen)-1+3)%3]); if(e.key==='ArrowDown') go(sk[(sk.indexOf(screen)+1)%3]);
+});
+render();
+</script>
+</body>
+</html>
