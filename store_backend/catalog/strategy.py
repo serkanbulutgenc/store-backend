@@ -2,6 +2,13 @@
 
 Oscar's stock record price is not used. The shelf price lives on the Product (with a
 Variant override), so price changes need no stock-record sync.
+
+The exclusive and KDV amounts here are per *unit*, so Oscar's basket line totals
+(unit x quantity) can differ from `pricing.line_snapshot` (which splits the line total)
+by a kuruş in the exclusive/KDV split; inclusive totals always agree. Basket display
+may use these, but the order placement service must build Order line amounts from
+`pricing.line_snapshot` so that stored totals equal the sum of the snapshots.
+Only Variants (children) are priced; a Product without a Variant is unavailable.
 """
 
 from __future__ import annotations

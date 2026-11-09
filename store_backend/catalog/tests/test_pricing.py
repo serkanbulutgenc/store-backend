@@ -157,3 +157,12 @@ def test_product_without_variants_has_no_price(variants):
     base.delete()
     override.delete()
     assert not Selector().strategy().fetch_for_parent(product).price.exists
+
+
+def test_unit_split_and_line_snapshot_agree_on_incl_but_snapshot_is_authoritative():
+    # 3 x 10.00 at 20%: per-unit split is 8.33 + 1.67, line-total split is 25.00 + 5.00.
+    unit_excl, unit_kdv = pricing.split_kdv(D("10.00"), D(20))
+    line = pricing.line_snapshot(unit_price=D("10.00"), quantity=3, kdv_rate=D(20))
+    assert unit_excl * 3 + unit_kdv * 3 == line.total_incl
+    assert (line.total_excl, line.total_kdv) == (D("25.00"), D("5.00"))
+    assert unit_excl * 3 == D("24.99")  # why placement must use the snapshot

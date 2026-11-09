@@ -17,7 +17,6 @@ from django.conf import settings
 KURUS = Decimal("0.01")
 HUNDRED = Decimal(100)
 ZERO = Decimal("0.00")
-DEFAULT_FEE_KDV_RATE = Decimal(20)
 
 
 def kurus(amount: Decimal) -> Decimal:
@@ -59,7 +58,10 @@ class OrderTotals:
 
 
 def line_snapshot(
-    *, unit_price: Decimal, quantity: int, kdv_rate: Decimal,
+    *,
+    unit_price: Decimal,
+    quantity: int,
+    kdv_rate: Decimal,
 ) -> LineSnapshot:
     if quantity < 1:
         msg = "quantity must be at least 1"
@@ -79,7 +81,7 @@ def line_snapshot(
 
 def fee_rate() -> Decimal:
     """KDV rate for shipping and COD lines (Store settings will override this)."""
-    return Decimal(str(getattr(settings, "FEE_KDV_RATE", DEFAULT_FEE_KDV_RATE)))
+    return Decimal(str(settings.FEE_KDV_RATE))
 
 
 def fee_line(amount: Decimal, *, kdv_rate: Decimal | None = None) -> LineSnapshot:
