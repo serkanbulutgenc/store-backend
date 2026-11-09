@@ -8,10 +8,14 @@ from django.views.generic import TemplateView
 
 from store_backend.api.admin import admin_api
 from store_backend.api.store import store_api
+from store_backend.catalog.seo import robots_txt
+from store_backend.catalog.seo import sitemap_xml
 from store_backend.health import health
 
 urlpatterns = [
     path("health", health, name="health"),
+    path("robots.txt", robots_txt, name="robots"),
+    path("sitemap.xml", sitemap_xml, name="sitemap"),
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
     path(
         "about/",

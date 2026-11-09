@@ -339,3 +339,48 @@ def test_category_tree_is_public_and_two_level(client, shop):
         },
         {"name": "Ayakkabı", "slug": shop.ayakkabi.slug, "children": []},
     ]
+
+
+def test_old_slug_resolves_to_the_product_at_its_current_slug(client, shop):
+    product = shop.product("Elbise", [(shop.black, "M", 1)])
+    old = product.profile.slug
+    catalog.rename_slug(product, "yeni-elbise")
+
+    response = client.get(f"{URL}/{old}")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["slug"] == "yeni-elbise"
+
+
+def test_old_slug_of_an_unpublished_product_is_not_found(client, shop):
+    product = shop.product("Elbise", [(shop.black, "M", 1)])
+    old = product.profile.slug
+    catalog.rename_slug(product, "yeni-elbise")
+    ProductProfile.objects.filter(product=product).update(status=ProductStatus.DRAFT)
+
+    assert client.get(f"{URL}/{old}").status_code == HTTPStatus.NOT_FOUND
+
+
+def test_robots_txt_disallows_private_paths_and_links_the_sitemap(client):
+    response = client.get("/robots.txt", headers={"x-forwarded-host": "aura.example"})
+
+    body = response.content.decode()
+    assert response.status_code == HTTPStatus.OK
+    assert response["content-type"].startswith("text/plain")
+    for path in ("/admin", "/sepet", "/odeme", "/hesabim", "/siparis-takip", "/api"):
+        assert f"Disallow: {path}\n" in body
+    assert "Sitemap: http://aura.example/sitemap.xml" in body
+
+
+def test_sitemap_lists_published_products_and_categories_only(client, shop):
+    shop.product("Elbise", [(shop.black, "M", 1)])
+    shop.product("Taslak", [(shop.black, "M", 1)], status=ProductStatus.DRAFT)
+
+    response = client.get("/sitemap.xml", headers={"x-forwarded-proto": "https"})
+
+    body = response.content.decode()
+    assert response.status_code == HTTPStatus.OK
+    assert "/urun/elbise</loc><lastmod>" in body
+    assert "taslak" not in body
+    assert "/kategori/giyim</loc>" in body
+    assert "<loc>https://testserver/</loc>" in body

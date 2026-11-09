@@ -31,6 +31,7 @@ from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
+from store_backend.catalog.models import SlugRedirect
 from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import search
@@ -339,7 +340,16 @@ def detail(slug: str) -> dict:
         .first()
     )
     if profile is None:
-        raise NotFoundError
+        # An old slug answers with the Product at its current slug; the storefront
+        # sees the mismatch and 301s to the new URL.
+        current = (
+            SlugRedirect.objects.filter(old_slug=slug)
+            .values_list("product__profile__slug", flat=True)
+            .first()
+        )
+        if current is None or current == slug:
+            raise NotFoundError
+        return detail(current)
     product = profile.product
     variants = variants_by_product([product.pk])[product.pk]
     photos = photos_by_product([product.pk])[product.pk]
