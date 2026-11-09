@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 PAGE_SIZE = 24
-SORTS = ("newest", "price_asc", "price_desc", "relevance")
 _SIZE_ORDER = {
     size: i
     for i, size in enumerate(dict.fromkeys(s for v in SIZES.values() for s in v))
@@ -58,10 +57,6 @@ class Filters:
     price_min: Decimal | None = None
     price_max: Decimal | None = None
     in_stock: bool = True
-
-    @property
-    def has_variant_filter(self) -> bool:
-        return bool(self.colours or self.sizes or self.in_stock)
 
 
 # --- query building ------------------------------------------------------------
