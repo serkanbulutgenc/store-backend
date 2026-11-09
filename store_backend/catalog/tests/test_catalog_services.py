@@ -350,12 +350,19 @@ def test_explicit_zero_kdv_override_is_respected(product):
 
 
 def test_kdv_rate_and_threshold_are_validated(giyim, elbise):
-    for kwargs in ({"kdv_rate": 150}, {"low_stock_threshold": -1}):
-        with pytest.raises(UnprocessableError):
-            catalog.create_product(
-                title="X",
-                product_class=giyim,
-                category=elbise,
-                shelf_price=1,
-                **kwargs,
-            )
+    with pytest.raises(UnprocessableError):
+        catalog.create_product(
+            title="X",
+            product_class=giyim,
+            category=elbise,
+            shelf_price=1,
+            kdv_rate=150,
+        )
+    with pytest.raises(UnprocessableError):
+        catalog.create_product(
+            title="X",
+            product_class=giyim,
+            category=elbise,
+            shelf_price=1,
+            low_stock_threshold=-1,
+        )

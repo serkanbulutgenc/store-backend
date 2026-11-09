@@ -392,6 +392,9 @@ OSCAR_HOMEPAGE = "/"
 OSCAR_ALLOW_ANON_CHECKOUT = True
 OSCAR_BASKET_COOKIE_LIFETIME = 14 * 24 * 60 * 60
 OSCAR_DEFAULT_CURRENCY = "TRY"
+OSCAR_DYNAMIC_CLASS_LOADER = "store_backend.catalog.loader.class_loader"
+# KDV rate for shipping and COD fee lines until Store settings (ticket 20) hold it.
+FEE_KDV_RATE = 20
 
 # allauth headless: app mode only. The Start server holds the session token and sends
 # it as `X-Session-Token`; there is no browser (cookie) client.
