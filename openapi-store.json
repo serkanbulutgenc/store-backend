@@ -1,6 +1,26 @@
 {
   "components": {
     "schemas": {
+      "AddIn": {
+        "properties": {
+          "quantity": {
+            "default": 1,
+            "maximum": 99,
+            "minimum": 1,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "variant_id"
+        ],
+        "title": "AddIn",
+        "type": "object"
+      },
       "BannerOut": {
         "properties": {
           "alt": {
@@ -22,6 +42,139 @@
           "alt"
         ],
         "title": "BannerOut",
+        "type": "object"
+      },
+      "BasketLineOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "colour": {
+            "$ref": "#/components/schemas/ColourOut"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_hygiene": {
+            "title": "Is Hygiene",
+            "type": "boolean"
+          },
+          "line_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "sold_out, insufficient_stock or unavailable; empty when fine.",
+            "title": "Problem"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Unit Price",
+            "type": "string"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "variant_id",
+          "sku",
+          "title",
+          "slug",
+          "colour",
+          "size",
+          "image",
+          "quantity",
+          "unit_price",
+          "line_total",
+          "available",
+          "is_hygiene"
+        ],
+        "title": "BasketLineOut",
+        "type": "object"
+      },
+      "BasketOut": {
+        "properties": {
+          "has_problems": {
+            "title": "Has Problems",
+            "type": "boolean"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/BasketLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "subtotal": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Subtotal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lines",
+          "item_count",
+          "subtotal",
+          "has_problems"
+        ],
+        "title": "BasketOut",
         "type": "object"
       },
       "BrandFacet": {
@@ -158,6 +311,24 @@
         "title": "ColourFacet",
         "type": "object"
       },
+      "ColourOut": {
+        "properties": {
+          "hex_code": {
+            "title": "Hex Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "hex_code"
+        ],
+        "title": "ColourOut",
+        "type": "object"
+      },
       "CrumbOut": {
         "properties": {
           "name": {
@@ -237,10 +408,31 @@
           }
         },
         "required": [
-          "width",
-          "url"
+          "url",
+          "width"
         ],
         "title": "ImageSizeOut",
+        "type": "object"
+      },
+      "LineImageOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Sizes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alt",
+          "sizes"
+        ],
+        "title": "LineImageOut",
         "type": "object"
       },
       "PagePhotoOut": {
@@ -769,6 +961,21 @@
         "title": "PublicSettingsOut",
         "type": "object"
       },
+      "QuantityIn": {
+        "properties": {
+          "quantity": {
+            "maximum": 99,
+            "minimum": 1,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "QuantityIn",
+        "type": "object"
+      },
       "SellerOut": {
         "properties": {
           "address": {
@@ -853,6 +1060,13 @@
         "title": "SwatchOut",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "GuestAuth": {
+        "in": "header",
+        "name": "X-Session-Token",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -862,6 +1076,152 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/store/basket": {
+      "get": {
+        "operationId": "basket_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasketOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Get Basket",
+        "tags": [
+          "basket"
+        ]
+      }
+    },
+    "/api/store/basket/lines": {
+      "post": {
+        "operationId": "basket_add_line",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasketOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Add Line",
+        "tags": [
+          "basket"
+        ]
+      }
+    },
+    "/api/store/basket/lines/{line_id}": {
+      "delete": {
+        "operationId": "basket_remove_line",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "title": "Line Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasketOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Remove Line",
+        "tags": [
+          "basket"
+        ]
+      },
+      "patch": {
+        "operationId": "basket_set_quantity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "title": "Line Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuantityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasketOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Set Quantity",
+        "tags": [
+          "basket"
+        ]
+      }
+    },
     "/api/store/categories": {
       "get": {
         "description": "The two-level category tree for the header menu and the homepage.",
