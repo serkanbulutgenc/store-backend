@@ -302,3 +302,29 @@ def test_every_catalog_endpoint_declares_a_permission(client):
     ):
         response = client.get(f"{BASE}{path}")
         assert response.status_code == HTTPStatus.UNAUTHORIZED, path
+
+
+def test_stock_adjustment_input_is_bounded(staff_api, seed):
+    url = f"{BASE}/variants/{seed['variant'].pk}/stock-adjustments"
+    for body in (
+        {"delta": 10**9, "reason": "sayım"},
+        {"delta": 1, "reason": "x" * 500},
+    ):
+        assert staff_api.post(url, body).status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_product_list_query_count_does_not_grow_with_products(
+    staff_api,
+    seed,
+    django_assert_max_num_queries,
+):
+    for i in range(5):
+        p = catalog.create_product(
+            title=f"Ürün {i}",
+            product_class=ProductClass.objects.get(name="Giyim"),
+            category=seed["sub"],
+            shelf_price="10.00",
+        )
+        catalog.create_variant(p, colour=seed["colour"], size="M", stock=1)
+    with django_assert_max_num_queries(15):
+        assert staff_api.get(f"{BASE}/products").json()["total"] == 6  # noqa: PLR2004

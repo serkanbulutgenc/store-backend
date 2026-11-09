@@ -1017,10 +1017,13 @@
       "StockAdjustmentIn": {
         "properties": {
           "delta": {
+            "maximum": 100000,
+            "minimum": -100000,
             "title": "Delta",
             "type": "integer"
           },
           "reason": {
+            "maxLength": 200,
             "title": "Reason",
             "type": "string"
           }

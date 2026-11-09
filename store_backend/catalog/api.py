@@ -167,8 +167,8 @@ class VariantPatch(Schema):
 
 
 class StockAdjustmentIn(Schema):
-    delta: int
-    reason: str
+    delta: int = Field(..., ge=-100000, le=100000)
+    reason: str = Field(..., max_length=200)
 
 
 class StockOut(Schema):
@@ -278,7 +278,8 @@ def _colour(c: Colour) -> dict:
 
 def _variant_dict(v: Product) -> dict:
     vp = v.variant_profile
-    record = v.stockrecords.first()
+    records = list(v.stockrecords.all())
+    record = records[0] if records else None
     on_hand = record.num_in_stock if record else 0
     allocated = (record.num_allocated or 0) if record else 0
     return {
@@ -549,7 +550,7 @@ def list_products(
     qs = (
         Product.objects.filter(structure=Product.PARENT)
         .select_related("profile")
-        .prefetch_related("categories")
+        .prefetch_related("categories", "children__stockrecords")
         .annotate(shelf_price=F("profile__shelf_price"), status=F("profile__status"))
     )
     if q:
@@ -590,7 +591,7 @@ class MappedRows:
 
 
 def _list_dict(p: Product) -> dict:
-    children = list(p.children.prefetch_related("stockrecords"))
+    children = list(p.children.all())
     categories = list(p.categories.all())
     return {
         "id": p.pk,

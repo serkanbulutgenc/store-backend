@@ -446,7 +446,7 @@ def update_product(  # noqa: C901, PLR0912
     unknown = set(changes) - PRODUCT_FIELDS
     if unknown:
         raise _invalid(sorted(unknown)[0], "Bilinmeyen alan.")
-    profile = product.profile
+    profile = ProductProfile.objects.select_for_update().get(product=product)
     before = _price_snapshot(profile)
 
     if "title" in changes:
