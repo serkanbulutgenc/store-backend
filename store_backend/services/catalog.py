@@ -61,6 +61,7 @@ TURKISH = str.maketrans(
 )
 # fmt: on
 MAX_CATEGORY_DEPTH = 2
+MAX_KDV_RATE = Decimal(100)
 
 
 def _invalid(field: str, message: str) -> UnprocessableError:
@@ -221,6 +222,11 @@ def create_product(  # noqa: PLR0913
     old = _money(old_price, "old_price") if old_price is not None else None
     if old is not None and old <= shelf:
         raise _invalid("old_price", "Eski fiyat satış fiyatından yüksek olmalı.")
+    rate = Decimal(str(kdv_rate)) if kdv_rate is not None else None
+    if rate is not None and not Decimal(0) <= rate <= MAX_KDV_RATE:
+        raise _invalid("kdv_rate", "KDV oranı 0 ile 100 arasında olmalı.")
+    if low_stock_threshold is not None and low_stock_threshold < 0:
+        raise _invalid("low_stock_threshold", "Eşik negatif olamaz.")
     if slug:
         final_slug = slugify_tr(slug)
         if not final_slug or _slug_taken(final_slug):
@@ -247,7 +253,7 @@ def create_product(  # noqa: PLR0913
         cost_price=_money(cost_price, "cost_price") if cost_price is not None else None,
         shelf_price=shelf,
         old_price=old,
-        kdv_rate=Decimal(str(kdv_rate)) if kdv_rate is not None else None,
+        kdv_rate=rate,
         **extra,
     )
     set_category(product, category)
@@ -258,7 +264,9 @@ def kdv_rate_for(product: Product) -> Decimal:
     """The KDV percentage: the Product's own override or its class default."""
     parent = product.parent or product
     profile = parent.profile
-    return profile.kdv_rate or parent.product_class.profile.default_kdv_rate
+    if profile.kdv_rate is not None:
+        return profile.kdv_rate
+    return parent.product_class.profile.default_kdv_rate
 
 
 def shelf_price_for(variant: Product) -> Decimal:

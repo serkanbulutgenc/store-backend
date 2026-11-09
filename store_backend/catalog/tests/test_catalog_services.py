@@ -342,3 +342,20 @@ def test_orm_hard_delete_with_orders_is_also_rejected(product, kirmizi):
     with pytest.raises(ProtectedError), transaction.atomic():
         product.delete()
     assert Product.objects.filter(pk=product.pk).exists()
+
+
+def test_explicit_zero_kdv_override_is_respected(product):
+    product.profile.kdv_rate = Decimal("0.00")
+    assert catalog.kdv_rate_for(product) == Decimal(0)
+
+
+def test_kdv_rate_and_threshold_are_validated(giyim, elbise):
+    for kwargs in ({"kdv_rate": 150}, {"low_stock_threshold": -1}):
+        with pytest.raises(UnprocessableError):
+            catalog.create_product(
+                title="X",
+                product_class=giyim,
+                category=elbise,
+                shelf_price=1,
+                **kwargs,
+            )
