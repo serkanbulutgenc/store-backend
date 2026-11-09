@@ -34,9 +34,14 @@ from store_backend.catalog.models import Supplier
 from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.signals import has_orders
 from store_backend.catalog.sizes import sizes_for
+from store_backend.services import audit
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from oscar.apps.catalogue.models import ProductClass
+
+    from store_backend.users.models import User
 
 PARTNER_NAME = "Aura Tekstil"
 SKU_PREFIX = "AUR"
@@ -275,10 +280,18 @@ def shelf_price_for(variant: Product) -> Decimal:
     return override if override is not None else variant.parent.profile.shelf_price
 
 
+# Extra publish rules registered by other modules (the media ticket adds "needs a
+# photo"). Each is called with the Product and raises an ApiError to refuse.
+PUBLISH_CHECKS: list[Callable[[Product], None]] = []
+
+
 @transaction.atomic
 def set_status(product: Product, status: ProductStatus) -> Product:
-    if status == ProductStatus.PUBLISHED and not product.children.exists():
-        raise _invalid("status", "Yayınlamak için en az bir varyant ekleyin.")
+    if status == ProductStatus.PUBLISHED:
+        if not product.children.exists():
+            raise _invalid("status", "Yayınlamak için en az bir varyant ekleyin.")
+        for check in PUBLISH_CHECKS:
+            check(product)
     profile = product.profile
     profile.status = status
     profile.save(update_fields=["status"])
@@ -384,6 +397,7 @@ def create_variant(  # noqa: PLR0913
         partner=partner,
         partner_sku=sku,
         num_in_stock=stock,
+        num_allocated=0,
         price_currency="TRY",
     )
     return variant
@@ -394,3 +408,232 @@ def is_low_stock(variant: Product) -> bool:
     record = variant.stockrecords.get()
     threshold = variant.parent.profile.low_stock_threshold
     return record.net_stock_level <= threshold
+
+
+# --- updates ---------------------------------------------------------------
+
+PRODUCT_FIELDS = frozenset(
+    {
+        "title",
+        "category",
+        "brand",
+        "supplier",
+        "supplier_code",
+        "cost_price",
+        "shelf_price",
+        "old_price",
+        "kdv_rate",
+        "low_stock_threshold",
+        "slug",
+    },
+)
+PRICE_FIELDS = ("shelf_price", "old_price", "cost_price")
+
+
+def _price_snapshot(profile: ProductProfile) -> dict[str, str | None]:
+    return {
+        f: None if (v := getattr(profile, f)) is None else str(v) for f in PRICE_FIELDS
+    }
+
+
+@transaction.atomic
+def update_product(  # noqa: C901, PLR0912
+    actor: User,
+    product: Product,
+    **changes: object,
+) -> Product:
+    """Apply the given changes (only the keys passed). Price changes are audited."""
+    unknown = set(changes) - PRODUCT_FIELDS
+    if unknown:
+        raise _invalid(sorted(unknown)[0], "Bilinmeyen alan.")
+    profile = product.profile
+    before = _price_snapshot(profile)
+
+    if "title" in changes:
+        title = str(changes["title"]).strip()
+        if not title:
+            raise _invalid("title", "Ürün adı girin.")
+        product.title = title
+        product.save(update_fields=["title"])
+    if "category" in changes:
+        set_category(product, changes["category"])
+    for name in ("brand", "supplier", "supplier_code"):
+        if name in changes:
+            setattr(
+                profile,
+                name,
+                changes[name] if name != "supplier_code" else str(changes[name] or ""),
+            )
+    if "cost_price" in changes:
+        value = changes["cost_price"]
+        profile.cost_price = None if value is None else _money(value, "cost_price")
+    if "shelf_price" in changes:
+        profile.shelf_price = _money(changes["shelf_price"], "shelf_price")
+    if "old_price" in changes:
+        value = changes["old_price"]
+        profile.old_price = None if value is None else _money(value, "old_price")
+    if profile.old_price is not None and profile.old_price <= profile.shelf_price:
+        raise _invalid("old_price", "Eski fiyat satış fiyatından yüksek olmalı.")
+    if "kdv_rate" in changes:
+        value = changes["kdv_rate"]
+        rate = None if value is None else Decimal(str(value))
+        if rate is not None and not Decimal(0) <= rate <= MAX_KDV_RATE:
+            raise _invalid("kdv_rate", "KDV oranı 0 ile 100 arasında olmalı.")
+        profile.kdv_rate = rate
+    if "low_stock_threshold" in changes:
+        threshold = changes["low_stock_threshold"]
+        if not isinstance(threshold, int) or threshold < 0:
+            raise _invalid("low_stock_threshold", "Eşik negatif olamaz.")
+        profile.low_stock_threshold = threshold
+    profile.save()
+    if "slug" in changes:
+        rename_slug(product, str(changes["slug"]))
+
+    after = _price_snapshot(profile)
+    if after != before:
+        audit.record(
+            actor,
+            audit.Action.PRICE_CHANGE,
+            target=product,
+            summary=product.title,
+            before=before,
+            after=after,
+        )
+    return product
+
+
+@transaction.atomic
+def update_variant(actor: User, variant: Product, **changes: object) -> Product:
+    """Edit a Variant's SKU, barcode or price override (colour and size are fixed)."""
+    unknown = set(changes) - {"sku", "barcode", "price_override"}
+    if unknown:
+        raise _invalid(sorted(unknown)[0], "Bilinmeyen alan.")
+    vp = variant.variant_profile
+    before = {
+        "price_override": None if vp.price_override is None else str(vp.price_override),
+    }
+    if "sku" in changes:
+        sku = str(changes["sku"] or "").strip()
+        if not sku:
+            raise _invalid("sku", "SKU girin.")
+        if VariantProfile.objects.filter(sku=sku).exclude(pk=vp.pk).exists():
+            raise _conflict("sku", "Bu SKU zaten kullanılıyor.", "sku_taken")
+        vp.sku = sku
+        variant.upc = sku
+        variant.save(update_fields=["upc"])
+        variant.stockrecords.update(partner_sku=sku)
+    if "barcode" in changes:
+        barcode = str(changes["barcode"] or "").strip() or None
+        if (
+            barcode
+            and VariantProfile.objects.filter(barcode=barcode)
+            .exclude(pk=vp.pk)
+            .exists()
+        ):
+            raise _conflict("barcode", "Bu barkod zaten kullanılıyor.", "barcode_taken")
+        vp.barcode = barcode
+    if "price_override" in changes:
+        value = changes["price_override"]
+        vp.price_override = None if value is None else _money(value, "price_override")
+    vp.save()
+    after = {
+        "price_override": None if vp.price_override is None else str(vp.price_override),
+    }
+    if after != before:
+        audit.record(
+            actor, audit.Action.PRICE_CHANGE, target=variant, summary=vp.sku,
+            before=before, after=after,
+        )  # fmt: skip
+    return variant
+
+
+# --- brands, suppliers, colours, categories -----------------------------------
+
+
+def _named(model, name: str, **extra):
+    name = name.strip()
+    if not name:
+        raise _invalid("name", "Ad girin.")
+    if model.objects.filter(name__iexact=name).exists():
+        raise _conflict("name", "Bu ad zaten var.", "name_taken")
+    return model.objects.create(name=name, **extra)
+
+
+def create_brand(name: str) -> Brand:
+    return _named(Brand, name)
+
+
+def create_supplier(name: str, code: str) -> Supplier:
+    code = code.strip()
+    if not code:
+        raise _invalid("code", "Tedarikçi kodu girin.")
+    if Supplier.objects.filter(code__iexact=code).exists():
+        raise _conflict("code", "Bu kod zaten var.", "code_taken")
+    return _named(Supplier, name, code=code)
+
+
+def _rename(obj, name: str | None) -> None:
+    if name is None:
+        return
+    name = name.strip()
+    if not name:
+        raise _invalid("name", "Ad girin.")
+    if type(obj).objects.filter(name__iexact=name).exclude(pk=obj.pk).exists():
+        raise _conflict("name", "Bu ad zaten var.", "name_taken")
+    obj.name = name
+
+
+@transaction.atomic
+def update_brand(brand: Brand, *, name: str | None = None) -> Brand:
+    _rename(brand, name)
+    brand.save()
+    return brand
+
+
+@transaction.atomic
+def update_supplier(
+    supplier: Supplier,
+    *,
+    name: str | None = None,
+    code: str | None = None,
+) -> Supplier:
+    _rename(supplier, name)
+    if code is not None:
+        code = code.strip()
+        if not code:
+            raise _invalid("code", "Tedarikçi kodu girin.")
+        if Supplier.objects.filter(code__iexact=code).exclude(pk=supplier.pk).exists():
+            raise _conflict("code", "Bu kod zaten var.", "code_taken")
+        supplier.code = code
+    supplier.save()
+    return supplier
+
+
+@transaction.atomic
+def update_colour(
+    colour: Colour,
+    *,
+    name: str | None = None,
+    hex_code: str | None = None,
+    is_active: bool | None = None,
+) -> Colour:
+    """The SKU code is fixed once created, so existing SKUs stay valid."""
+    _rename(colour, name)
+    if hex_code is not None:
+        if not HEX_RE.match(hex_code):
+            raise _invalid("hex_code", "Renk kodu #RRGGBB biçiminde olmalı.")
+        colour.hex_code = hex_code.upper()
+    if is_active is not None:
+        colour.is_active = is_active
+    colour.save()
+    return colour
+
+
+@transaction.atomic
+def update_category(category: Category, *, name: str) -> Category:
+    name = name.strip()
+    if not name:
+        raise _invalid("name", "Ad girin.")
+    category.name = name
+    category.save(update_fields=["name"])
+    return category
