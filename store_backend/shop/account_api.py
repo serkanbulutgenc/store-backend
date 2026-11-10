@@ -47,7 +47,7 @@ class AccountPatch(Schema):
     marketing_consent: bool | None = None
 
 
-class AddressIn(Schema):
+class SavedAddressIn(Schema):
     full_name: str = Field(max_length=150)
     phone: str = Field(max_length=30)
     il: str = Field(max_length=100)
@@ -58,7 +58,7 @@ class AddressIn(Schema):
     is_default: bool = False
 
 
-class AddressOut(Schema):
+class SavedAddressOut(Schema):
     id: int
     full_name: str
     phone: str
@@ -123,7 +123,7 @@ def update_account(request, data: AccountPatch):
 @router.get(
     "/account/addresses",
     operation_id="account_list_addresses",
-    response=list[AddressOut],
+    response=list[SavedAddressOut],
 )
 def list_addresses(request):
     return customers.addresses_of(request.auth)
@@ -132,9 +132,9 @@ def list_addresses(request):
 @router.post(
     "/account/addresses",
     operation_id="account_create_address",
-    response={HTTPStatus.CREATED: AddressOut},
+    response={HTTPStatus.CREATED: SavedAddressOut},
 )
-def create_address(request, data: AddressIn):
+def create_address(request, data: SavedAddressIn):
     """Up to five; the first one saved is the default. 409 `address_limit` beyond."""
     body = data.model_dump()
     default = body.pop("is_default")
@@ -148,9 +148,9 @@ def create_address(request, data: AddressIn):
 @router.put(
     "/account/addresses/{address_id}",
     operation_id="account_update_address",
-    response=AddressOut,
+    response=SavedAddressOut,
 )
-def update_address(request, address_id: int, data: AddressIn):
+def update_address(request, address_id: int, data: SavedAddressIn):
     body = data.model_dump()
     default = body.pop("is_default")
     return customers.update_address(

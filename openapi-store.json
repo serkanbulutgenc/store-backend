@@ -257,11 +257,6 @@
       },
       "AddressIn": {
         "properties": {
-          "full_name": {
-            "maxLength": 150,
-            "title": "Full Name",
-            "type": "string"
-          },
           "il": {
             "maxLength": 100,
             "title": "Il",
@@ -272,19 +267,9 @@
             "title": "Ilce",
             "type": "string"
           },
-          "is_default": {
-            "default": false,
-            "title": "Is Default",
-            "type": "boolean"
-          },
           "mahalle": {
             "maxLength": 150,
             "title": "Mahalle",
-            "type": "string"
-          },
-          "phone": {
-            "maxLength": 30,
-            "title": "Phone",
             "type": "string"
           },
           "postal_code": {
@@ -300,67 +285,12 @@
           }
         },
         "required": [
-          "full_name",
-          "phone",
           "il",
           "ilce",
           "mahalle",
           "street"
         ],
         "title": "AddressIn",
-        "type": "object"
-      },
-      "AddressOut": {
-        "properties": {
-          "full_name": {
-            "title": "Full Name",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "il": {
-            "title": "Il",
-            "type": "string"
-          },
-          "ilce": {
-            "title": "Ilce",
-            "type": "string"
-          },
-          "is_default": {
-            "title": "Is Default",
-            "type": "boolean"
-          },
-          "mahalle": {
-            "title": "Mahalle",
-            "type": "string"
-          },
-          "phone": {
-            "title": "Phone",
-            "type": "string"
-          },
-          "postal_code": {
-            "title": "Postal Code",
-            "type": "string"
-          },
-          "street": {
-            "title": "Street",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "full_name",
-          "phone",
-          "il",
-          "ilce",
-          "mahalle",
-          "street",
-          "postal_code",
-          "is_default"
-        ],
-        "title": "AddressOut",
         "type": "object"
       },
       "BankOut": {
@@ -1664,6 +1594,114 @@
         "title": "QuantityIn",
         "type": "object"
       },
+      "SavedAddressIn": {
+        "properties": {
+          "full_name": {
+            "maxLength": 150,
+            "title": "Full Name",
+            "type": "string"
+          },
+          "il": {
+            "maxLength": 100,
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "maxLength": 100,
+            "title": "Ilce",
+            "type": "string"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "mahalle": {
+            "maxLength": 150,
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 30,
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "default": "",
+            "maxLength": 10,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "maxLength": 200,
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "phone",
+          "il",
+          "ilce",
+          "mahalle",
+          "street"
+        ],
+        "title": "SavedAddressIn",
+        "type": "object"
+      },
+      "SavedAddressOut": {
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "il": {
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "title": "Ilce",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "mahalle": {
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "phone",
+          "il",
+          "ilce",
+          "mahalle",
+          "street",
+          "postal_code",
+          "is_default"
+        ],
+        "title": "SavedAddressOut",
+        "type": "object"
+      },
       "SellerOut": {
         "properties": {
           "address": {
@@ -1965,7 +2003,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/AddressOut"
+                    "$ref": "#/components/schemas/SavedAddressOut"
                   },
                   "title": "Response",
                   "type": "array"
@@ -1993,7 +2031,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AddressIn"
+                "$ref": "#/components/schemas/SavedAddressIn"
               }
             }
           },
@@ -2004,7 +2042,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AddressOut"
+                  "$ref": "#/components/schemas/SavedAddressOut"
                 }
               }
             },
@@ -2068,7 +2106,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AddressIn"
+                "$ref": "#/components/schemas/SavedAddressIn"
               }
             }
           },
@@ -2079,7 +2117,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AddressOut"
+                  "$ref": "#/components/schemas/SavedAddressOut"
                 }
               }
             },
