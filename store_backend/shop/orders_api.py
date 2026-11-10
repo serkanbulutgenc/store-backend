@@ -99,6 +99,20 @@ class OrderAuditOut(Schema):
     summary: str
 
 
+class OrderMessageOut(Schema):
+    id: int
+    recipient: str
+    template: str
+    subject: str
+    created_at: datetime
+    sent_at: datetime | None
+    status: Literal["pending", "sent", "failed", "bounced"]
+    attempts: int
+    error: str
+    body_text: str
+    body_html: str
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -129,6 +143,7 @@ class OrderDetail(Schema):
     buyer_tax_number: str
     company_title: str
     audit: list[OrderAuditOut]
+    messages: list[OrderMessageOut]
 
 
 def _shipping(order) -> dict | None:
@@ -177,6 +192,25 @@ def _audit(order) -> list[dict]:
     ]
 
 
+def _messages(order) -> list[dict]:
+    return [
+        {
+            "id": m.pk,
+            "recipient": m.recipient,
+            "template": m.template,
+            "subject": m.subject,
+            "created_at": m.created_at,
+            "sent_at": m.sent_at,
+            "status": m.status,
+            "attempts": m.attempts,
+            "error": m.bounce_reason if m.status == "bounced" else m.last_error,
+            "body_text": m.body_text,
+            "body_html": m.body_html,
+        }
+        for m in order.messages.all()
+    ]
+
+
 def order_detail(order) -> dict:
     record = order_ops.peek_record(order)
     lines = _lines(order)
@@ -211,6 +245,7 @@ def order_detail(order) -> dict:
         "buyer_tax_number": record.buyer_tax_number,
         "company_title": record.company_title,
         "audit": _audit(order),
+        "messages": _messages(order),
     }
 
 
@@ -432,3 +467,14 @@ def set_invoice_details(request, number: str, data: OrderInvoiceDetailsPatch):
         k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None
     }
     return _fresh(order_ops.set_invoice_details(request.auth, number, **changes))
+
+
+@router.post(
+    "/orders/{number}/messages/{message_id}/resend",
+    auth=requires(Perm.MANAGE_ORDERS),
+    operation_id="orders_resend_message",
+    response=OrderDetail,
+)
+def resend_message(request, number: str, message_id: int):
+    """Queue a fresh copy of a logged email; the original stays in the log."""
+    return _fresh(order_ops.resend_message(request.auth, number, message_id))

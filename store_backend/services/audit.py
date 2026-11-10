@@ -25,6 +25,7 @@ class Action(StrEnum):
     RETURN_REQUEST = "return_request"
     RETURN_RECEIVED = "return_received"
     ORDER_EDIT = "order_edit"
+    MESSAGE_RESEND = "message_resend"
     STOCK_ADJUSTMENT = "stock_adjustment"
     PRICE_CHANGE = "price_change"
     SETTINGS_CHANGE = "settings_change"

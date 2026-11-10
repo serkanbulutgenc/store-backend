@@ -11,9 +11,11 @@ from store_backend.api.store import store_api
 from store_backend.catalog.seo import robots_txt
 from store_backend.catalog.seo import sitemap_xml
 from store_backend.health import health
+from store_backend.messaging.webhooks import email_events
 
 urlpatterns = [
     path("health", health, name="health"),
+    path("webhooks/email", email_events, name="email-events"),
     path("robots.txt", robots_txt, name="robots"),
     path("sitemap.xml", sitemap_xml, name="sitemap"),
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),

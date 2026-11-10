@@ -1,0 +1,25 @@
+{% autoescape off %}{{ shop_name }}
+
+Siparişinizi aldık, teşekkür ederiz.
+Sipariş no: {{ number }}
+
+{% for line in lines %}- {{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}: {{ line.total }}
+{% endfor %}Kargo: {{ shipping_fee }}
+{% if is_cod %}Kapıda ödeme bedeli: {{ cod_fee }}
+{% endif %}Toplam: {{ total }}
+
+{% if is_cod %}Ödemeyi ürünler size ulaştığında kargo görevlisine nakit olarak yapacaksınız.
+{% else %}Ödemenizi aşağıdaki hesaba, açıklama kısmına {{ number }} sipariş numarasını yazarak {{ pay_by|date:"d.m.Y H:i" }} tarihine kadar yapın. Aksi halde siparişiniz iptal edilir.
+
+Banka: {{ store.bank_name }}
+Hesap sahibi: {{ store.bank_account_holder }}
+IBAN: {{ store.bank_iban }}
+{% endif %}
+Sipariş durumu (30 gün geçerli bağlantı): {{ tracking_url }}
+
+--
+{{ shop_name }}{% if store.seller_address %}
+{{ store.seller_address }}{% endif %}{% if store.seller_email %}
+{{ store.seller_email }}{% endif %}{% if store.seller_phone %}
+{{ store.seller_phone }}{% endif %}
+{% endautoescape %}

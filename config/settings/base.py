@@ -134,6 +134,7 @@ LOCAL_APPS = [
     "store_backend.staff",
     "store_backend.catalog",
     "store_backend.shop",
+    "store_backend.messaging",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -276,6 +277,11 @@ EMAIL_BACKEND = env(
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
+# Where emails link to (the public Storefront origin, no trailing slash needed).
+STOREFRONT_URL = env("STOREFRONT_URL", default="http://localhost:3000")
+# Shared secret the relay's bounce/complaint webhook sends as a Bearer token.
+# Empty: the webhook refuses everything.
+EMAIL_WEBHOOK_SECRET = env("EMAIL_WEBHOOK_SECRET", default="")
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -360,6 +366,10 @@ CELERY_BEAT_SCHEDULE = {
     "purge-removed-media": {
         "task": "store_backend.catalog.tasks.purge_removed_files",
         "schedule": 60 * 60 * 6,
+    },
+    "dispatch-due-messages": {
+        "task": "store_backend.messaging.tasks.dispatch_due_messages",
+        "schedule": 60,
     },
 }
 # Days a deleted image's files stay on disk (an undo window and backup safety).

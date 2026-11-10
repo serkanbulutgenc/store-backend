@@ -31,6 +31,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.services import checkout
+from store_backend.services import outbox
 from store_backend.services import tracking
 from store_backend.services.checkout import STATUS_NEW
 from store_backend.services.checkout import STATUS_PREPARING
@@ -114,6 +115,7 @@ def detail_queryset() -> QuerySet[Order]:
         "shipping_address",
         "billing_address",
     ).prefetch_related(
+        "messages",
         "sources__source_type",
         "surcharges",
         "lines__product__parent",
@@ -555,6 +557,21 @@ def correct_email(actor: User, number: str, *, email: str) -> Order:
         summary=f"{order.number}: e-posta düzeltildi",
         before=before,
         after={"email": email},
+    )
+    return order
+
+
+@transaction.atomic
+def resend_message(actor: User, number: str, message_id: int) -> Order:
+    order = _locked(number)
+    copy = outbox.resend(message_id, order=order)
+    audit.record(
+        actor,
+        audit.Action.MESSAGE_RESEND,
+        target=order,
+        summary=f"{order.number}: e-posta yeniden gönderildi ({copy.template})",
+        before={"message": message_id},
+        after={"message": copy.pk},
     )
     return order
 

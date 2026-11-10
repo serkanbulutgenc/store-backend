@@ -27,6 +27,7 @@ from oscar.apps.payment.models import SourceType
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
+from store_backend.messaging.models import Message
 from store_backend.services import catalog
 from store_backend.shop.models import ConsentRecord
 from store_backend.shop.models import OrderFeeSnapshot
@@ -63,6 +64,7 @@ def in_thread(fn, *args):
 
 def _purge() -> None:
     for model in (
+        Message,
         OrderFeeSnapshot,
         OrderLineSnapshot,
         ConsentRecord,

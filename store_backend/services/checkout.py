@@ -10,6 +10,7 @@ raises a 409 before anything is written. The basket is never touched on failure.
 
 from __future__ import annotations
 
+import logging
 import secrets
 from dataclasses import dataclass
 from dataclasses import field
@@ -41,6 +42,7 @@ from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.strategy import CURRENCY
 from store_backend.services import catalog
 from store_backend.services import claiming
+from store_backend.services import outbox
 from store_backend.services import pre_information
 from store_backend.services import pricing
 from store_backend.services import shop_settings
@@ -58,6 +60,8 @@ if TYPE_CHECKING:
 
     from store_backend.shop.models import StoreSettings
     from store_backend.users.models import User
+
+logger = logging.getLogger(__name__)
 
 STATUS_NEW = "new"
 STATUS_PREPARING = "preparing"
@@ -442,6 +446,20 @@ def _order_with_unique_number(creator: OrderCreator, **kwargs) -> Order:
     raise AssertionError  # unreachable
 
 
+def _email_context(
+    order: Order,
+    store: StoreSettings,
+    method: PaymentMethod,
+) -> dict:
+    """What the order-placed email shows; bank details go only to transfer Orders."""
+    context = outbox.order_context(order, store)
+    context["is_cod"] = method == PaymentMethod.COD
+    if method == PaymentMethod.COD:
+        fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
+        context["cod_fee"] = pre_information.format_try(fee)
+    return context
+
+
 @transaction.atomic
 def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> Order:
     form = _validated(raw_form)
@@ -503,6 +521,18 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
         ),
     )
     basket.submit()
+    try:
+        with (
+            transaction.atomic()
+        ):  # savepoint: email never costs the Order
+            outbox.enqueue(
+                "order_placed",
+                to=order.guest_email,
+                context=_email_context(order, store, form.payment_method),
+                order=order,
+            )
+    except Exception:
+        logger.exception("Could not queue the order email for %s", order.number)
     return order
 
 
