@@ -9,6 +9,7 @@ from django.test import Client
 
 from store_backend.conftest import LOGIN_URL
 from store_backend.conftest import PASSWORD
+from store_backend.services import outbox
 from store_backend.users.tests.factories import UserFactory
 
 pytestmark = [
@@ -133,6 +134,7 @@ def test_signup_requires_email_verification_before_a_session(client):
     assert body["meta"]["is_authenticated"] is False
     pending = [f for f in body["data"]["flows"] if f.get("is_pending")]
     assert [f["id"] for f in pending] == ["verify_email"]
+    outbox.dispatch_due()
     assert len(mail.outbox) == 1
 
 

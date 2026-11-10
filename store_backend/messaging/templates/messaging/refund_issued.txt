@@ -1,0 +1,4 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+{{ amount }} tutarındaki iadeniz {{ method }} ile yapıldı. Bankanıza bağlı olarak hesabınıza yansıması birkaç gün sürebilir.{% endblock %}

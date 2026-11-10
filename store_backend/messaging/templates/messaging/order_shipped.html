@@ -1,0 +1,9 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Sipariş no: {{ number }}</p>
+  <p>Siparişiniz kargoya verildi.</p>
+  <p>Kargo firması: {{ carrier }}
+    <br>
+    Takip numarası: {{ tracking_number }}</p>
+  <p><a href="{{ tracking_url }}" style="color:#6b2d5c;">Sipariş durumu</a></p>
+{% endblock %}

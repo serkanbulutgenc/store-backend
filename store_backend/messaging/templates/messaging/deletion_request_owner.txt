@@ -1,0 +1,6 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Bir müşteri hesabının silinmesini istedi.
+
+Müşteri: {{ name }} ({{ email }})
+
+Panelden talebi inceleyin: {{ admin_url }}{% endblock %}

@@ -12,7 +12,10 @@ reservation; shipping consumes it (on-hand and reserved both drop).
 
 from __future__ import annotations
 
+import logging
 import re
+from contextlib import contextmanager
+from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -32,6 +35,7 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.services import checkout
 from store_backend.services import outbox
+from store_backend.services import pre_information
 from store_backend.services import tracking
 from store_backend.services.checkout import STATUS_NEW
 from store_backend.services.checkout import STATUS_PREPARING
@@ -39,6 +43,7 @@ from store_backend.services.tracking import PAYMENT_PAID
 from store_backend.services.tracking import PAYMENT_REFUNDED
 from store_backend.services.tracking import PAYMENT_UNPAID
 from store_backend.shop.models import OrderRecord
+from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import RefundMethod
 from store_backend.staff.permissions import Perm
 
@@ -49,6 +54,8 @@ if TYPE_CHECKING:
     from oscar.apps.payment.models import Source
 
     from store_backend.users.models import User
+
+logger = logging.getLogger(__name__)
 
 STATUS_SHIPPED = "shipped"
 STATUS_DELIVERED = "delivered"
@@ -272,6 +279,7 @@ def mark_paid(
             "paid_at": paid_at.isoformat(),
         },
     )
+    outbox.notify_shopper(order, "order_paid")
     return order
 
 
@@ -310,6 +318,7 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
         before=before,
         after={**_snapshot(order), "reason": reason},
     )
+    outbox.notify_shopper(order, "order_cancelled", reason=reason)
     return order
 
 
@@ -343,6 +352,12 @@ def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Ord
         summary=f"{order.number}: {carrier} {tracking_number}",
         before=before,
         after={**_snapshot(order), "carrier": carrier, "tracking": tracking_number},
+    )
+    outbox.notify_shopper(
+        order,
+        "order_shipped",
+        carrier=carrier,
+        tracking_number=tracking_number,
     )
     return order
 
@@ -418,7 +433,7 @@ def request_return(actor: User, number: str) -> Order:
 
 @transaction.atomic
 def mark_returned(actor: User, number: str) -> Order:
-    return _move(
+    order = _move(
         actor,
         number,
         allowed_from=(STATUS_RETURN_REQUESTED,),
@@ -427,6 +442,8 @@ def mark_returned(actor: User, number: str) -> Order:
         stamp="returned_at",
         summary="iade teslim alındı",
     )
+    outbox.notify_shopper(order, "return_received")
+    return order
 
 
 def clean_iban(raw: str) -> str:
@@ -478,6 +495,12 @@ def refund(
         summary=f"{order.number}: {amount} TL iade ({method.label})",
         before=before,
         after={**_snapshot(order), "amount": str(amount), "method": str(method)},
+    )
+    outbox.notify_shopper(
+        order,
+        "refund_issued",
+        amount=pre_information.format_try(amount),
+        method=method.label,
     )
     return order
 
@@ -539,8 +562,7 @@ def edit_shipping(actor: User, number: str, **changes: str) -> Order:
 
 @transaction.atomic
 def correct_email(actor: User, number: str, *, email: str) -> Order:
-    """Fix the Shopper's email. Resending the order email is wired in the messaging
-    work (ticket 30); until then this only records the correction."""
+    """Fix the Shopper's email and send the order email to the corrected address."""
     order = _locked(number)
     email = email.strip().lower()
     try:
@@ -558,6 +580,7 @@ def correct_email(actor: User, number: str, *, email: str) -> Order:
         before=before,
         after={"email": email},
     )
+    outbox.notify_shopper(order, "order_placed")
     return order
 
 
@@ -609,3 +632,80 @@ def set_invoice_details(actor: User, number: str, **changes: str) -> Order:
         },
     )
     return order
+
+
+# --- timed jobs ---------------------------------------------------------------
+
+REMINDER_AFTER = timedelta(hours=24)
+AUTO_CANCEL_REASON = "Ödeme süresi (48 saat) içinde ödeme alınamadı."
+
+
+@contextmanager
+def _isolated(order: Order):
+    """One Order's work in its own transaction; its failure never stops the batch."""
+    try:
+        with transaction.atomic():
+            yield
+    except Exception:
+        logger.exception("Timed job failed for order %s", order.number)
+
+
+def _unpaid_transfers(placed_before: datetime) -> QuerySet[Order]:
+    return Order.objects.filter(
+        status=STATUS_NEW,
+        date_placed__lte=placed_before,
+        sources__source_type__code=PaymentMethod.BANK_TRANSFER,
+    ).distinct()
+
+
+def send_payment_reminders(*, now: datetime | None = None) -> int:
+    """One reminder per unpaid bank-transfer Order, once 24 h have passed."""
+    now = now or timezone.now()
+    sent = 0
+    due = _unpaid_transfers(now - REMINDER_AFTER).filter(
+        date_placed__gt=now - outbox.PAYMENT_WINDOW,  # past it, the cancel job acts
+    )
+    for order in due.exclude(messages__template="payment_reminder"):
+        with _isolated(order):
+            order = _locked(order.number)  # noqa: PLW2901
+            if (
+                order.status != STATUS_NEW
+                or tracking.payment_status_of(order) != PAYMENT_UNPAID
+                or order.messages.filter(template="payment_reminder").exists()
+            ):
+                continue
+            outbox.notify_shopper(order, "payment_reminder")
+            sent += 1
+    return sent
+
+
+def cancel_unpaid_transfers(*, now: datetime | None = None) -> int:
+    """Cancel bank-transfer Orders still unpaid after the 48 h payment window."""
+    now = now or timezone.now()
+    cancelled = 0
+    for order in _unpaid_transfers(now - outbox.PAYMENT_WINDOW):
+        with _isolated(order):
+            order = _locked(order.number)  # noqa: PLW2901
+            if order.status != STATUS_NEW or (
+                tracking.payment_status_of(order) != PAYMENT_UNPAID
+            ):
+                continue
+            before = _snapshot(order)
+            _release_stock(order)
+            order.status = STATUS_CANCELLED
+            order.save(update_fields=["status"])
+            record = record_of(order)
+            record.cancel_reason = AUTO_CANCEL_REASON
+            record.cancelled_at = now
+            record.save(update_fields=["cancel_reason", "cancelled_at"])
+            audit.record(
+                None,
+                audit.Action.CANCEL,
+                target=order,
+                summary=f"{order.number}: ödeme süresi doldu, otomatik iptal",
+                before=before,
+                after={**_snapshot(order), "reason": AUTO_CANCEL_REASON},
+            )
+            outbox.notify_shopper(order, "order_auto_cancelled")
+            cancelled += 1
+    return cancelled

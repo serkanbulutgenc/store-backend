@@ -1,0 +1,7 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Yeni sipariş: {{ number }}</p>
+  <p>Toplam: {{ total }} ({{ payment }})</p>
+  <p>Ürün adedi: {{ item_count }}</p>
+  <p><a href="{{ admin_url }}" style="color:#6b2d5c;">Panel</a></p>
+{% endblock %}

@@ -13,6 +13,7 @@ from oscar.apps.partner.models import StockRecord
 
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
+from store_backend.services import outbox
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -76,3 +77,20 @@ def low_stock_variants() -> QuerySet[Product]:
         .select_related("variant_profile__colour", "parent__profile")
         .order_by("on_hand", "variant_profile__sku")
     )
+
+
+def send_low_stock_digest() -> int:
+    """Email the configured recipients one list of low variants. Returns the count."""
+    rows = [
+        {
+            "title": v.parent.title,
+            "colour": v.variant_profile.colour.name,
+            "size": v.variant_profile.size,
+            "sku": v.variant_profile.sku,
+            "on_hand": v.on_hand,
+        }
+        for v in low_stock_variants()
+    ]
+    if rows:
+        outbox.notify_staff("low_stock_digest", {"rows": rows, "count": len(rows)})
+    return len(rows)

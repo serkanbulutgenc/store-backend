@@ -14,6 +14,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.services import checkout
+from store_backend.services import outbox
 from store_backend.shop.models import MAX_SAVED_ADDRESSES
 from store_backend.shop.models import AccountDeletionRequest
 from store_backend.shop.models import SavedAddress
@@ -176,11 +177,20 @@ def request_deletion(user: User) -> AccountDeletionRequest:
         if has_pending_deletion(user):
             msg = "Hesabınızı silme talebiniz zaten alındı."
             raise ConflictError(msg, code="deletion_pending")
-        return AccountDeletionRequest.objects.create(
+        request = AccountDeletionRequest.objects.create(
             user=user,
             email=user.email,
             name=user.name,
         )
+        outbox.notify_owners(
+            "deletion_request_owner",
+            {
+                "name": user.name or "-",
+                "email": user.email,
+                "admin_url": outbox.admin_url("account-deletions"),
+            },
+        )
+        return request
 
 
 def pending_deletions() -> QuerySet[AccountDeletionRequest]:

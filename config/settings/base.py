@@ -6,6 +6,7 @@ import ssl
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # store_backend/
@@ -366,6 +367,14 @@ CELERY_BEAT_SCHEDULE = {
     "purge-removed-media": {
         "task": "store_backend.catalog.tasks.purge_removed_files",
         "schedule": 60 * 60 * 6,
+    },
+    "payment-reminders-and-auto-cancel": {
+        "task": "store_backend.shop.tasks.process_unpaid_transfers",
+        "schedule": 15 * 60,
+    },
+    "low-stock-digest": {
+        "task": "store_backend.shop.tasks.send_low_stock_digest",
+        "schedule": crontab(hour=9, minute=0),
     },
     "dispatch-due-messages": {
         "task": "store_backend.messaging.tasks.dispatch_due_messages",

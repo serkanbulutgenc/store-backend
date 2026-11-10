@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -27,8 +28,10 @@ from store_backend.messaging.models import Message
 from store_backend.messaging.models import MessageStatus
 from store_backend.services import pre_information
 from store_backend.services import shop_settings
+from store_backend.staff.permissions import OWNER_GROUP
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import datetime
 
     from oscar.apps.order.models import Order
@@ -52,6 +55,16 @@ PAYMENT_WINDOW = timedelta(hours=48)
 # Template name -> subject. Each has `messaging/<name>.html` and `.txt`.
 SUBJECTS: dict[str, str] = {
     "order_placed": "Siparişiniz alındı – {number}",
+    "payment_reminder": "Ödemenizi bekliyoruz – {number}",
+    "order_auto_cancelled": "Siparişiniz iptal edildi – {number}",
+    "order_paid": "Ödemeniz alındı – {number}",
+    "order_shipped": "Siparişiniz kargoda – {number}",
+    "order_cancelled": "Siparişiniz iptal edildi – {number}",
+    "return_received": "İadeniz bize ulaştı – {number}",
+    "refund_issued": "İadeniz yapıldı – {number}",
+    "staff_new_order": "Yeni sipariş – {number}",
+    "low_stock_digest": "Düşük stok özeti – {count} ürün",
+    "deletion_request_owner": "Hesap silme talebi",
 }
 
 
@@ -86,17 +99,32 @@ def order_context(order: Order, store: StoreSettings) -> dict[str, Any]:
         }
         for line in sorted(order.lines.all(), key=lambda row: row.pk)
     ]
-    from store_backend.services import tracking  # noqa: PLC0415  (it imports checkout)
+    # These import checkout, which imports this module.
+    from store_backend.services import checkout  # noqa: PLC0415
+    from store_backend.services import tracking  # noqa: PLC0415
+    from store_backend.shop.models import PaymentMethod  # noqa: PLC0415
 
     base = settings.STOREFRONT_URL.rstrip("/")
-    return {
+    is_cod = checkout.payment_method_of(order) == PaymentMethod.COD
+    context = {
         "number": order.number,
+        "is_cod": is_cod,
+        # The bank details only make sense while the transfer is still due.
+        "awaiting_payment": (
+            not is_cod
+            and order.status == "new"
+            and tracking.payment_status_of(order) == "unpaid"
+        ),
         "lines": lines,
         "total": pre_information.format_try(order.total_incl_tax),
         "shipping_fee": pre_information.format_try(order.shipping_incl_tax),
         "tracking_url": f"{base}/siparis-takip?t={tracking.link_token(order)}",
         "pay_by": timezone.localtime(order.date_placed + PAYMENT_WINDOW),
     }
+    if is_cod:
+        fee = sum((s.incl_tax for s in order.surcharges.all()), Decimal(0))
+        context["cod_fee"] = pre_information.format_try(fee)
+    return context
 
 
 def enqueue(
@@ -108,6 +136,26 @@ def enqueue(
 ) -> Message:
     """Store a rendered message; it is sent once the caller's transaction commits."""
     subject, text, html = render(template, context)
+    return enqueue_text(
+        template,
+        to=to,
+        subject=subject,
+        text=text,
+        html=html,
+        order=order,
+    )
+
+
+def enqueue_text(  # noqa: PLR0913
+    template: str,
+    *,
+    to: str,
+    subject: str,
+    text: str,
+    html: str = "",
+    order: Order | None = None,
+) -> Message:
+    """Store a message that was rendered elsewhere (allauth's own emails)."""
     message = Message.objects.create(
         order=order,
         recipient=to,
@@ -119,6 +167,56 @@ def enqueue(
     )
     _schedule(message.pk)
     return message
+
+
+def _safely(what: str, send: Callable[[], object]) -> None:
+    """Run an enqueue in a savepoint: an email problem never undoes the caller."""
+    try:
+        with transaction.atomic():
+            send()
+    except Exception:
+        logger.exception("Could not queue %s", what)
+
+
+def order_email(order: Order) -> str:
+    return order.guest_email or (order.user.email if order.user else "")
+
+
+def notify_shopper(order: Order, template: str, **extra: Any) -> None:
+    """Email the Order's Shopper, logged against the Order."""
+    to = order_email(order)
+    if not to:
+        return
+
+    def send() -> None:
+        context = {**order_context(order, shop_settings.get()), **extra}
+        enqueue(template, to=to, context=context, order=order)
+
+    _safely(f"{template} for {order.number}", send)
+
+
+def notify_staff(template: str, context: dict[str, Any]) -> None:
+    """Email every recipient configured in Store settings (not logged on an Order)."""
+    for to in shop_settings.get().notification_emails:
+        _safely(
+            f"{template} to staff",
+            lambda to=to: enqueue(template, to=to, context=context),
+        )
+
+
+def notify_owners(template: str, context: dict[str, Any]) -> None:
+    from store_backend.users.models import User  # noqa: PLC0415
+
+    owners = User.objects.filter(groups__name=OWNER_GROUP, is_active=True)
+    for to in owners.exclude(email="").values_list("email", flat=True).distinct():
+        _safely(
+            f"{template} to owner",
+            lambda to=to: enqueue(template, to=to, context=context),
+        )
+
+
+def admin_url(path: str) -> str:
+    return f"{settings.STOREFRONT_URL.rstrip('/')}/admin/{path}"
 
 
 def _schedule(message_id: int) -> None:
@@ -143,7 +241,8 @@ def _email_for(message: Message) -> EmailMultiAlternatives:
         reply_to=[store.seller_email] if store.seller_email else None,
         headers={"Message-ID": f"<{message.message_id}@{_domain()}>"},
     )
-    email.attach_alternative(message.body_html, "text/html")
+    if message.body_html:
+        email.attach_alternative(message.body_html, "text/html")
     return email
 
 

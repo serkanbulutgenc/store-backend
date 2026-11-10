@@ -12,6 +12,7 @@ from django.test import Client
 
 from store_backend.conftest import PASSWORD
 from store_backend.conftest import make_verified_user
+from store_backend.services import outbox
 from store_backend.staff.models import AuditEntry
 from store_backend.users.models import User
 
@@ -43,6 +44,7 @@ def test_invite_creates_an_active_staff_member_in_the_staff_group(owner_api):
 
 def test_invite_emails_a_link_to_set_a_password(owner_api):
     invite(owner_api)
+    outbox.dispatch_due()
 
     assert [m.to for m in mail.outbox] == [["yeni@example.com"]]
     assert "/hesap/sifre-sifirla/" in mail.outbox[0].body
@@ -50,6 +52,7 @@ def test_invite_emails_a_link_to_set_a_password(owner_api):
 
 def test_the_invited_person_can_set_a_password_and_log_in(owner_api):
     invite(owner_api)
+    outbox.dispatch_due()
     match = re.search(r"/hesap/sifre-sifirla/(\S+)", str(mail.outbox[0].body))
     assert match
     key = match[1]

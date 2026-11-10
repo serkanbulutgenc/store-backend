@@ -1,0 +1,6 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+Ödeme süresi içinde ödemeniz alınamadığı için siparişiniz iptal edildi. Ürünler yeniden satışa açıldı.
+
+İsterseniz mağazamızdan yeniden sipariş verebilirsiniz.{% endblock %}

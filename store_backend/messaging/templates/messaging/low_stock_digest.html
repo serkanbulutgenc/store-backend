@@ -1,0 +1,9 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Stoğu azalan {{ count }} ürün çeşidi var:</p>
+  <ul>
+    {% for row in rows %}
+      <li>{{ row.title }} ({{ row.colour }}, {{ row.size }}) {{ row.sku }}: <strong>{{ row.on_hand }}</strong> adet</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

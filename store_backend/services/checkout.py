@@ -10,7 +10,6 @@ raises a 409 before anything is written. The basket is never touched on failure.
 
 from __future__ import annotations
 
-import logging
 import secrets
 from dataclasses import dataclass
 from dataclasses import field
@@ -60,8 +59,6 @@ if TYPE_CHECKING:
 
     from store_backend.shop.models import StoreSettings
     from store_backend.users.models import User
-
-logger = logging.getLogger(__name__)
 
 STATUS_NEW = "new"
 STATUS_PREPARING = "preparing"
@@ -446,20 +443,6 @@ def _order_with_unique_number(creator: OrderCreator, **kwargs) -> Order:
     raise AssertionError  # unreachable
 
 
-def _email_context(
-    order: Order,
-    store: StoreSettings,
-    method: PaymentMethod,
-) -> dict:
-    """What the order-placed email shows; bank details go only to transfer Orders."""
-    context = outbox.order_context(order, store)
-    context["is_cod"] = method == PaymentMethod.COD
-    if method == PaymentMethod.COD:
-        fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
-        context["cod_fee"] = pre_information.format_try(fee)
-    return context
-
-
 @transaction.atomic
 def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> Order:
     form = _validated(raw_form)
@@ -521,16 +504,17 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
         ),
     )
     basket.submit()
-    try:
-        with transaction.atomic():  # savepoint: email never costs the Order
-            outbox.enqueue(
-                "order_placed",
-                to=order.guest_email,
-                context=_email_context(order, store, form.payment_method),
-                order=order,
-            )
-    except Exception:
-        logger.exception("Could not queue the order email for %s", order.number)
+    outbox.notify_shopper(order, "order_placed")
+    outbox.notify_staff(
+        "staff_new_order",
+        {
+            "number": order.number,
+            "total": pre_information.format_try(order.total_incl_tax),
+            "payment": PaymentMethod(form.payment_method).label,
+            "item_count": sum(line.quantity for line in order.lines.all()),
+            "admin_url": outbox.admin_url(f"orders/{order.number}"),
+        },
+    )
     return order
 
 

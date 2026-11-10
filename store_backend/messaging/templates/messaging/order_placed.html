@@ -30,7 +30,7 @@
   </table>
   {% if is_cod %}
     <p>Ödemeyi ürünler size ulaştığında kargo görevlisine nakit olarak yapacaksınız.</p>
-  {% else %}
+  {% elif awaiting_payment %}
     <p>
       Ödemenizi aşağıdaki hesaba, açıklama kısmına <strong>{{ number }}</strong> sipariş numarasını yazarak
       <strong>{{ pay_by|date:"d.m.Y H:i" }}</strong> tarihine kadar yapın. Aksi halde siparişiniz iptal edilir.

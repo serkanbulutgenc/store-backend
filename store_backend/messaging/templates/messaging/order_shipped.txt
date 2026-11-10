@@ -1,0 +1,9 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+Siparişiniz kargoya verildi.
+
+Kargo firması: {{ carrier }}
+Takip numarası: {{ tracking_number }}
+
+Sipariş durumu: {{ tracking_url }}{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+Siparişiniz iptal edildi.
+
+Neden: {{ reason }}
+
+Ödeme yaptıysanız iade için sizinle iletişime geçeceğiz.{% endblock %}

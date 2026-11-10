@@ -9,7 +9,7 @@ Sipariş no: {{ number }}
 {% endif %}Toplam: {{ total }}
 
 {% if is_cod %}Ödemeyi ürünler size ulaştığında kargo görevlisine nakit olarak yapacaksınız.
-{% else %}Ödemenizi aşağıdaki hesaba, açıklama kısmına {{ number }} sipariş numarasını yazarak {{ pay_by|date:"d.m.Y H:i" }} tarihine kadar yapın. Aksi halde siparişiniz iptal edilir.
+{% elif awaiting_payment %}Ödemenizi aşağıdaki hesaba, açıklama kısmına {{ number }} sipariş numarasını yazarak {{ pay_by|date:"d.m.Y H:i" }} tarihine kadar yapın. Aksi halde siparişiniz iptal edilir.
 
 Banka: {{ store.bank_name }}
 Hesap sahibi: {{ store.bank_account_holder }}

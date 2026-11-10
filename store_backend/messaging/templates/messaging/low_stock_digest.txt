@@ -1,0 +1,5 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Stoğu azalan {{ count }} ürün çeşidi var:
+
+{% for row in rows %}- {{ row.title }} ({{ row.colour }}, {{ row.size }}) {{ row.sku }}: {{ row.on_hand }} adet
+{% endfor %}{% endblock %}

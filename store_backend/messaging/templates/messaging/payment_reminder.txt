@@ -1,0 +1,14 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+Havale/EFT ödemenizi henüz almadık. Siparişiniz {{ pay_by|date:"d.m.Y H:i" }} tarihine kadar ödenmezse iptal edilir.
+
+Toplam: {{ total }}
+
+Açıklama kısmına {{ number }} yazarak aşağıdaki hesaba ödeme yapabilirsiniz.
+
+Banka: {{ store.bank_name }}
+Hesap sahibi: {{ store.bank_account_holder }}
+IBAN: {{ store.bank_iban }}
+
+Sipariş durumu: {{ tracking_url }}{% endblock %}

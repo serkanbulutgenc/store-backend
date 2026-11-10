@@ -1,0 +1,6 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Sipariş no: {{ number }}</p>
+  <p>İade ettiğiniz ürünler bize ulaştı. Ödeme iadeniz için sizinle iletişime geçeceğiz.</p>
+  <p><a href="{{ tracking_url }}" style="color:#6b2d5c;">Sipariş durumu</a></p>
+{% endblock %}

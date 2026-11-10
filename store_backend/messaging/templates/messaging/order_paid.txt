@@ -1,0 +1,6 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+Ödemenizi aldık, teşekkür ederiz. Siparişinizi hazırlıyoruz; kargoya verildiğinde ayrıca haber vereceğiz.
+
+Sipariş durumu: {{ tracking_url }}{% endblock %}

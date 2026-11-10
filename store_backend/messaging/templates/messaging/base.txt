@@ -1,0 +1,10 @@
+{% autoescape off %}{{ shop_name }}
+
+{% block content %}{% endblock %}
+
+--
+{{ shop_name }}{% if store.seller_address %}
+{{ store.seller_address }}{% endif %}{% if store.seller_email %}
+{{ store.seller_email }}{% endif %}{% if store.seller_phone %}
+{{ store.seller_phone }}{% endif %}
+{% endautoescape %}
