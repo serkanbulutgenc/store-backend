@@ -191,6 +191,14 @@ def test_assign_owner_creates_a_missing_user_with_a_verified_email():
     assert EmailAddress.objects.get(user=user).verified
 
 
+def test_assign_owner_verifies_an_existing_unverified_email(customer):
+    EmailAddress.objects.filter(user=customer).update(verified=False)
+
+    call_command("assign_owner", customer.email)
+
+    assert EmailAddress.objects.get(user=customer, email=customer.email).verified
+
+
 def test_assign_owner_rejects_a_bad_email():
     with pytest.raises(CommandError):
         call_command("assign_owner", "nope")

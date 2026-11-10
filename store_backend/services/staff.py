@@ -107,7 +107,9 @@ def assign_owner(email: str) -> tuple[User, bool]:
     user.is_staff = True
     user.save()
     user.groups.add(Group.objects.get(name=OWNER_GROUP))
-    EmailAddress.objects.get_or_create(
+    # The operator vouches for this address: an Owner who signed up first (or whose
+    # verification email cannot be sent yet) must still be able to log in.
+    EmailAddress.objects.update_or_create(
         user=user,
         email=email,
         defaults={"verified": True, "primary": True},
