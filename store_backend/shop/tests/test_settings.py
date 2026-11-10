@@ -126,7 +126,7 @@ def test_new_products_take_the_low_stock_default(owner):
     product = catalog.create_product(
         title="Elbise",
         product_class=ProductClass.objects.get(name="Giyim"),
-        category=None,
+        category=catalog.create_category("Giyim"),
         shelf_price="100.00",
     )
 
