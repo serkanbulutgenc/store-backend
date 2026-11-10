@@ -20,6 +20,7 @@ from store_backend.api.ratelimit import count_attempt
 from store_backend.services import checkout as checkout_service
 from store_backend.services import pricing
 from store_backend.services import shop_settings
+from store_backend.services import tracking
 from store_backend.shop.models import PaymentMethod
 
 router = Router(tags=["checkout"], auth=GuestAuth())
@@ -99,9 +100,12 @@ class OrderPlacedOut(Schema):
     total: Money
     kdv_total: Money
     bank: BankOut | None
+    tracking_token: str = Field(
+        description="Signed link token (valid 30 days) for GET /tracking/link/{token}.",
+    )
 
 
-def _placed(order) -> dict:
+def placed_summary(order) -> dict:
     method = checkout_service.payment_method_of(order)
     cod_fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
     lines = [
@@ -131,7 +135,7 @@ def _placed(order) -> dict:
     return {
         "number": order.number,
         "status": order.status,
-        "payment_status": checkout_service.PAYMENT_UNPAID,
+        "payment_status": tracking.payment_status_of(order),
         "payment_method": method,
         "email": order.guest_email,
         "lines": lines,
@@ -141,6 +145,7 @@ def _placed(order) -> dict:
         "total": order.total_incl_tax,
         "kdv_total": order.total_incl_tax - order.total_excl_tax,
         "bank": bank,
+        "tracking_token": tracking.link_token(order),
     }
 
 
@@ -181,4 +186,4 @@ def place_order(request, data: CheckoutIn):
             user_agent=user_agent(request),
         ),
     )
-    return HTTPStatus.CREATED, _placed(order)
+    return HTTPStatus.CREATED, placed_summary(order)

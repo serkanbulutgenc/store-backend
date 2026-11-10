@@ -408,6 +408,9 @@ OSCAR_DYNAMIC_CLASS_LOADER = "store_backend.catalog.loader.class_loader"
 FEE_KDV_RATE = 20
 # Checkout attempts allowed per client IP: (count, window in seconds).
 CHECKOUT_RATE_LIMIT = (10, 600)
+# Order tracking lookups: per client address, and per Order number (all addresses).
+TRACKING_RATE_LIMIT = (20, 600)
+TRACKING_ORDER_RATE_LIMIT = (8, 600)
 # Read the client address from the first `X-Forwarded-For` entry. Only turn this on
 # behind a proxy that sets the header itself; otherwise a client can forge it.
 TRUST_FORWARDED_FOR = False

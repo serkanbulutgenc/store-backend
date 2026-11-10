@@ -642,6 +642,11 @@
             "pattern": "^-?\\d+\\.\\d{2}$",
             "title": "Total",
             "type": "string"
+          },
+          "tracking_token": {
+            "description": "Signed link token (valid 30 days) for GET /tracking/link/{token}.",
+            "title": "Tracking Token",
+            "type": "string"
           }
         },
         "required": [
@@ -656,7 +661,8 @@
           "cod_fee",
           "total",
           "kdv_total",
-          "bank"
+          "bank",
+          "tracking_token"
         ],
         "title": "OrderPlacedOut",
         "type": "object"
@@ -1344,6 +1350,129 @@
         ],
         "title": "SwatchOut",
         "type": "object"
+      },
+      "TrackingIn": {
+        "properties": {
+          "contact": {
+            "description": "The email or the phone number on the Order.",
+            "maxLength": 254,
+            "title": "Contact",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 40,
+            "title": "Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "contact"
+        ],
+        "title": "TrackingIn",
+        "type": "object"
+      },
+      "TrackingOut": {
+        "description": "What a Shopper may see: no phone, address or email.",
+        "properties": {
+          "carrier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrier"
+          },
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "items_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Items Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PlacedLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_status": {
+            "title": "Payment Status",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          },
+          "tracking_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Number"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "status",
+          "payment_status",
+          "payment_method",
+          "lines",
+          "items_total",
+          "shipping_fee",
+          "cod_fee",
+          "total",
+          "carrier",
+          "tracking_number"
+        ],
+        "title": "TrackingOut",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1809,6 +1938,82 @@
         "summary": "Get Public Settings",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/store/tracking": {
+      "post": {
+        "description": "Find an Order by number plus its email or phone. 404 for any mismatch;\n429 after repeated tries from one address or against one number.",
+        "operationId": "tracking_lookup",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Lookup",
+        "tags": [
+          "tracking"
+        ]
+      }
+    },
+    "/api/store/tracking/link/{token}": {
+      "get": {
+        "description": "Open the Order a signed link was issued for (valid 30 days).",
+        "operationId": "tracking_open_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Open Link",
+        "tags": [
+          "tracking"
         ]
       }
     }
