@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 
 # The fixed Legal pages. The text lives in the frontend repo as versioned Markdown;
@@ -176,3 +177,83 @@ class OrderFeeSnapshot(_KdvSnapshot):
 
     def __str__(self) -> str:
         return f"{self.kind} fee of order {self.order_id}"
+
+
+MAX_SAVED_ADDRESSES = 5
+
+
+class SavedAddress(models.Model):
+    """One entry of a Customer's address book: up to five, exactly one default."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_addresses",
+    )
+    full_name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=30)
+    il = models.CharField(max_length=100)
+    ilce = models.CharField(max_length=100)
+    mahalle = models.CharField(max_length=150)
+    street = models.CharField(max_length=200)
+    postal_code = models.CharField(max_length=10, blank=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_default", "created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(is_default=True),
+                name="one_default_address_per_user",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.full_name}, {self.ilce}/{self.il}"
+
+
+class AccountDeletionRequest(models.Model):
+    """A Customer's request to delete their account, waiting in the Owner queue."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Bekliyor"
+        COMPLETED = "completed", "Tamamlandı"
+        DECLINED = "declined", "Reddedildi"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="deletion_requests",
+    )
+    email = models.EmailField(help_text="The account email when the request was made.")
+    name = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    handled_at = models.DateTimeField(null=True, blank=True)
+    handled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-requested_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(status="pending"),
+                name="one_pending_deletion_per_user",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Deletion request {self.pk} ({self.status})"

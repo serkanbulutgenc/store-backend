@@ -1,14 +1,19 @@
-# ruff: noqa: TC001
-"""Owner-only Store settings endpoints for the Dashboard."""
+# ruff: noqa: TC001, TC003
+"""Owner-only Dashboard endpoints: Store settings and account-deletion requests."""
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from ninja import Router
 from ninja import Schema
+from ninja.pagination import paginate
 
 from store_backend.api.errors import UnprocessableError
 from store_backend.api.money import Money
+from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
+from store_backend.services import customers
 from store_backend.services import shop_settings
 from store_backend.staff.permissions import Perm
 
@@ -91,3 +96,46 @@ def update_settings(request, data: SettingsPatch):
         msg = "Bu alan boş bırakılamaz."
         raise UnprocessableError(msg, fields={k: [msg] for k in nulls})
     return shop_settings.update(request.auth, **sent)
+
+
+class DeletionRequestOut(Schema):
+    id: int
+    email: str
+    name: str
+    status: str
+    requested_at: datetime
+    handled_at: datetime | None
+
+
+@router.get(
+    "/account-deletions",
+    auth=requires(Perm.MANAGE_ACCOUNT_DELETIONS),
+    operation_id="account_deletions_list",
+    response=list[DeletionRequestOut],
+)
+@paginate(PageOffsetPagination)
+def list_deletions(request):
+    """The Owner queue: pending requests, oldest first."""
+    return customers.pending_deletions()
+
+
+@router.post(
+    "/account-deletions/{request_id}/complete",
+    auth=requires(Perm.MANAGE_ACCOUNT_DELETIONS),
+    operation_id="account_deletions_complete",
+    response=DeletionRequestOut,
+)
+def complete_deletion(request, request_id: int):
+    """Anonymise the account. Its Orders stay with the name and billing address
+    frozen at placement."""
+    return customers.complete_deletion(request.auth, request_id)
+
+
+@router.post(
+    "/account-deletions/{request_id}/decline",
+    auth=requires(Perm.MANAGE_ACCOUNT_DELETIONS),
+    operation_id="account_deletions_decline",
+    response=DeletionRequestOut,
+)
+def decline_deletion(request, request_id: int):
+    return customers.decline_deletion(request.auth, request_id)

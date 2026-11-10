@@ -47,6 +47,9 @@ class Guest:
     def patch(self, path, data):
         return self._send("patch", path, data)
 
+    def put(self, path, data):
+        return self._send("put", path, data)
+
     def delete(self, path):
         return self.client.delete(path, headers=self.headers)
 

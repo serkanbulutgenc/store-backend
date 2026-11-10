@@ -375,6 +375,8 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# A changed email replaces the old one once the new address is verified.
+ACCOUNT_CHANGE_EMAIL = True
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "store_backend.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html

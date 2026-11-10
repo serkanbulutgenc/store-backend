@@ -1,6 +1,240 @@
 {
   "components": {
     "schemas": {
+      "AccountOrderOut": {
+        "properties": {
+          "carrier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrier"
+          },
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "items_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Items Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PlacedLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_status": {
+            "title": "Payment Status",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "shipping_address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderAddressOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          },
+          "tracking_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Number"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "status",
+          "payment_status",
+          "payment_method",
+          "lines",
+          "items_total",
+          "shipping_fee",
+          "cod_fee",
+          "total",
+          "carrier",
+          "tracking_number"
+        ],
+        "title": "AccountOrderOut",
+        "type": "object"
+      },
+      "AccountOrderRow": {
+        "properties": {
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "payment_status": {
+            "title": "Payment Status",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "status",
+          "payment_status",
+          "total",
+          "item_count"
+        ],
+        "title": "AccountOrderRow",
+        "type": "object"
+      },
+      "AccountOut": {
+        "properties": {
+          "deletion_requested": {
+            "title": "Deletion Requested",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "marketing_consent": {
+            "title": "Marketing Consent",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "phone",
+          "marketing_consent",
+          "deletion_requested"
+        ],
+        "title": "AccountOut",
+        "type": "object"
+      },
+      "AccountPatch": {
+        "description": "Only the fields sent change. The email changes through allauth (re-verified).",
+        "properties": {
+          "marketing_consent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marketing Consent"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "title": "AccountPatch",
+        "type": "object"
+      },
       "AddIn": {
         "properties": {
           "quantity": {
@@ -23,6 +257,11 @@
       },
       "AddressIn": {
         "properties": {
+          "full_name": {
+            "maxLength": 150,
+            "title": "Full Name",
+            "type": "string"
+          },
           "il": {
             "maxLength": 100,
             "title": "Il",
@@ -33,9 +272,19 @@
             "title": "Ilce",
             "type": "string"
           },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
           "mahalle": {
             "maxLength": 150,
             "title": "Mahalle",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 30,
+            "title": "Phone",
             "type": "string"
           },
           "postal_code": {
@@ -51,12 +300,67 @@
           }
         },
         "required": [
+          "full_name",
+          "phone",
           "il",
           "ilce",
           "mahalle",
           "street"
         ],
         "title": "AddressIn",
+        "type": "object"
+      },
+      "AddressOut": {
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "il": {
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "title": "Ilce",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "mahalle": {
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "phone",
+          "il",
+          "ilce",
+          "mahalle",
+          "street",
+          "postal_code",
+          "is_default"
+        ],
+        "title": "AddressOut",
         "type": "object"
       },
       "BankOut": {
@@ -565,6 +869,68 @@
         "title": "ImageSizeOut",
         "type": "object"
       },
+      "Input": {
+        "properties": {
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "default": 24,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "title": "Input",
+        "type": "object"
+      },
+      "OrderAddressOut": {
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "il": {
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "title": "Ilce",
+            "type": "string"
+          },
+          "mahalle": {
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "phone",
+          "il",
+          "ilce",
+          "mahalle",
+          "street",
+          "postal_code"
+        ],
+        "title": "OrderAddressOut",
+        "type": "object"
+      },
       "OrderPlacedOut": {
         "properties": {
           "bank": {
@@ -766,6 +1132,37 @@
           "remaining"
         ],
         "title": "PageVariantOut",
+        "type": "object"
+      },
+      "PagedAccountOrderRow": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccountOrderRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PagedAccountOrderRow",
         "type": "object"
       },
       "PaymentMethod": {
@@ -1476,6 +1873,11 @@
       }
     },
     "securitySchemes": {
+      "CustomerAuth": {
+        "in": "header",
+        "name": "X-Session-Token",
+        "type": "apiKey"
+      },
       "GuestAuth": {
         "in": "header",
         "name": "X-Session-Token",
@@ -1490,6 +1892,327 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/store/account": {
+      "get": {
+        "description": "The signed-in Customer. 401 when signed out, which is what the guard uses.",
+        "operationId": "account_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Get Account",
+        "tags": [
+          "account"
+        ]
+      },
+      "patch": {
+        "operationId": "account_update",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Update Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/addresses": {
+      "get": {
+        "operationId": "account_list_addresses",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AddressOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "List Addresses",
+        "tags": [
+          "account"
+        ]
+      },
+      "post": {
+        "description": "Up to five; the first one saved is the default. 409 `address_limit` beyond.",
+        "operationId": "account_create_address",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Create Address",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/addresses/{address_id}": {
+      "delete": {
+        "operationId": "account_delete_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address_id",
+            "required": true,
+            "schema": {
+              "title": "Address Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Delete Address",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "operationId": "account_update_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address_id",
+            "required": true,
+            "schema": {
+              "title": "Address Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Update Address",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/deletion-request": {
+      "post": {
+        "description": "Ask the Owner to delete the account. Personal fields are anonymised; Orders\nstay for the legal retention period. 409 while a request is already open.",
+        "operationId": "account_request_deletion",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Request Deletion",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/orders": {
+      "get": {
+        "operationId": "account_list_orders",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedAccountOrderRow"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "List Orders",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/orders/{number}": {
+      "get": {
+        "operationId": "account_get_order",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOrderOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Get Order",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/store/basket": {
       "get": {
         "operationId": "basket_get",

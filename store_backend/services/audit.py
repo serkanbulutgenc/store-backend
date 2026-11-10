@@ -32,6 +32,7 @@ class Action(StrEnum):
     PHOTO_EDIT = "photo_edit"
     INVOICE_EDIT = "invoice_edit"
     EXPORT_RUN = "export_run"
+    ACCOUNT_DELETION = "account_deletion"
 
 
 def record(  # noqa: PLR0913

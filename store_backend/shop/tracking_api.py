@@ -51,7 +51,7 @@ class TrackingOut(Schema):
     tracking_number: str | None
 
 
-def _out(order) -> dict:
+def order_out(order) -> dict:
     summary = placed_summary(order)
     carrier, tracking_number = tracking.shipment_of(order)
     return {
@@ -84,7 +84,7 @@ def lookup(request, data: TrackingIn):
         if guarded:
             count_attempt("tracking-order", number, rate)
         raise
-    return _out(order)
+    return order_out(order)
 
 
 @router.get(
@@ -95,4 +95,4 @@ def lookup(request, data: TrackingIn):
 def open_link(request, token: str):
     """Open the Order a signed link was issued for (valid 30 days)."""
     _limit(request)
-    return _out(tracking.order_for_link(token))
+    return order_out(tracking.order_for_link(token))

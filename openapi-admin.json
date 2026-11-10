@@ -150,6 +150,53 @@
         "title": "ColourPatch",
         "type": "object"
       },
+      "DeletionRequestOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "handled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handled At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "status",
+          "requested_at",
+          "handled_at"
+        ],
+        "title": "DeletionRequestOut",
+        "type": "object"
+      },
       "ImageDerivativeOut": {
         "properties": {
           "url": {
@@ -372,6 +419,37 @@
           "name"
         ],
         "title": "NamedOut",
+        "type": "object"
+      },
+      "PagedDeletionRequestOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeletionRequestOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PagedDeletionRequestOut",
         "type": "object"
       },
       "PagedLowStockOut": {
@@ -1832,6 +1910,133 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/account-deletions": {
+      "get": {
+        "description": "The Owner queue: pending requests, oldest first.",
+        "operationId": "account_deletions_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedDeletionRequestOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Deletions",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/admin/account-deletions/{request_id}/complete": {
+      "post": {
+        "description": "Anonymise the account. Its Orders stay with the name and billing address\nfrozen at placement.",
+        "operationId": "account_deletions_complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Complete Deletion",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/admin/account-deletions/{request_id}/decline": {
+      "post": {
+        "operationId": "account_deletions_decline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Decline Deletion",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/admin/brands": {
       "get": {
         "operationId": "catalog_list_brands",

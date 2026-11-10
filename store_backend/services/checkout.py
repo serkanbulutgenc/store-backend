@@ -40,6 +40,7 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.strategy import CURRENCY
 from store_backend.services import catalog
+from store_backend.services import claiming
 from store_backend.services import pre_information
 from store_backend.services import pricing
 from store_backend.services import shop_settings
@@ -183,7 +184,7 @@ def _invalid(field: str, message: str) -> UnprocessableError:
     return UnprocessableError(message, fields={field: [message]})
 
 
-def _clean_phone(raw: str) -> str:
+def clean_phone(raw: str) -> str:
     msg = "Geçerli bir telefon numarası girin."
     try:
         parsed = phonenumbers.parse(raw.strip(), "TR")
@@ -194,7 +195,7 @@ def _clean_phone(raw: str) -> str:
     return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 
-def _clean_address(prefix: str, address: Address) -> Address:
+def clean_address(prefix: str, address: Address) -> Address:
     parts = {part: getattr(address, part).strip() for part in ADDRESS_PARTS}
     errors = {
         f"{prefix}.{part}": ["Bu alan zorunludur."]
@@ -215,10 +216,10 @@ def _validated(form: CheckoutForm) -> CheckoutForm:
         validate_email(email)
     except ValidationError:
         raise _invalid("email", "Geçerli bir e-posta adresi girin.") from None
-    phone = _clean_phone(form.phone)
-    shipping = _clean_address("shipping_address", form.shipping_address)
+    phone = clean_phone(form.phone)
+    shipping = clean_address("shipping_address", form.shipping_address)
     billing = (
-        _clean_address("billing_address", form.billing_address)
+        clean_address("billing_address", form.billing_address)
         if form.billing_address
         else shipping
     )
@@ -472,7 +473,7 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
             excl_tax=fees.shipping.total_excl,
             tax=fees.shipping.total_kdv,
         ),
-        user=caller.user,
+        user=caller.user or claiming.verified_owner(form.email),
         shipping_address=shipping_address,
         billing_address=billing_address,
         status=(
