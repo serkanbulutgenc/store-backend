@@ -128,6 +128,54 @@ class PreInformationSnapshot(models.Model):
         return f"Pre-information for order {self.order_id}"
 
 
+class RefundMethod(models.TextChoices):
+    BANK_TRANSFER = "bank_transfer", "Havale/EFT"
+    CASH = "cash", "Nakit"
+
+
+class OrderRecord(models.Model):
+    """What Staff recorded against an Order that Oscar's Order has no place for.
+
+    Created on first use (`order_ops.record_of`), so Orders placed before any
+    Dashboard action need no row. Oscar's own `status` holds the Fulfilment status
+    and its payment Sources hold the Payment status.
+    """
+
+    order = models.OneToOneField(
+        "order.Order",
+        on_delete=models.PROTECT,
+        related_name="record",
+    )
+    # Payment
+    paid_amount = _money(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    # Cancellation
+    cancel_reason = models.CharField(max_length=500, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    # Shipping
+    carrier = models.CharField(max_length=100, blank=True)
+    tracking_number = models.CharField(max_length=100, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    # Returns and refund
+    return_requested_at = models.DateTimeField(null=True, blank=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+    refund_amount = _money(null=True, blank=True)
+    refund_method = models.CharField(
+        max_length=20,
+        choices=RefundMethod.choices,
+        blank=True,
+    )
+    refund_iban = models.CharField(max_length=34, blank=True)
+    refunded_at = models.DateTimeField(null=True, blank=True)
+    # Invoice details the buyer asked for
+    buyer_tax_number = models.CharField(max_length=50, blank=True)
+    company_title = models.CharField(max_length=200, blank=True)
+
+    def __str__(self) -> str:
+        return f"Record of order {self.order_id}"
+
+
 class _KdvSnapshot(models.Model):
     kdv_rate = models.DecimalField(max_digits=5, decimal_places=2)
     total_incl = _money()

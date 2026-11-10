@@ -421,6 +421,664 @@
         "title": "NamedOut",
         "type": "object"
       },
+      "OrderAuditOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "actor",
+          "action",
+          "summary"
+        ],
+        "title": "OrderAuditOut",
+        "type": "object"
+      },
+      "OrderCancelIn": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "OrderCancelIn",
+        "type": "object"
+      },
+      "OrderDetail": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "audit": {
+            "items": {
+              "$ref": "#/components/schemas/OrderAuditOut"
+            },
+            "title": "Audit",
+            "type": "array"
+          },
+          "buyer_tax_number": {
+            "title": "Buyer Tax Number",
+            "type": "string"
+          },
+          "cancel_reason": {
+            "title": "Cancel Reason",
+            "type": "string"
+          },
+          "carrier": {
+            "title": "Carrier",
+            "type": "string"
+          },
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "company_title": {
+            "title": "Company Title",
+            "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "items_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Items Total",
+            "type": "string"
+          },
+          "kdv_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Kdv Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "paid_amount": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid Amount"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_status": {
+            "enum": [
+              "unpaid",
+              "paid",
+              "refunded"
+            ],
+            "title": "Payment Status",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "refund_amount": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Amount"
+          },
+          "refund_iban": {
+            "title": "Refund Iban",
+            "type": "string"
+          },
+          "refund_method": {
+            "title": "Refund Method",
+            "type": "string"
+          },
+          "refunded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refunded At"
+          },
+          "shipped_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipped At"
+          },
+          "shipping_address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderShippingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          },
+          "tracking_number": {
+            "title": "Tracking Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "status",
+          "payment_status",
+          "payment_method",
+          "email",
+          "customer_id",
+          "shipping_address",
+          "lines",
+          "items_total",
+          "shipping_fee",
+          "cod_fee",
+          "total",
+          "kdv_total",
+          "actions",
+          "paid_amount",
+          "paid_at",
+          "cancel_reason",
+          "carrier",
+          "tracking_number",
+          "shipped_at",
+          "delivered_at",
+          "refund_amount",
+          "refund_method",
+          "refund_iban",
+          "refunded_at",
+          "buyer_tax_number",
+          "company_title",
+          "audit"
+        ],
+        "title": "OrderDetail",
+        "type": "object"
+      },
+      "OrderEmailIn": {
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "OrderEmailIn",
+        "type": "object"
+      },
+      "OrderInvoiceDetailsPatch": {
+        "properties": {
+          "buyer_tax_number": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyer Tax Number"
+          },
+          "company_title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Title"
+          }
+        },
+        "title": "OrderInvoiceDetailsPatch",
+        "type": "object"
+      },
+      "OrderLineOut": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "line_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "title",
+          "colour",
+          "size",
+          "quantity",
+          "unit_price",
+          "line_total"
+        ],
+        "title": "OrderLineOut",
+        "type": "object"
+      },
+      "OrderPayIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Defaults to now.",
+            "title": "Paid At"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "OrderPayIn",
+        "type": "object"
+      },
+      "OrderRefundIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "iban": {
+            "default": "",
+            "description": "Required for bank transfer.",
+            "maxLength": 50,
+            "title": "Iban",
+            "type": "string"
+          },
+          "method": {
+            "$ref": "#/components/schemas/RefundMethod"
+          }
+        },
+        "required": [
+          "amount",
+          "method"
+        ],
+        "title": "OrderRefundIn",
+        "type": "object"
+      },
+      "OrderRow": {
+        "properties": {
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "payment_status": {
+            "enum": [
+              "unpaid",
+              "paid",
+              "refunded"
+            ],
+            "title": "Payment Status",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "status",
+          "payment_status",
+          "customer",
+          "email",
+          "total",
+          "item_count"
+        ],
+        "title": "OrderRow",
+        "type": "object"
+      },
+      "OrderShipIn": {
+        "properties": {
+          "carrier": {
+            "maxLength": 100,
+            "title": "Carrier",
+            "type": "string"
+          },
+          "tracking_number": {
+            "maxLength": 100,
+            "title": "Tracking Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "carrier",
+          "tracking_number"
+        ],
+        "title": "OrderShipIn",
+        "type": "object"
+      },
+      "OrderShippingOut": {
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "il": {
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "title": "Ilce",
+            "type": "string"
+          },
+          "mahalle": {
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "phone",
+          "il",
+          "ilce",
+          "mahalle",
+          "street",
+          "postal_code"
+        ],
+        "title": "OrderShippingOut",
+        "type": "object"
+      },
+      "OrderShippingPatch": {
+        "description": "Only the fields sent change.",
+        "properties": {
+          "il": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Il"
+          },
+          "ilce": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ilce"
+          },
+          "mahalle": {
+            "anyOf": [
+              {
+                "maxLength": 150,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mahalle"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "street": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Street"
+          }
+        },
+        "title": "OrderShippingPatch",
+        "type": "object"
+      },
       "PagedDeletionRequestOut": {
         "properties": {
           "items": {
@@ -481,6 +1139,37 @@
           "page_size"
         ],
         "title": "PagedLowStockOut",
+        "type": "object"
+      },
+      "PagedOrderRow": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PagedOrderRow",
         "type": "object"
       },
       "PagedProductListOut": {
@@ -544,6 +1233,14 @@
         ],
         "title": "PagedStaffUserOut",
         "type": "object"
+      },
+      "PaymentMethod": {
+        "enum": [
+          "bank_transfer",
+          "cod"
+        ],
+        "title": "PaymentMethod",
+        "type": "string"
       },
       "ProductClassOut": {
         "properties": {
@@ -1178,6 +1875,14 @@
           "archived"
         ],
         "title": "ProductStatus",
+        "type": "string"
+      },
+      "RefundMethod": {
+        "enum": [
+          "bank_transfer",
+          "cash"
+        ],
+        "title": "RefundMethod",
         "type": "string"
       },
       "SettingsOut": {
@@ -2476,6 +3181,605 @@
         "summary": "Get Me",
         "tags": [
           "staff"
+        ]
+      }
+    },
+    "/api/admin/orders": {
+      "get": {
+        "description": "Newest first. `q` matches number, email and name. `payment_status` is one of\nunpaid, paid, refunded.",
+        "operationId": "orders_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "payment_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Payment Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ordering",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ordering"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedOrderRow"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Orders",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}": {
+      "get": {
+        "operationId": "orders_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Order",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/cancel": {
+      "post": {
+        "description": "Cancel before shipping, releasing stock. A paid Order is Owner-only (403).",
+        "operationId": "orders_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCancelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Cancel",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/deliver": {
+      "post": {
+        "description": "Cash on delivery becomes paid here.",
+        "operationId": "orders_deliver",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Deliver",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/email": {
+      "patch": {
+        "operationId": "orders_correct_email",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderEmailIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Correct Email",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/invoice-details": {
+      "patch": {
+        "operationId": "orders_set_invoice_details",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderInvoiceDetailsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Set Invoice Details",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/mark-returned": {
+      "post": {
+        "operationId": "orders_mark_returned",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Mark Returned",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/pay": {
+      "post": {
+        "description": "Record the payment. 409 when already paid or cancelled.",
+        "operationId": "orders_mark_paid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderPayIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Mark Paid",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/refund": {
+      "post": {
+        "description": "Owner-only. For a paid Order that was returned or cancelled.",
+        "operationId": "orders_refund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRefundIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Refund",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/request-return": {
+      "post": {
+        "operationId": "orders_request_return",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Request Return",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/ship": {
+      "post": {
+        "description": "Only a preparing Order ships. Consumes the reserved stock.",
+        "operationId": "orders_ship",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderShipIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Ship",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/shipping": {
+      "patch": {
+        "description": "Address and phone, only while the Order is new or preparing (409 after).",
+        "operationId": "orders_edit_shipping",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderShippingPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Shipping",
+        "tags": [
+          "orders"
         ]
       }
     },
