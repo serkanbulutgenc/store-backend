@@ -12,9 +12,12 @@ from ninja import Schema
 
 from store_backend.api.auth import GuestAuth
 from store_backend.api.client import client_ip
+from store_backend.api.errors import NotFoundError
+from store_backend.api.errors import TooManyRequestsError
 from store_backend.api.money import Money
 from store_backend.api.ratelimit import Rate
 from store_backend.api.ratelimit import count_attempt
+from store_backend.api.ratelimit import is_limited
 from store_backend.services import tracking
 from store_backend.shop.checkout_api import PlacedLineOut
 from store_backend.shop.checkout_api import placed_summary
@@ -59,22 +62,29 @@ def _out(order) -> dict:
     }
 
 
-def _limit(request, number: str | None = None) -> None:
+def _limit(request) -> None:
     count_attempt("tracking", client_ip(request), Rate(*settings.TRACKING_RATE_LIMIT))
-    if number is not None:
-        count_attempt(
-            "tracking-order",
-            tracking.normalise_number(number),
-            Rate(*settings.TRACKING_ORDER_RATE_LIMIT),
-        )
 
 
 @router.post("/tracking", operation_id="tracking_lookup", response=TrackingOut)
 def lookup(request, data: TrackingIn):
     """Find an Order by number plus its email or phone. 404 for any mismatch;
     429 after repeated tries from one address or against one number."""
-    _limit(request, data.number)
-    return _out(tracking.order_for_lookup(data.number, data.contact))
+    _limit(request)
+    # Only wrong guesses count against an Order number, so a stranger cannot lock the
+    # owner out with right answers, and only well-formed numbers get a counter.
+    number = tracking.normalise_number(data.number)
+    rate = Rate(*settings.TRACKING_ORDER_RATE_LIMIT)
+    guarded = tracking.is_order_number(number)
+    if guarded and is_limited("tracking-order", number, rate):
+        raise TooManyRequestsError
+    try:
+        order = tracking.order_for_lookup(data.number, data.contact)
+    except NotFoundError:
+        if guarded:
+            count_attempt("tracking-order", number, rate)
+        raise
+    return _out(order)
 
 
 @router.get(

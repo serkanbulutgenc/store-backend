@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import re
+
 import phonenumbers
 from django.core import signing
 from oscar.apps.order.models import Order
 
 from store_backend.api.errors import NotFoundError
+from store_backend.services.checkout import PAYMENT_UNPAID
 
+ORDER_NUMBER = re.compile(r"AT-[A-Z0-9]{6}")
 LINK_SALT = "order-tracking-link"
 LINK_MAX_AGE = 30 * 24 * 60 * 60  # seconds: the link is valid for 30 days
 
-PAYMENT_UNPAID = "unpaid"
 PAYMENT_PAID = "paid"
 PAYMENT_REFUNDED = "refunded"
 
@@ -25,6 +28,10 @@ def _not_found() -> NotFoundError:
 
 def normalise_number(raw: str) -> str:
     return raw.strip().upper()
+
+
+def is_order_number(value: str) -> bool:
+    return bool(ORDER_NUMBER.fullmatch(value))
 
 
 def link_token(order: Order) -> str:

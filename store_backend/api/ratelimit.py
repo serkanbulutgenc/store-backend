@@ -14,6 +14,11 @@ class Rate(NamedTuple):
     window: int  # seconds
 
 
+def is_limited(scope: str, key: str, rate: Rate) -> bool:
+    """Whether `key` has already used up `rate`, without counting this call."""
+    return (cache.get(f"ratelimit:{scope}:{key}") or 0) >= rate.limit
+
+
 def count_attempt(scope: str, key: str | None, rate: Rate) -> None:
     """Count an attempt; raise `TooManyRequestsError` once `rate.limit` is passed."""
     cache_key = f"ratelimit:{scope}:{key or 'unknown'}"

@@ -155,3 +155,11 @@ def test_paid_and_refunded_orders_report_their_payment_status(placed):
     source.amount_refunded = source.amount_debited
     source.save()
     assert tracking.payment_status_of(order) == "refunded"
+
+
+def test_right_answers_do_not_use_up_the_order_number_limit(placed):
+    codes = [
+        lookup(placed["number"], "ayse@example.com", ip=f"203.0.113.{i}").status_code
+        for i in range(1, 15)
+    ]
+    assert set(codes) == {HTTPStatus.OK}
