@@ -91,7 +91,7 @@ def _illegal(order: Order, action: str) -> ConflictError:
 # --- reading ------------------------------------------------------------------
 
 
-def _locked(number: str) -> Order:
+def locked(number: str) -> Order:
     order = (
         Order.objects.select_for_update(of=("self",))
         .filter(number=tracking.normalise_number(number))
@@ -246,7 +246,7 @@ def mark_paid(
     paid_at: datetime,
 ) -> Order:
     """Record that the money arrived. A new bank-transfer Order moves to preparing."""
-    order = _locked(number)
+    order = locked(number)
     if order.status in NOT_PAYABLE or (
         tracking.payment_status_of(order) != PAYMENT_UNPAID
     ):
@@ -290,7 +290,7 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
     A paid Order can only be cancelled by someone allowed to (the Owner); the money
     then waits for a recorded refund.
     """
-    order = _locked(number)
+    order = locked(number)
     if order.status not in EDITABLE_STATUSES:
         raise _illegal(order, "cancel")
     reason = reason.strip()
@@ -325,7 +325,7 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
 @transaction.atomic
 def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Order:
     """Hand the parcel to the carrier: consumes the reserved stock."""
-    order = _locked(number)
+    order = locked(number)
     if order.status != STATUS_PREPARING:
         raise _illegal(order, "ship")
     carrier, tracking_number = carrier.strip(), tracking_number.strip()
@@ -365,7 +365,7 @@ def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Ord
 @transaction.atomic
 def deliver(actor: User, number: str) -> Order:
     """Mark delivered. Cash on delivery is recorded as paid in full now."""
-    order = _locked(number)
+    order = locked(number)
     if order.status != STATUS_SHIPPED:
         raise _illegal(order, "deliver")
     before = _snapshot(order)
@@ -398,7 +398,7 @@ def _move(  # noqa: PLR0913
     stamp: str,
     summary: str,
 ) -> Order:
-    order = _locked(number)
+    order = locked(number)
     if order.status not in allowed_from:
         raise _illegal(order, str(action))
     before = _snapshot(order)
@@ -468,7 +468,7 @@ def refund(
     iban: str = "",
 ) -> Order:
     """Record a refund for a paid Order that was returned or cancelled."""
-    order = _locked(number)
+    order = locked(number)
     if tracking.payment_status_of(order) != PAYMENT_PAID or order.status not in (
         STATUS_RETURNED,
         STATUS_CANCELLED,
@@ -530,7 +530,7 @@ def shipping_fields(order: Order) -> dict[str, str]:
 @transaction.atomic
 def edit_shipping(actor: User, number: str, **changes: str) -> Order:
     """Change the delivery address and/or phone while the Order is new or preparing."""
-    order = _locked(number)
+    order = locked(number)
     if order.status not in EDITABLE_STATUSES:
         raise _illegal(order, "edit_shipping")
     address = order.shipping_address
@@ -563,7 +563,7 @@ def edit_shipping(actor: User, number: str, **changes: str) -> Order:
 @transaction.atomic
 def correct_email(actor: User, number: str, *, email: str) -> Order:
     """Fix the Shopper's email and send the order email to the corrected address."""
-    order = _locked(number)
+    order = locked(number)
     email = email.strip().lower()
     try:
         validate_email(email)
@@ -586,7 +586,7 @@ def correct_email(actor: User, number: str, *, email: str) -> Order:
 
 @transaction.atomic
 def resend_message(actor: User, number: str, message_id: int) -> Order:
-    order = _locked(number)
+    order = locked(number)
     copy = outbox.resend(message_id, order=order)
     audit.record(
         actor,
@@ -602,7 +602,7 @@ def resend_message(actor: User, number: str, message_id: int) -> Order:
 @transaction.atomic
 def set_invoice_details(actor: User, number: str, **changes: str) -> Order:
     """Add the buyer's tax number and/or company title when they ask for it."""
-    order = _locked(number)
+    order = locked(number)
     if not changes:
         raise _invalid("buyer_tax_number", "Değiştirilecek bilgi gönderilmedi.")
     record = record_of(order)
@@ -650,7 +650,7 @@ def _isolated(order: Order):
         logger.exception("Timed job failed for order %s", order.number)
 
 
-def _unpaid_transfers(placed_before: datetime) -> QuerySet[Order]:
+def unpaid_transfers(placed_before: datetime) -> QuerySet[Order]:
     return Order.objects.filter(
         status=STATUS_NEW,
         date_placed__lte=placed_before,
@@ -662,12 +662,12 @@ def send_payment_reminders(*, now: datetime | None = None) -> int:
     """One reminder per unpaid bank-transfer Order, once 24 h have passed."""
     now = now or timezone.now()
     sent = 0
-    due = _unpaid_transfers(now - REMINDER_AFTER).filter(
+    due = unpaid_transfers(now - REMINDER_AFTER).filter(
         date_placed__gt=now - outbox.PAYMENT_WINDOW,  # past it, the cancel job acts
     )
     for order in due.exclude(messages__template="payment_reminder"):
         with _isolated(order):
-            order = _locked(order.number)  # noqa: PLW2901
+            order = locked(order.number)  # noqa: PLW2901
             if (
                 order.status != STATUS_NEW
                 or tracking.payment_status_of(order) != PAYMENT_UNPAID
@@ -683,9 +683,9 @@ def cancel_unpaid_transfers(*, now: datetime | None = None) -> int:
     """Cancel bank-transfer Orders still unpaid after the 48 h payment window."""
     now = now or timezone.now()
     cancelled = 0
-    for order in _unpaid_transfers(now - outbox.PAYMENT_WINDOW):
+    for order in unpaid_transfers(now - outbox.PAYMENT_WINDOW):
         with _isolated(order):
-            order = _locked(order.number)  # noqa: PLW2901
+            order = locked(order.number)  # noqa: PLW2901
             if order.status != STATUS_NEW or (
                 tracking.payment_status_of(order) != PAYMENT_UNPAID
             ):

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
@@ -19,9 +20,11 @@ from store_backend.api.ordering import apply_ordering
 from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
 from store_backend.services import checkout
+from store_backend.services import invoicing
 from store_backend.services import order_ops
 from store_backend.services import pricing
 from store_backend.services import tracking
+from store_backend.shop.models import InvoiceStatus
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import RefundMethod
 from store_backend.staff.models import AuditEntry
@@ -113,6 +116,17 @@ class OrderMessageOut(Schema):
     body_html: str
 
 
+class InvoiceOut(Schema):
+    status: InvoiceStatus
+    number: str
+    date: dt.date | None
+    cancel_by: dt.date | None = Field(
+        description="Last day the portal lets Staff cancel the invoice (8 days).",
+    )
+    credit_note_number: str
+    credit_note_date: dt.date | None
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -144,6 +158,7 @@ class OrderDetail(Schema):
     company_title: str
     audit: list[OrderAuditOut]
     messages: list[OrderMessageOut]
+    invoice: InvoiceOut
 
 
 def _shipping(order) -> dict | None:
@@ -211,6 +226,18 @@ def _messages(order) -> list[dict]:
     ]
 
 
+def _invoice(order) -> dict:
+    invoice = invoicing.peek(order)
+    return {
+        "status": invoice.status,
+        "number": invoice.number,
+        "date": invoice.date,
+        "cancel_by": invoicing.cancel_by(invoice),
+        "credit_note_number": invoice.credit_note_number,
+        "credit_note_date": invoice.credit_note_date,
+    }
+
+
 def order_detail(order) -> dict:
     record = order_ops.peek_record(order)
     lines = _lines(order)
@@ -246,6 +273,7 @@ def order_detail(order) -> dict:
         "company_title": record.company_title,
         "audit": _audit(order),
         "messages": _messages(order),
+        "invoice": _invoice(order),
     }
 
 
@@ -296,6 +324,48 @@ class OrderEmailIn(Schema):
 class OrderInvoiceDetailsPatch(Schema):
     buyer_tax_number: str | None = Field(None, max_length=50)
     company_title: str | None = Field(None, max_length=200)
+
+
+class InvoiceIn(Schema):
+    """The whole record, as it stands in the GIB portal."""
+
+    status: InvoiceStatus
+    number: str = Field("", max_length=50, description="Invoice number.")
+    date: dt.date | None = None
+    credit_note_number: str = Field("", max_length=50)
+    credit_note_date: dt.date | None = None
+
+
+class SheetBuyer(Schema):
+    name: str
+    tax_number: str
+    company_title: str
+    il: str
+    ilce: str
+    mahalle: str
+    street: str
+    postal_code: str
+
+
+class SheetLine(Schema):
+    kind: Literal["product", "shipping", "cod"]
+    description: str
+    quantity: int
+    kdv_rate: Money
+    unit_price_excl: Money
+    total_excl: Money
+    total_kdv: Money
+    total_incl: Money
+
+
+class InvoiceSheet(Schema):
+    order_number: str
+    order_date: datetime
+    buyer: SheetBuyer
+    lines: list[SheetLine]
+    total_excl: Money
+    total_kdv: Money
+    total_incl: Money
 
 
 # --- endpoints ----------------------------------------------------------------
@@ -478,3 +548,35 @@ def set_invoice_details(request, number: str, data: OrderInvoiceDetailsPatch):
 def resend_message(request, number: str, message_id: int):
     """Queue a fresh copy of a logged email; the original stays in the log."""
     return _fresh(order_ops.resend_message(request.auth, number, message_id))
+
+
+@router.put(
+    "/orders/{number}/invoice",
+    auth=requires(Perm.MANAGE_INVOICES),
+    operation_id="orders_set_invoice",
+    response=OrderDetail,
+)
+def set_invoice(request, number: str, data: InvoiceIn):
+    """Record the invoice Staff issued by hand in the GIB portal. Replaces the whole
+    record; a number already used by another Order is 409."""
+    order = invoicing.record(
+        request.auth,
+        number,
+        status=data.status,
+        invoice_number=data.number,
+        invoice_date=data.date,
+        credit_note_number=data.credit_note_number,
+        credit_note_date=data.credit_note_date,
+    )
+    return _fresh(order)
+
+
+@router.get(
+    "/orders/{number}/invoice-sheet",
+    auth=requires(Perm.MANAGE_INVOICES),
+    operation_id="orders_invoice_sheet",
+    response=InvoiceSheet,
+)
+def invoice_sheet(request, number: str):
+    """Buyer, lines and KDV split laid out for typing into the portal."""
+    return invoicing.sheet(order_ops.get(number))

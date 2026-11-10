@@ -197,6 +197,131 @@
         "title": "DeletionRequestOut",
         "type": "object"
       },
+      "ExpiringRow": {
+        "properties": {
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "customer",
+          "total",
+          "expires_at"
+        ],
+        "title": "ExpiringRow",
+        "type": "object"
+      },
+      "ExpiringTransfers": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ExpiringRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "ExpiringTransfers",
+        "type": "object"
+      },
+      "HomeOrderRow": {
+        "properties": {
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "customer",
+          "total"
+        ],
+        "title": "HomeOrderRow",
+        "type": "object"
+      },
+      "HomeOut": {
+        "properties": {
+          "invoice_attention": {
+            "$ref": "#/components/schemas/InvoiceFlags"
+          },
+          "low_stock": {
+            "$ref": "#/components/schemas/LowStock"
+          },
+          "new_orders": {
+            "$ref": "#/components/schemas/NewOrders"
+          },
+          "products_without_photos": {
+            "$ref": "#/components/schemas/ProductsWithoutPhotos"
+          },
+          "shipped_without_invoice": {
+            "$ref": "#/components/schemas/NewOrders"
+          },
+          "unpaid_transfers_near_expiry": {
+            "$ref": "#/components/schemas/ExpiringTransfers"
+          }
+        },
+        "required": [
+          "new_orders",
+          "unpaid_transfers_near_expiry",
+          "low_stock",
+          "shipped_without_invoice",
+          "invoice_attention",
+          "products_without_photos"
+        ],
+        "title": "HomeOut",
+        "type": "object"
+      },
       "ImageDerivativeOut": {
         "properties": {
           "url": {
@@ -268,6 +393,300 @@
         "title": "InviteIn",
         "type": "object"
       },
+      "InvoiceFlagRow": {
+        "properties": {
+          "cancel_by": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel By"
+          },
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "invoice_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Date"
+          },
+          "invoice_number": {
+            "title": "Invoice Number",
+            "type": "string"
+          },
+          "needed": {
+            "enum": [
+              "cancel_invoice",
+              "credit_note"
+            ],
+            "title": "Needed",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "placed_at",
+          "customer",
+          "total",
+          "invoice_number",
+          "invoice_date",
+          "cancel_by",
+          "needed"
+        ],
+        "title": "InvoiceFlagRow",
+        "type": "object"
+      },
+      "InvoiceFlags": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceFlagRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "InvoiceFlags",
+        "type": "object"
+      },
+      "InvoiceIn": {
+        "description": "The whole record, as it stands in the GIB portal.",
+        "properties": {
+          "credit_note_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Note Date"
+          },
+          "credit_note_number": {
+            "default": "",
+            "maxLength": 50,
+            "title": "Credit Note Number",
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "number": {
+            "default": "",
+            "description": "Invoice number.",
+            "maxLength": 50,
+            "title": "Number",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "InvoiceIn",
+        "type": "object"
+      },
+      "InvoiceOut": {
+        "properties": {
+          "cancel_by": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last day the portal lets Staff cancel the invoice (8 days).",
+            "title": "Cancel By"
+          },
+          "credit_note_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Note Date"
+          },
+          "credit_note_number": {
+            "title": "Credit Note Number",
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          }
+        },
+        "required": [
+          "status",
+          "number",
+          "date",
+          "cancel_by",
+          "credit_note_number",
+          "credit_note_date"
+        ],
+        "title": "InvoiceOut",
+        "type": "object"
+      },
+      "InvoiceSheet": {
+        "properties": {
+          "buyer": {
+            "$ref": "#/components/schemas/SheetBuyer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SheetLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_date": {
+            "format": "date-time",
+            "title": "Order Date",
+            "type": "string"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "total_excl": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total Excl",
+            "type": "string"
+          },
+          "total_incl": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total Incl",
+            "type": "string"
+          },
+          "total_kdv": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total Kdv",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_number",
+          "order_date",
+          "buyer",
+          "lines",
+          "total_excl",
+          "total_kdv",
+          "total_incl"
+        ],
+        "title": "InvoiceSheet",
+        "type": "object"
+      },
+      "InvoiceStatus": {
+        "enum": [
+          "not_issued",
+          "issued",
+          "cancelled"
+        ],
+        "title": "InvoiceStatus",
+        "type": "string"
+      },
+      "LowStock": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LowStockRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "LowStock",
+        "type": "object"
+      },
       "LowStockOut": {
         "properties": {
           "colour": {
@@ -314,6 +733,49 @@
           "threshold"
         ],
         "title": "LowStockOut",
+        "type": "object"
+      },
+      "LowStockRow": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "on_hand": {
+            "title": "On Hand",
+            "type": "integer"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_id",
+          "title",
+          "sku",
+          "colour",
+          "size",
+          "on_hand"
+        ],
+        "title": "LowStockRow",
         "type": "object"
       },
       "MeOut": {
@@ -419,6 +881,27 @@
           "name"
         ],
         "title": "NamedOut",
+        "type": "object"
+      },
+      "NewOrders": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HomeOrderRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "NewOrders",
         "type": "object"
       },
       "OrderAuditOut": {
@@ -530,6 +1013,9 @@
           "email": {
             "title": "Email",
             "type": "string"
+          },
+          "invoice": {
+            "$ref": "#/components/schemas/InvoiceOut"
           },
           "items_total": {
             "examples": [
@@ -721,7 +1207,8 @@
           "buyer_tax_number",
           "company_title",
           "audit",
-          "messages"
+          "messages",
+          "invoice"
         ],
         "title": "OrderDetail",
         "type": "object"
@@ -1963,6 +2450,27 @@
         "title": "ProductStatus",
         "type": "string"
       },
+      "ProductsWithoutPhotos": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/UnphotographedRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "ProductsWithoutPhotos",
+        "type": "object"
+      },
       "RefundMethod": {
         "enum": [
           "bank_transfer",
@@ -2337,6 +2845,127 @@
         "title": "SettingsPatch",
         "type": "object"
       },
+      "SheetBuyer": {
+        "properties": {
+          "company_title": {
+            "title": "Company Title",
+            "type": "string"
+          },
+          "il": {
+            "title": "Il",
+            "type": "string"
+          },
+          "ilce": {
+            "title": "Ilce",
+            "type": "string"
+          },
+          "mahalle": {
+            "title": "Mahalle",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          },
+          "tax_number": {
+            "title": "Tax Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "tax_number",
+          "company_title",
+          "il",
+          "ilce",
+          "mahalle",
+          "street",
+          "postal_code"
+        ],
+        "title": "SheetBuyer",
+        "type": "object"
+      },
+      "SheetLine": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "kdv_rate": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Kdv Rate",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "product",
+              "shipping",
+              "cod"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "total_excl": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total Excl",
+            "type": "string"
+          },
+          "total_incl": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total Incl",
+            "type": "string"
+          },
+          "total_kdv": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total Kdv",
+            "type": "string"
+          },
+          "unit_price_excl": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Unit Price Excl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "description",
+          "quantity",
+          "kdv_rate",
+          "unit_price_excl",
+          "total_excl",
+          "total_kdv",
+          "total_incl"
+        ],
+        "title": "SheetLine",
+        "type": "object"
+      },
       "StaffUserOut": {
         "properties": {
           "email": {
@@ -2510,6 +3139,24 @@
           }
         },
         "title": "SupplierPatch",
+        "type": "object"
+      },
+      "UnphotographedRow": {
+        "properties": {
+          "product_id": {
+            "title": "Product Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "title"
+        ],
+        "title": "UnphotographedRow",
         "type": "object"
       },
       "VariantIn": {
@@ -3167,6 +3814,34 @@
         ]
       }
     },
+    "/api/admin/home": {
+      "get": {
+        "description": "Each list shows at most 20 rows and counts all of them.",
+        "operationId": "home_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Home",
+        "tags": [
+          "home"
+        ]
+      }
+    },
     "/api/admin/images/{image_id}": {
       "delete": {
         "operationId": "catalog_delete_product_image",
@@ -3556,6 +4231,54 @@
         ]
       }
     },
+    "/api/admin/orders/{number}/invoice": {
+      "put": {
+        "description": "Record the invoice Staff issued by hand in the GIB portal. Replaces the whole\nrecord; a number already used by another Order is 409.",
+        "operationId": "orders_set_invoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Set Invoice",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
     "/api/admin/orders/{number}/invoice-details": {
       "patch": {
         "operationId": "orders_set_invoice_details",
@@ -3598,6 +4321,44 @@
           }
         ],
         "summary": "Set Invoice Details",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/invoice-sheet": {
+      "get": {
+        "description": "Buyer, lines and KDV split laid out for typing into the portal.",
+        "operationId": "orders_invoice_sheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceSheet"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Invoice Sheet",
         "tags": [
           "orders"
         ]

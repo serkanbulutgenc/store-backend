@@ -60,6 +60,15 @@ class Api:
             **kwargs,
         )
 
+    def put(self, path, data=None, **kwargs):
+        return self.client.put(
+            path,
+            data or {},
+            content_type="application/json",
+            headers=self.headers,
+            **kwargs,
+        )
+
 
 @pytest.fixture
 def api_for(log_in):

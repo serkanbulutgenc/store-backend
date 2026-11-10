@@ -176,6 +176,47 @@ class OrderRecord(models.Model):
         return f"Record of order {self.order_id}"
 
 
+class InvoiceStatus(models.TextChoices):
+    NOT_ISSUED = "not_issued", "Kesilmedi"
+    ISSUED = "issued", "Kesildi"
+    CANCELLED = "cancelled", "İptal edildi"
+
+
+class Invoice(models.Model):
+    """What Staff typed in after issuing the invoice by hand in the GIB portal.
+
+    The document itself is never stored. Created on first save; an Order without a
+    row has not been invoiced.
+    """
+
+    order = models.OneToOneField(
+        "order.Order",
+        on_delete=models.PROTECT,
+        related_name="invoice",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=InvoiceStatus.choices,
+        default=InvoiceStatus.NOT_ISSUED,
+    )
+    number = models.CharField(max_length=50, blank=True)
+    date = models.DateField(null=True, blank=True)
+    credit_note_number = models.CharField(max_length=50, blank=True)
+    credit_note_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["number"],
+                condition=~models.Q(number=""),
+                name="invoice_number_unique",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Invoice {self.number or '-'} of order {self.order_id}"
+
+
 class _KdvSnapshot(models.Model):
     kdv_rate = models.DecimalField(max_digits=5, decimal_places=2)
     total_incl = _money()
