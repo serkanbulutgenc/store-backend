@@ -384,6 +384,21 @@
             "title": "Full Name",
             "type": "string"
           },
+          "legal_versions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legal page versions the Shopper was shown (from GET /settings). A page that has changed since gives 409 `legal_changed`.",
+            "title": "Legal Versions"
+          },
           "marketing_consent": {
             "default": false,
             "title": "Marketing Consent",

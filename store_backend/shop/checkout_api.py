@@ -15,8 +15,10 @@ from store_backend.api.client import client_ip
 from store_backend.api.client import user_agent
 from store_backend.api.errors import BadRequestError
 from store_backend.api.money import Money
-from store_backend.api.ratelimit import hit
+from store_backend.api.ratelimit import Rate
+from store_backend.api.ratelimit import count_attempt
 from store_backend.services import checkout as checkout_service
+from store_backend.services import pricing
 from store_backend.services import shop_settings
 from store_backend.shop.models import PaymentMethod
 
@@ -49,11 +51,22 @@ class CheckoutIn(Schema):
         description="Required for cash on delivery, even when the fee is zero.",
     )
     marketing_consent: bool = False
+    legal_versions: dict[str, str] | None = Field(
+        None,
+        description=(
+            "Legal page versions the Shopper was shown (from GET /settings). A page "
+            "that has changed since gives 409 `legal_changed`."
+        ),
+    )
     website: str = Field(
         "",
         max_length=200,
         description="Honeypot: hidden from people, must stay empty.",
     )
+
+
+def _address(data: AddressIn | None) -> checkout_service.Address | None:
+    return checkout_service.Address(**data.dict()) if data else None
 
 
 class PlacedLineOut(Schema):
@@ -89,11 +102,8 @@ class OrderPlacedOut(Schema):
 
 
 def _placed(order) -> dict:
-    method = PaymentMethod(order.sources.get().source_type.code)
-    surcharge = sum(
-        (s.incl_tax for s in order.surcharges.all()),
-        order.total_incl_tax * 0,
-    )
+    method = checkout_service.payment_method_of(order)
+    cod_fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
     lines = [
         {
             "sku": line.partner_sku or line.upc,
@@ -121,13 +131,13 @@ def _placed(order) -> dict:
     return {
         "number": order.number,
         "status": order.status,
-        "payment_status": "unpaid",
+        "payment_status": checkout_service.PAYMENT_UNPAID,
         "payment_method": method,
         "email": order.guest_email,
         "lines": lines,
-        "items_total": sum((line["line_total"] for line in lines), surcharge * 0),
+        "items_total": sum((line["line_total"] for line in lines), pricing.ZERO),
         "shipping_fee": order.shipping_incl_tax,
-        "cod_fee": surcharge,
+        "cod_fee": cod_fee,
         "total": order.total_incl_tax,
         "kdv_total": order.total_incl_tax - order.total_excl_tax,
         "bank": bank,
@@ -145,9 +155,8 @@ def place_order(request, data: CheckoutIn):
     409 when stock changed since the basket was filled (the basket is left as is);
     422 with `fields` for form errors; 429 when this address tries too often.
     """
-    limit, window = settings.CHECKOUT_RATE_LIMIT
     ip = client_ip(request)
-    hit("checkout", ip, limit=limit, window=window)
+    count_attempt("checkout", ip, Rate(*settings.CHECKOUT_RATE_LIMIT))
     if data.website.strip():
         raise BadRequestError
     form = checkout_service.CheckoutForm(
@@ -155,15 +164,12 @@ def place_order(request, data: CheckoutIn):
         email=data.email,
         phone=data.phone,
         shipping_address=checkout_service.Address(**data.shipping_address.dict()),
-        billing_address=(
-            checkout_service.Address(**data.billing_address.dict())
-            if data.billing_address
-            else None
-        ),
+        billing_address=_address(data.billing_address),
         payment_method=data.payment_method,
         contract_acknowledged=data.contract_acknowledged,
         cod_fee_consent=data.cod_fee_consent,
         marketing_consent=data.marketing_consent,
+        legal_versions=data.legal_versions,
     )
     user = request.user if request.user.is_authenticated else None
     order = checkout_service.place_order(

@@ -41,6 +41,10 @@ class LineSnapshot:
     total_excl: Decimal
     total_kdv: Decimal
 
+    @property
+    def unit_price_excl(self) -> Decimal:
+        return kurus(self.total_excl / self.quantity)
+
 
 @dataclass(frozen=True)
 class RateTotals:

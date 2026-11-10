@@ -2,19 +2,26 @@
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 from django.core.cache import cache
 
 from store_backend.api.errors import TooManyRequestsError
 
 
-def hit(scope: str, key: str | None, *, limit: int, window: int) -> None:
-    """Count an attempt; raise `TooManyRequestsError` past `limit` per `window` s."""
+class Rate(NamedTuple):
+    limit: int
+    window: int  # seconds
+
+
+def count_attempt(scope: str, key: str | None, rate: Rate) -> None:
+    """Count an attempt; raise `TooManyRequestsError` once `rate.limit` is passed."""
     cache_key = f"ratelimit:{scope}:{key or 'unknown'}"
-    cache.add(cache_key, 0, timeout=window)
+    cache.add(cache_key, 0, timeout=rate.window)
     try:
         count = cache.incr(cache_key)
     except ValueError:  # expired between add and incr
-        cache.set(cache_key, 1, timeout=window)
+        cache.set(cache_key, 1, timeout=rate.window)
         count = 1
-    if count > limit:
+    if count > rate.limit:
         raise TooManyRequestsError

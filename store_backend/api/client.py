@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 
+from store_backend.shop.models import USER_AGENT_MAX
+
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
-MAX_USER_AGENT = 500
-
 
 def client_ip(request: HttpRequest) -> str | None:
-    if getattr(settings, "TRUST_FORWARDED_FOR", False):
+    if settings.TRUST_FORWARDED_FOR:
         forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
         first = forwarded.split(",")[0].strip()
         if first:
@@ -22,4 +22,4 @@ def client_ip(request: HttpRequest) -> str | None:
 
 
 def user_agent(request: HttpRequest) -> str:
-    return request.META.get("HTTP_USER_AGENT", "")[:MAX_USER_AGENT]
+    return request.META.get("HTTP_USER_AGENT", "")[:USER_AGENT_MAX]

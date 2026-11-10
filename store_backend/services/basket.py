@@ -20,6 +20,7 @@ from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
 from store_backend.services import catalog
 from store_backend.services import pricing
+from store_backend.services import stock
 
 if TYPE_CHECKING:
     from oscar.apps.basket.models import Basket
@@ -27,15 +28,11 @@ if TYPE_CHECKING:
 MAX_QUANTITY = 99
 
 
-def _units(record: StockRecord | None) -> int:
-    if record is None:
-        return 0
-    return max(record.num_in_stock - (record.num_allocated or 0), 0)
-
-
 def _available(variant: Product) -> int:
     # Same record Oscar's strategy uses (UseFirstStockRecord): the first by id.
-    return _units(StockRecord.objects.filter(product=variant).order_by("pk").first())
+    return stock.units(
+        StockRecord.objects.filter(product=variant).order_by("pk").first(),
+    )
 
 
 def _lock(basket: Basket) -> None:
@@ -152,7 +149,7 @@ def view(basket: Basket) -> dict:
         profile = variant.variant_profile
         parent = variant.parent
         published = parent.profile.status == ProductStatus.PUBLISHED
-        available = _units(records.get(variant.pk))
+        available = stock.units(records.get(variant.pk))
         unit = pricing.kurus(catalog.shelf_price_for(variant))
         total = unit * line.quantity
         subtotal += total

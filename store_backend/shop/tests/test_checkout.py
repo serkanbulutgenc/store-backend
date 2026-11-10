@@ -492,3 +492,47 @@ def test_units_held_by_other_orders_are_not_available(guest, shop):
     response = guest.post(CHECKOUT, payload())
 
     assert response.status_code == HTTPStatus.CONFLICT
+
+
+# --- consent versions and order numbers ---------------------------------------
+
+
+def test_a_changed_legal_page_gives_409_so_the_shopper_reconfirms(guest, owner):
+    shop_settings.update(owner, legal_versions={"distance_sales_contract": "2"})
+
+    response = guest.post(
+        CHECKOUT,
+        payload(legal_versions={"distance_sales_contract": "1"}),
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json()["code"] == "legal_changed"
+    assert response.json()["fields"] == {"legal_versions": ["distance_sales_contract"]}
+    assert not Order.objects.exists()
+
+
+def test_matching_legal_versions_are_accepted(guest, owner):
+    shop_settings.update(owner, legal_versions={"distance_sales_contract": "2"})
+
+    response = guest.post(
+        CHECKOUT,
+        payload(legal_versions={"distance_sales_contract": "2"}),
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+
+
+def test_a_taken_order_number_is_retried(guest, shop, monkeypatch):
+    _, v = shop
+    from store_backend.services import checkout  # noqa: PLC0415
+
+    first = guest.post(CHECKOUT, payload()).json()["number"]
+    fresh = Guest()
+    fill(fresh, v["M"], 1)
+    numbers = iter([first, first, "AT-FRESH2"])
+    monkeypatch.setattr(checkout, "_order_number", lambda: next(numbers))
+
+    response = fresh.post(CHECKOUT, payload())
+
+    assert response.status_code == HTTPStatus.CREATED, response.content
+    assert response.json()["number"] == "AT-FRESH2"

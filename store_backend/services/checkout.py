@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass
-from decimal import Decimal
+from dataclasses import field
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 
 import phonenumbers
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.db import IntegrityError
 from django.db import transaction
 from django.utils import timezone
 from oscar.apps.address.models import Country
@@ -38,8 +40,10 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.strategy import CURRENCY
 from store_backend.services import catalog
+from store_backend.services import pre_information
 from store_backend.services import pricing
 from store_backend.services import shop_settings
+from store_backend.services import stock
 from store_backend.shop.models import ConsentRecord
 from store_backend.shop.models import OrderFeeSnapshot
 from store_backend.shop.models import OrderLineSnapshot
@@ -47,6 +51,8 @@ from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import PreInformationSnapshot
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from oscar.apps.basket.models import Line as BasketLine
 
     from store_backend.shop.models import StoreSettings
@@ -62,12 +68,11 @@ NUMBER_ALPHABET = "23456789BCDFGHJKLMNPQRSTVWXYZ"
 NUMBER_LENGTH = 6
 NUMBER_PREFIX = "AT-"
 
+PAYMENT_UNPAID = "unpaid"
+NUMBER_ATTEMPTS = 5
+
 MIN_NAME_PARTS = 2
 ADDRESS_PARTS = ("il", "ilce", "mahalle", "street")
-SOURCE_TYPES = {
-    PaymentMethod.BANK_TRANSFER: "Havale/EFT",
-    PaymentMethod.COD: "Kapıda ödeme",
-}
 
 
 @dataclass(frozen=True)
@@ -90,6 +95,7 @@ class CheckoutForm:
     contract_acknowledged: bool
     cod_fee_consent: bool = False
     marketing_consent: bool = False
+    legal_versions: dict[str, str] | None = None  # what the Shopper was shown
 
 
 @dataclass(frozen=True)
@@ -103,6 +109,31 @@ class Caller:
 class _Fees:
     shipping: pricing.LineSnapshot
     cod: pricing.LineSnapshot | None
+
+
+@dataclass(frozen=True)
+class Quote:
+    """What the basket costs: priced lines, fees and totals, all from one place."""
+
+    lines: list[BasketLine]
+    snapshots: dict[int, pricing.LineSnapshot]
+    fees: _Fees
+    totals: pricing.OrderTotals = field(init=False)
+
+    def __post_init__(self) -> None:
+        priced = [*self.snapshots.values(), self.fees.shipping]
+        if self.fees.cod:
+            priced.append(self.fees.cod)
+        object.__setattr__(self, "totals", pricing.order_totals(priced))
+
+    @property
+    def items_total(self) -> Decimal:
+        return sum((s.total_incl for s in self.snapshots.values()), pricing.ZERO)
+
+
+class _Problem(NamedTuple):
+    code: str
+    message: str
 
 
 class _ShippingMethod:
@@ -132,9 +163,7 @@ class _SnapshotOrderCreator(OrderCreator):
         order_line.line_price_before_discounts_incl_tax = snap.total_incl
         order_line.line_price_before_discounts_excl_tax = snap.total_excl
         order_line.unit_price_incl_tax = snap.unit_price_incl
-        order_line.unit_price_excl_tax = pricing.kurus(
-            snap.total_excl / snap.quantity,
-        )
+        order_line.unit_price_excl_tax = snap.unit_price_excl
         order_line.save()
         OrderLineSnapshot.objects.create(
             line=order_line,
@@ -177,7 +206,7 @@ def _clean_address(prefix: str, address: Address) -> Address:
     return Address(**parts, postal_code=address.postal_code.strip())
 
 
-def _clean(form: CheckoutForm) -> CheckoutForm:
+def _validated(form: CheckoutForm) -> CheckoutForm:
     name = " ".join(form.full_name.split())
     if len(name.split()) < MIN_NAME_PARTS:
         raise _invalid("full_name", "Ad ve soyadınızı girin.")
@@ -210,26 +239,41 @@ def _clean(form: CheckoutForm) -> CheckoutForm:
         shipping_address=shipping,
         billing_address=billing,
         payment_method=form.payment_method,
-        contract_acknowledged=True,
+        contract_acknowledged=form.contract_acknowledged,
         cod_fee_consent=form.cod_fee_consent,
         marketing_consent=form.marketing_consent,
+        legal_versions=form.legal_versions,
     )
+
+
+def _check_legal_versions(form: CheckoutForm, store: StoreSettings) -> None:
+    """The consent record must describe what the Shopper saw, not what is current."""
+    seen = form.legal_versions or {}
+    stale = [
+        page for page, ver in seen.items() if store.legal_versions.get(page) != ver
+    ]
+    if stale:
+        raise ConflictError(
+            "Yasal metinler güncellendi. Sayfayı yenileyip yeniden onaylayın.",
+            code="legal_changed",
+            fields={"legal_versions": stale},
+        )
 
 
 # --- stock --------------------------------------------------------------------
 
 
 def _lock_basket(basket: BasketModel) -> list[BasketLine]:
-    if basket.id is None:
-        raise BadRequestError("Sepetiniz boş.", code="basket_empty")
-    BasketModel.objects.select_for_update().filter(pk=basket.pk).first()
-    lines = list(
-        basket.lines.select_related(
-            "product__variant_profile__colour",
-            "product__parent__profile",
-            "product__parent__product_class__profile",
-        ).order_by("date_created", "pk"),
-    )
+    lines: list[BasketLine] = []
+    if basket.id is not None:
+        BasketModel.objects.select_for_update().filter(pk=basket.pk).first()
+        lines = list(
+            basket.lines.select_related(
+                "product__variant_profile__colour",
+                "product__parent__profile",
+                "product__parent__product_class__profile",
+            ).order_by("date_created", "pk"),
+        )
     if not lines:
         raise BadRequestError("Sepetiniz boş.", code="basket_empty")
     return lines
@@ -250,32 +294,27 @@ def _locked_records(lines: list[BasketLine]) -> dict[int, StockRecord]:
 
 def _check_stock(lines: list[BasketLine], records: dict[int, StockRecord]) -> None:
     """Raise a 409 naming the first problem; nothing has been written yet."""
-    problems: list[tuple[str, str]] = []
+    problems: list[_Problem] = []
     for line in lines:
         variant = line.product
         title = variant.parent.title
-        record = records.get(variant.pk)
+        free = stock.units(records.get(variant.pk))
         if variant.parent.profile.status != ProductStatus.PUBLISHED:
-            problems.append(("unavailable", f"{title} artık satışta değil."))
-            continue
-        units = (
-            max(record.num_in_stock - (record.num_allocated or 0), 0) if record else 0
-        )
-        if units == 0:
-            problems.append(("sold_out", f"{title} tükendi."))
-        elif line.quantity > units:
+            problems.append(_Problem("unavailable", f"{title} artık satışta değil."))
+        elif free == 0:
+            problems.append(_Problem("sold_out", f"{title} tükendi."))
+        elif line.quantity > free:
             problems.append(
-                (
+                _Problem(
                     "insufficient_stock",
-                    f"{title} için stokta en fazla {units} adet var.",
+                    f"{title} için stokta en fazla {free} adet var.",
                 ),
             )
     if problems:
-        message = " ".join(m for _, m in problems)
         raise ConflictError(
-            message,
-            code=problems[0][0],
-            fields={"basket": [m for _, m in problems]},
+            " ".join(p.message for p in problems),
+            code=problems[0].code,
+            fields={"basket": [p.message for p in problems]},
         )
 
 
@@ -348,100 +387,10 @@ def _address_fields(form: CheckoutForm, address: Address) -> dict:
     }
 
 
-def _line_text(line: BasketLine, snap: pricing.LineSnapshot) -> list[str]:
-    variant = line.product
-    profile = variant.variant_profile
-    text = [
-        (
-            f"- {variant.parent.title} ({profile.colour.name}, {profile.size}) "
-            f"x {snap.quantity}: birim {tl(snap.unit_price_incl)}, "
-            f"toplam {tl(snap.total_incl)} (KDV %{snap.kdv_rate:g} dahil)"
-        ),
-    ]
-    if variant.parent.product_class.profile.is_hygiene:
-        text.append(
-            "  Hijyen ürünü: ambalajı açıldıktan sonra iade edilemez.",
-        )
-    return text
-
-
-def tl(amount: Decimal) -> str:
-    """Turkish money text: `1.234,50 TL`."""
-    whole, _, cents = f"{Decimal(amount):.2f}".partition(".")
-    return f"{int(whole):,}".replace(",", ".") + f",{cents} TL"
-
-
-def _pre_information(  # noqa: PLR0913
-    *,
-    number: str,
-    placed_at,
-    form: CheckoutForm,
-    store: StoreSettings,
-    lines: list[BasketLine],
-    snapshots: dict[int, pricing.LineSnapshot],
-    fees: _Fees,
-    totals: pricing.OrderTotals,
-) -> str:
-    """The text the Shopper was shown, with this Order's items, prices and fees."""
-    shipping = form.shipping_address
-    billing = form.billing_address or shipping
-
-    def where(a: Address) -> str:
-        postcode = f" {a.postal_code}" if a.postal_code else ""
-        return f"{a.street}, {a.mahalle}, {a.ilce}/{a.il}{postcode}"
-
-    out = [
-        "ÖN BİLGİLENDİRME FORMU",
-        f"Sipariş no: {number}",
-        f"Tarih: {timezone.localtime(placed_at):%d.%m.%Y %H:%M}",
-        "",
-        "SATICI",
-        f"{store.seller_name}",
-        f"Vergi/MERSİS no: {store.seller_tax_number}",
-        f"Adres: {store.seller_address}",
-        f"E-posta: {store.seller_email}  Telefon: {store.seller_phone}",
-        f"İade için kargo: {store.return_carrier}",
-        f"Şikayet iletişim: {store.complaint_contact}",
-        "",
-        "ALICI",
-        f"{form.full_name}, {form.email}, {form.phone}",
-        f"Teslimat adresi: {where(shipping)}",
-        f"Fatura adresi: {where(billing)}",
-        "",
-        "ÜRÜNLER",
-    ]
-    for line in lines:
-        out.extend(_line_text(line, snapshots[line.pk]))
-    items = sum((snapshots[line.pk].total_incl for line in lines), pricing.ZERO)
-    out.append("")
-    out.append(f"Ürünler toplamı: {tl(items)}")
-    out.append(f"Kargo ücreti: {tl(fees.shipping.total_incl)}")
-    if fees.cod:
-        out.append(f"Kapıda ödeme bedeli: {tl(fees.cod.total_incl)}")
-    out.append(f"Toplam (KDV dahil): {tl(totals.total_incl)}")
-    out.append(f"Toplam KDV: {tl(totals.total_kdv)}")
-    out.append(f"Ödeme yöntemi: {PaymentMethod(form.payment_method).label}")
-    out.extend(
-        [
-            "",
-            "CAYMA HAKKI",
-            (
-                "Teslim tarihinden itibaren 14 gün içinde gerekçe göstermeden "
-                "cayma hakkınızı kullanabilirsiniz. Ayrıntılar iade ve cayma "
-                "koşulları sayfasındadır."
-            ),
-            "",
-            "YASAL METİN SÜRÜMLERİ",
-            *(f"{page}: {ver}" for page, ver in sorted(store.legal_versions.items())),
-        ],
-    )
-    return "\n".join(out)
-
-
 def _record_payment(order: Order, method: PaymentMethod, total: Decimal) -> None:
     source_type, _ = SourceType.objects.get_or_create(
         code=method.value,
-        defaults={"name": SOURCE_TYPES[method]},
+        defaults={"name": method.label},
     )
     # Nothing is debited yet: bank transfer waits for Staff, COD for delivery.
     Source.objects.create(
@@ -470,8 +419,8 @@ def _write_fee_snapshots(order: Order, fees: _Fees) -> None:
         if kind == OrderFeeSnapshot.Kind.COD:
             Surcharge.objects.create(
                 order=order,
-                name="Kapıda ödeme bedeli",
-                code="cod",
+                name=kind.label,
+                code=kind.value,
                 incl_tax=fee.total_incl,
                 excl_tax=fee.total_excl,
             )
@@ -480,22 +429,32 @@ def _write_fee_snapshots(order: Order, fees: _Fees) -> None:
 # --- the use case -------------------------------------------------------------
 
 
+def _order_with_unique_number(creator: OrderCreator, **kwargs) -> Order:
+    """Place the Order under a fresh number, retrying if two checkouts drew the same."""
+    for attempt in range(NUMBER_ATTEMPTS):
+        try:
+            with transaction.atomic():
+                return creator.place_order(order_number=_order_number(), **kwargs)
+        except IntegrityError, ValueError:
+            if attempt == NUMBER_ATTEMPTS - 1:
+                raise
+    raise AssertionError  # unreachable
+
+
 @transaction.atomic
 def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> Order:
-    form = _clean(raw_form)
+    form = _validated(raw_form)
     lines = _lock_basket(basket)
     _check_stock(lines, _locked_records(lines))
 
     store = shop_settings.get()
+    _check_legal_versions(form, store)
     snapshots = _snapshots(lines)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
-    fees = _fees(items_total, form.payment_method, store)
-    every = [*snapshots.values(), fees.shipping, *([fees.cod] if fees.cod else [])]
-    totals = pricing.order_totals(every)
+    quote = Quote(lines, snapshots, _fees(items_total, form.payment_method, store))
+    fees, totals = quote.fees, quote.totals
 
-    number = _order_number()
     placed_at = timezone.now()
-    cod = form.payment_method == PaymentMethod.COD
     shipping_address = ShippingAddress.objects.create(
         phone_number=form.phone,
         **_address_fields(form, form.shipping_address),
@@ -503,8 +462,8 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
     billing_address = BillingAddress.objects.create(
         **_address_fields(form, form.billing_address or form.shipping_address),
     )
-    creator = _SnapshotOrderCreator(snapshots)
-    order = creator.place_order(
+    order = _order_with_unique_number(
+        _SnapshotOrderCreator(snapshots),
         basket=basket,
         total=Price(CURRENCY, excl_tax=totals.total_excl, tax=totals.total_kdv),
         shipping_method=_ShippingMethod(),
@@ -516,15 +475,16 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
         user=caller.user,
         shipping_address=shipping_address,
         billing_address=billing_address,
-        order_number=number,
-        status=STATUS_PREPARING if cod else STATUS_NEW,
+        status=(
+            STATUS_PREPARING if form.payment_method == PaymentMethod.COD else STATUS_NEW
+        ),
         guest_email=form.email,
     )
     _write_fee_snapshots(order, fees)
     _record_payment(order, form.payment_method, totals.total_incl)
     ConsentRecord.objects.create(
         order=order,
-        contract_acknowledged=True,
+        contract_acknowledged=form.contract_acknowledged,
         cod_fee_consent=form.cod_fee_consent,
         marketing_consent_at=placed_at if form.marketing_consent else None,
         legal_versions=store.legal_versions,
@@ -533,16 +493,17 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
     )
     PreInformationSnapshot.objects.create(
         order=order,
-        text=_pre_information(
-            number=number,
+        text=pre_information.render(
+            number=order.number,
             placed_at=placed_at,
             form=form,
             store=store,
-            lines=lines,
-            snapshots=snapshots,
-            fees=fees,
-            totals=totals,
+            quote=quote,
         ),
     )
     basket.submit()
     return order
+
+
+def payment_method_of(order: Order) -> PaymentMethod:
+    return PaymentMethod(order.sources.get().source_type.code)

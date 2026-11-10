@@ -22,6 +22,13 @@ if TYPE_CHECKING:
 MIN_REASON_LENGTH = 3
 
 
+def units(record: StockRecord | None) -> int:
+    """Units free to sell: on hand minus what open Orders have reserved."""
+    if record is None:
+        return 0
+    return max(record.num_in_stock - (record.num_allocated or 0), 0)
+
+
 def _invalid(field: str, message: str) -> UnprocessableError:
     return UnprocessableError(message, fields={field: [message]})
 

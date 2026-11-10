@@ -78,6 +78,9 @@ class StoreSettings(models.Model):
         return "Store settings"
 
 
+USER_AGENT_MAX = 500
+
+
 class PaymentMethod(models.TextChoices):
     BANK_TRANSFER = "bank_transfer", "Havale/EFT"
     COD = "cod", "Kapıda ödeme"
@@ -102,7 +105,7 @@ class ConsentRecord(models.Model):
         help_text="Version of every Legal page current at placement.",
     )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.CharField(max_length=500, blank=True)
+    user_agent = models.CharField(max_length=USER_AGENT_MAX, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
