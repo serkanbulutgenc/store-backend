@@ -113,6 +113,13 @@ INSTALLED_APPS += ["anymail"]
 # https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
 # https://anymail.readthedocs.io/en/stable/esps
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# SMTP relay (env/django.env). Port 587 uses STARTTLS, 465 implicit TLS.
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_SSL = EMAIL_PORT == 465  # noqa: PLR2004
+EMAIL_USE_TLS = not EMAIL_USE_SSL
 ANYMAIL = {}
 
 
