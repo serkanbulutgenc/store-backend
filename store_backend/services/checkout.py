@@ -522,9 +522,7 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
     )
     basket.submit()
     try:
-        with (
-            transaction.atomic()
-        ):  # savepoint: email never costs the Order
+        with transaction.atomic():  # savepoint: email never costs the Order
             outbox.enqueue(
                 "order_placed",
                 to=order.guest_email,
