@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from .base import *  # noqa: F403
 from .base import DATABASES
 from .base import INSTALLED_APPS
@@ -130,9 +129,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
     "formatters": {
-        "verbose": {
-            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s",
-        },
+        "json": {"()": "store_backend.observability.JsonFormatter"},
     },
     "handlers": {
         "mail_admins": {
@@ -143,7 +140,7 @@ LOGGING = {
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
         },
     },
     "root": {"level": "INFO", "handlers": ["console"]},
@@ -161,6 +158,18 @@ LOGGING = {
     },
 }
 
+
+# ERROR TRACKING
+# ------------------------------------------------------------------------------
+# Hosted Sentry, with emails, phones, request bodies, cookies and users scrubbed
+# (store_backend/observability.py). Unset SENTRY_DSN disables it.
+from store_backend.observability import init_sentry  # noqa: E402
+
+init_sentry(
+    env.str("SENTRY_DSN", default=""),
+    environment=env.str("SENTRY_ENVIRONMENT", default="production"),
+    release=env.str("SENTRY_RELEASE", default=""),
+)
 
 # Your stuff...
 # ------------------------------------------------------------------------------
