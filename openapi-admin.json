@@ -3814,6 +3814,56 @@
         ]
       }
     },
+    "/api/admin/exports/accountant.csv": {
+      "get": {
+        "description": "Owner only. One row per invoice line for Orders placed from `date_from` to\n`date_to` (inclusive, at most 366 days). No email, phone or notes. Audit-logged.",
+        "operationId": "exports_accountant_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Date From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Date To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Accountant Csv",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
     "/api/admin/home": {
       "get": {
         "description": "Each list shows at most 20 rows and counts all of them.",
