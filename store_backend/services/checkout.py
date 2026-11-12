@@ -51,7 +51,6 @@ if TYPE_CHECKING:
 
 STATUS_NEW = "new"
 STATUS_PREPARING = "preparing"
-PAYMENT_UNPAID = "unpaid"
 
 
 @dataclass(frozen=True)

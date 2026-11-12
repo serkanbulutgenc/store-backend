@@ -33,6 +33,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.services import contact
+from store_backend.services import order_context
 from store_backend.services import outbox
 from store_backend.services import pre_information
 from store_backend.services import stock
@@ -642,7 +643,8 @@ def send_payment_reminders(*, now: datetime | None = None) -> int:
     now = now or timezone.now()
     sent = 0
     due = unpaid_transfers(now - REMINDER_AFTER).filter(
-        date_placed__gt=now - outbox.PAYMENT_WINDOW,  # past it, the cancel job acts
+        date_placed__gt=now
+        - order_context.PAYMENT_WINDOW,  # past it, the cancel job acts
     )
     for order in due.exclude(messages__template="payment_reminder"):
         with _isolated(order):
@@ -662,7 +664,7 @@ def cancel_unpaid_transfers(*, now: datetime | None = None) -> int:
     """Cancel bank-transfer Orders still unpaid after the 48 h payment window."""
     now = now or timezone.now()
     cancelled = 0
-    for order in unpaid_transfers(now - outbox.PAYMENT_WINDOW):
+    for order in unpaid_transfers(now - order_context.PAYMENT_WINDOW):
         with _isolated(order):
             order = locked(order.number)  # noqa: PLW2901
             if order.status != STATUS_NEW or (

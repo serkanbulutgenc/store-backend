@@ -19,8 +19,8 @@ from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import checkout
 from store_backend.services import invoicing
+from store_backend.services import order_context
 from store_backend.services import order_ops
-from store_backend.services import outbox
 from store_backend.services import stock
 from store_backend.shop.models import Invoice
 from store_backend.shop.models import InvoiceStatus
@@ -67,7 +67,7 @@ def new_orders() -> dict:
 
 
 def unpaid_transfers_near_expiry(now: datetime) -> dict:
-    window = outbox.PAYMENT_WINDOW
+    window = order_context.PAYMENT_WINDOW
     rows = order_ops.unpaid_transfers(now - (window - NEAR_EXPIRY))
     rows = rows.select_related("shipping_address").order_by("date_placed", "pk")
     return _capped(

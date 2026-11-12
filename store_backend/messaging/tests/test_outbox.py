@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from store_backend.messaging.models import Message
 from store_backend.messaging.models import MessageStatus
-from store_backend.messaging.tests.backends import FlakyBackend
+from store_backend.messaging.transport import SmtpTransport
 from store_backend.services import outbox
 from store_backend.services import shop_settings
 from store_backend.shop.tests.conftest import Guest
@@ -35,11 +35,8 @@ def staff(staff_user, api_for):
 
 
 @pytest.fixture(autouse=True)
-def relay(settings):
-    settings.EMAIL_BACKEND = "store_backend.messaging.tests.backends.FlakyBackend"
-    FlakyBackend.down = False
-    yield
-    FlakyBackend.down = False
+def relay(transport):
+    return transport
 
 
 def place(variant, **overrides):
@@ -83,8 +80,8 @@ def test_cod_email_has_no_bank_details(shop, owner):
     assert "Kapıda ödeme bedeli" in message.body_text
 
 
-def test_order_placement_survives_a_dead_smtp_server_and_delivers_later(shop):
-    FlakyBackend.down = True
+def test_order_placement_survives_a_dead_smtp_server_and_delivers_later(shop, relay):
+    relay.down = ConnectionRefusedError("Connection refused")
     number = place(shop[1]["M"])  # 201, asserted inside
     message = Message.objects.get(order__number=number)
 
@@ -94,26 +91,30 @@ def test_order_placement_survives_a_dead_smtp_server_and_delivers_later(shop):
     assert message.attempts == 1
     assert "Connection refused" in message.last_error
     assert message.next_attempt_at > timezone.now()
-    assert mail.outbox == []
+    assert relay.sent == []
 
-    FlakyBackend.down = False
+    relay.down = None
     run_due()  # not due yet: still waiting out the back-off
-    assert mail.outbox == []
+    assert relay.sent == []
 
     run_due(after=timedelta(minutes=2))
     message.refresh_from_db()
     assert message.status == MessageStatus.SENT
     assert message.sent_at is not None
     assert message.last_error == ""
-    assert len(mail.outbox) == 1
-    sent = mail.outbox[0]
-    assert sent.to == [message.recipient]
-    assert sent.alternatives[0][1] == "text/html"
-    assert str(message.message_id) in sent.extra_headers["Message-ID"]
+    assert len(relay.sent) == 1
+    sent = relay.sent[0]
+    assert sent.to == message.recipient
+    assert sent.body_html
+    assert sent.message_id == str(message.message_id)
 
 
-def test_a_permanently_failing_message_stays_visible_with_its_error(shop, staff):
-    FlakyBackend.down = True
+def test_a_permanently_failing_message_stays_visible_with_its_error(
+    shop,
+    staff,
+    relay,
+):
+    relay.down = ConnectionRefusedError("Connection refused")
     number = place(shop[1]["M"])
     day = timedelta(days=0)
     for _ in range(outbox.MAX_ATTEMPTS):
@@ -130,9 +131,9 @@ def test_a_permanently_failing_message_stays_visible_with_its_error(shop, staff)
     assert detail["messages"][0]["body_text"]
     assert detail["messages"][0]["recipient"] == message.recipient
 
-    FlakyBackend.down = False
+    relay.down = None
     run_due(after=timedelta(days=30))  # failed is final: never retried by the sweep
-    assert mail.outbox == []
+    assert relay.sent == []
 
 
 def test_retries_span_about_a_day():
@@ -141,13 +142,13 @@ def test_retries_span_about_a_day():
     assert timedelta(hours=20) < total <= timedelta(hours=24)
 
 
-def test_resend_queues_a_copy_and_keeps_the_original(shop, staff):
-    FlakyBackend.down = True
+def test_resend_queues_a_copy_and_keeps_the_original(shop, staff, relay):
+    relay.down = ConnectionRefusedError("Connection refused")
     number = place(shop[1]["M"])
     for day in range(1, outbox.MAX_ATTEMPTS + 1):
         run_due(after=timedelta(days=day))
     original = Message.objects.get(order__number=number)
-    FlakyBackend.down = False
+    relay.down = None
 
     response = staff.post(f"{ORDERS}/{number}/messages/{original.pk}/resend")
     assert response.status_code == HTTPStatus.OK, response.content
@@ -155,7 +156,7 @@ def test_resend_queues_a_copy_and_keeps_the_original(shop, staff):
     assert statuses == ["failed", "pending"]
 
     run_due()
-    assert len(mail.outbox) == 1
+    assert len(relay.sent) == 1
     copy = Message.objects.get(resent_from=original)
     assert copy.status == MessageStatus.SENT
     assert AuditEntry.objects.filter(action="message_resend").count() == 1
@@ -251,35 +252,61 @@ def test_unauthenticated_cannot_resend(shop):
     assert response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN)
 
 
-def test_the_beat_sweep_delivers_due_messages_through_the_task(shop):
+def test_the_beat_sweep_delivers_due_messages_through_the_task(shop, relay):
     place(shop[1]["M"])
     assert outbox.dispatch_due() == 1  # eager Celery in tests
-    assert len(mail.outbox) == 1
+    assert len(relay.sent) == 1
     assert outbox.dispatch_due() == 0
 
 
 def test_a_broken_template_never_costs_the_order(shop, monkeypatch):
-    def boom(*args, **kwargs):
-        msg = "template exploded"
-        raise RuntimeError(msg)
-
-    monkeypatch.setattr(outbox, "render", boom)
+    monkeypatch.setitem(outbox.SUBJECTS, "order_placed", "{no_such_field}")
     number = place(shop[1]["M"])  # still 201
     assert not Message.objects.filter(order__number=number).exists()
 
 
-def test_an_unexpected_send_error_is_recorded_not_retried_forever(shop, monkeypatch):
+def test_an_unexpected_send_error_is_recorded_not_retried_forever(shop, relay):
     number = place(shop[1]["M"])
-
-    def boom(self, fail_silently=False):  # noqa: FBT002
-        msg = "bad header"
-        raise ValueError(msg)
-
-    monkeypatch.setattr("django.core.mail.EmailMultiAlternatives.send", boom)
+    relay.fail_next(ValueError("bad header"))
     run_due()
     message = Message.objects.get(order__number=number)
     assert message.attempts == 1
     assert "bad header" in message.last_error
+
+
+def test_the_inline_scheduler_delivers_without_a_worker(shop, relay):
+    from store_backend.messaging import scheduler  # noqa: PLC0415
+
+    place(shop[1]["M"])
+    with scheduler.using(scheduler.InlineScheduler()):
+        assert outbox.dispatch_due() == 1
+    assert len(relay.sent) == 1
+
+
+def test_a_scheduler_that_cannot_queue_leaves_the_message_for_the_sweep(shop, relay):
+    from store_backend.messaging import scheduler  # noqa: PLC0415
+
+    class Broken:
+        def kick(self, message_id):
+            msg = "broker down"
+            raise ConnectionError(msg)
+
+    with scheduler.using(Broken()):
+        number = place(shop[1]["M"])  # still 201
+    assert Message.objects.get(order__number=number).status == MessageStatus.PENDING
+    assert outbox.dispatch_due() == 1
+    assert len(relay.sent) == 1
+
+
+def test_the_smtp_transport_sends_through_the_email_backend(shop):
+    number = place(shop[1]["M"])
+    message = Message.objects.get(order__number=number)
+    SmtpTransport().send(message)
+
+    sent = mail.outbox[0]
+    assert sent.to == [message.recipient]
+    assert sent.alternatives[0][1] == "text/html"
+    assert str(message.message_id) in sent.extra_headers["Message-ID"]
 
 
 def test_a_pending_message_cannot_be_resent(shop, staff):

@@ -11,22 +11,22 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from decimal import Decimal
 from typing import TYPE_CHECKING
 from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
+from store_backend.messaging import scheduler
+from store_backend.messaging import transport
 from store_backend.messaging.models import Message
 from store_backend.messaging.models import MessageStatus
-from store_backend.services import pre_information
+from store_backend.services import order_context
 from store_backend.services import shop_settings
 from store_backend.staff.permissions import OWNER_GROUP
 
@@ -50,7 +50,6 @@ RETRY_DELAYS = (
 )
 MAX_ATTEMPTS = len(RETRY_DELAYS) + 1
 ERROR_MAX = 500
-PAYMENT_WINDOW = timedelta(hours=48)
 
 # Template name -> subject. Each has `messaging/<name>.html` and `.txt`.
 SUBJECTS: dict[str, str] = {
@@ -85,46 +84,6 @@ def render(template: str, context: dict[str, Any]) -> tuple[str, str, str]:
 
 def shop_name(store: StoreSettings) -> str:
     return store.seller_name or "Aura Tekstil"
-
-
-def order_context(order: Order, store: StoreSettings) -> dict[str, Any]:
-    """The facts every order email draws on. Links never carry phone or address."""
-    lines = [
-        {
-            "title": line.product.parent.title,
-            "colour": line.product.variant_profile.colour.name,
-            "size": line.product.variant_profile.size,
-            "quantity": line.quantity,
-            "total": pre_information.format_try(line.line_price_incl_tax),
-        }
-        for line in sorted(order.lines.all(), key=lambda row: row.pk)
-    ]
-    # These import checkout, which imports this module.
-    from store_backend.services import payment  # noqa: PLC0415
-    from store_backend.services import tracking  # noqa: PLC0415
-    from store_backend.shop.models import PaymentMethod  # noqa: PLC0415
-
-    base = settings.STOREFRONT_URL.rstrip("/")
-    is_cod = payment.payment_method_of(order) == PaymentMethod.COD
-    context = {
-        "number": order.number,
-        "is_cod": is_cod,
-        # The bank details only make sense while the transfer is still due.
-        "awaiting_payment": (
-            not is_cod
-            and order.status == "new"
-            and tracking.payment_status_of(order) == "unpaid"
-        ),
-        "lines": lines,
-        "total": pre_information.format_try(order.total_incl_tax),
-        "shipping_fee": pre_information.format_try(order.shipping_incl_tax),
-        "tracking_url": f"{base}/siparis-takip?t={tracking.link_token(order)}",
-        "pay_by": timezone.localtime(order.date_placed + PAYMENT_WINDOW),
-    }
-    if is_cod:
-        fee = sum((s.incl_tax for s in order.surcharges.all()), Decimal(0))
-        context["cod_fee"] = pre_information.format_try(fee)
-    return context
 
 
 def enqueue(
@@ -189,7 +148,7 @@ def notify_shopper(order: Order, template: str, **extra: Any) -> None:
         return
 
     def send() -> None:
-        context = {**order_context(order, shop_settings.get()), **extra}
+        context = {**order_context.build(order, shop_settings.get()), **extra}
         enqueue(template, to=to, context=context, order=order)
 
     _safely(f"{template} for {order.number}", send)
@@ -220,35 +179,14 @@ def admin_url(path: str) -> str:
 
 
 def _schedule(message_id: int) -> None:
-    from store_backend.messaging import tasks  # noqa: PLC0415
-
     def send() -> None:
         try:
-            tasks.deliver_message.delay(message_id)
+            scheduler.get().kick(message_id)
         except Exception:
             # A broker outage must not undo the Order; the beat sweep picks it up.
             logger.warning("Could not queue message %s", message_id, exc_info=True)
 
     transaction.on_commit(send)
-
-
-def _email_for(message: Message) -> EmailMultiAlternatives:
-    store = shop_settings.get()
-    email = EmailMultiAlternatives(
-        subject=message.subject,
-        body=message.body_text,
-        to=[message.recipient],
-        reply_to=[store.seller_email] if store.seller_email else None,
-        headers={"Message-ID": f"<{message.message_id}@{_domain()}>"},
-    )
-    if message.body_html:
-        email.attach_alternative(message.body_html, "text/html")
-    return email
-
-
-def _domain() -> str:
-    sender = settings.DEFAULT_FROM_EMAIL
-    return sender.rsplit("@", 1)[-1].strip("<> ") or "localhost"
 
 
 def deliver(message_id: int, *, now: datetime | None = None) -> Message | None:
@@ -268,7 +206,7 @@ def deliver(message_id: int, *, now: datetime | None = None) -> Message | None:
             return None
         message.attempts += 1
         try:
-            _email_for(message).send(fail_silently=False)
+            transport.get().send(message)
         except Exception as exc:  # noqa: BLE001  any send error is recorded, never lost
             _failed_attempt(message, exc, now)
         else:
@@ -290,8 +228,6 @@ def _failed_attempt(message: Message, exc: Exception, now: datetime) -> None:
 
 def dispatch_due(*, now: datetime | None = None) -> int:
     """Queue every pending message whose time has come. Returns how many."""
-    from store_backend.messaging import tasks  # noqa: PLC0415
-
     now = now or timezone.now()
     ids = list(
         Message.objects.filter(
@@ -300,7 +236,7 @@ def dispatch_due(*, now: datetime | None = None) -> int:
         ).values_list("pk", flat=True),
     )
     for message_id in ids:
-        tasks.deliver_message.delay(message_id)
+        scheduler.get().kick(message_id)
     return len(ids)
 
 

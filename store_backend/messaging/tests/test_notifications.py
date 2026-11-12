@@ -3,7 +3,6 @@ from datetime import timedelta
 from http import HTTPStatus
 
 import pytest
-from django.core import mail
 from django.utils import timezone
 from oscar.apps.order.models import Order
 from oscar.apps.partner.models import StockRecord
@@ -195,7 +194,7 @@ def test_correcting_the_email_resends_the_order_email_to_the_new_address(shop, s
 
 def test_a_broken_template_never_costs_the_order_action(shop, staff, monkeypatch):
     number = place(shop[1]["M"])
-    monkeypatch.setattr(outbox, "render", lambda *a, **k: 1 / 0)
+    monkeypatch.setitem(outbox.SUBJECTS, "order_paid", "{no_such_field}")
     act(staff, number, "pay", {"amount": total_of(number)})
     assert templates(number) == ["order_placed"]
 
@@ -204,32 +203,27 @@ def test_a_broken_template_never_costs_the_order_action(shop, staff, monkeypatch
 
 
 def test_verification_mail_is_logged_in_turkish_and_survives_a_dead_relay(
-    settings,
     client,
+    transport,
 ):
-    settings.EMAIL_BACKEND = "store_backend.messaging.tests.backends.FlakyBackend"
-    from store_backend.messaging.tests.backends import FlakyBackend  # noqa: PLC0415
-
-    FlakyBackend.down = True
-    try:
-        response = client.post(
-            "/_allauth/app/v1/auth/signup",
-            {"email": "yeni@example.com", "password": "correct-horse-battery-staple"},
-            content_type="application/json",
-        )
-        assert response.status_code == HTTPStatus.UNAUTHORIZED  # verification pending
-        message = Message.objects.get(recipient="yeni@example.com")
-        assert message.template.startswith("email_confirmation")
-        assert "doğrulamanız" in message.body_text
-        assert "/hesap/eposta-dogrula/" in message.body_text
-        outbox.deliver(message.pk, now=timezone.now() + timedelta(minutes=1))
-        message.refresh_from_db()
-        assert message.attempts == 1
-        assert message.status == "pending"
-    finally:
-        FlakyBackend.down = False
+    transport.down = ConnectionRefusedError("Connection refused")
+    response = client.post(
+        "/_allauth/app/v1/auth/signup",
+        {"email": "yeni@example.com", "password": "correct-horse-battery-staple"},
+        content_type="application/json",
+    )
+    assert response.status_code == HTTPStatus.UNAUTHORIZED  # verification pending
+    message = Message.objects.get(recipient="yeni@example.com")
+    assert message.template.startswith("email_confirmation")
+    assert "doğrulamanız" in message.body_text
+    assert "/hesap/eposta-dogrula/" in message.body_text
+    outbox.deliver(message.pk, now=timezone.now() + timedelta(minutes=1))
+    message.refresh_from_db()
+    assert message.attempts == 1
+    assert message.status == "pending"
+    transport.down = None
     outbox.deliver(message.pk, now=timezone.now() + timedelta(minutes=5))
-    assert [m.to for m in mail.outbox] == [["yeni@example.com"]]
+    assert [m.to for m in transport.sent] == ["yeni@example.com"]
 
 
 # --- timed jobs -------------------------------------------------------------------

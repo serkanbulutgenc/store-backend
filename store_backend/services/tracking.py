@@ -9,13 +9,13 @@ from django.core import signing
 from oscar.apps.order.models import Order
 
 from store_backend.api.errors import NotFoundError
-from store_backend.services.checkout import PAYMENT_UNPAID
 from store_backend.shop.models import OrderRecord
 
 ORDER_NUMBER = re.compile(r"AT-[A-Z0-9]{6}")
 LINK_SALT = "order-tracking-link"
 LINK_MAX_AGE = 30 * 24 * 60 * 60  # seconds: the link is valid for 30 days
 
+PAYMENT_UNPAID = "unpaid"
 PAYMENT_PAID = "paid"
 PAYMENT_REFUNDED = "refunded"
 
