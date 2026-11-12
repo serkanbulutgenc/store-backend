@@ -640,6 +640,45 @@
         "title": "HomeOut",
         "type": "object"
       },
+      "HomeReturnRow": {
+        "properties": {
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "placed_at": {
+            "description": "When the Shopper asked.",
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReturnReason"
+          },
+          "return_id": {
+            "title": "Return Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "return_id",
+          "number",
+          "placed_at",
+          "customer",
+          "reason",
+          "item_count"
+        ],
+        "title": "HomeReturnRow",
+        "type": "object"
+      },
       "ImageDerivativeOut": {
         "properties": {
           "url": {
@@ -1376,7 +1415,7 @@
           },
           "rows": {
             "items": {
-              "$ref": "#/components/schemas/ReturnRow"
+              "$ref": "#/components/schemas/HomeReturnRow"
             },
             "title": "Rows",
             "type": "array"
@@ -3469,6 +3508,10 @@
             "title": "Customer",
             "type": "string"
           },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
           "item_count": {
             "title": "Item Count",
             "type": "integer"
@@ -3477,26 +3520,25 @@
             "title": "Number",
             "type": "string"
           },
-          "placed_at": {
-            "description": "When the Shopper asked.",
-            "format": "date-time",
-            "title": "Placed At",
-            "type": "string"
-          },
           "reason": {
             "$ref": "#/components/schemas/ReturnReason"
           },
-          "return_id": {
-            "title": "Return Id",
-            "type": "integer"
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReturnStatus"
           }
         },
         "required": [
-          "return_id",
+          "id",
           "number",
-          "placed_at",
           "customer",
+          "status",
           "reason",
+          "requested_at",
           "item_count"
         ],
         "title": "ReturnRow",

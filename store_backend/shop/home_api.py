@@ -53,7 +53,7 @@ class UnphotographedRow(Schema):
     title: str
 
 
-class ReturnRow(Schema):
+class HomeReturnRow(Schema):
     return_id: int
     number: str
     placed_at: datetime = Field(description="When the Shopper asked.")
@@ -64,7 +64,7 @@ class ReturnRow(Schema):
 
 class OpenReturns(Schema):
     count: int
-    rows: list[ReturnRow]
+    rows: list[HomeReturnRow]
 
 
 class NewOrders(Schema):
