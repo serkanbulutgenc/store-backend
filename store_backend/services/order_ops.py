@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import re
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -65,7 +66,13 @@ STATUS_RETURN_REQUESTED = "return_requested"
 STATUS_RETURNED = "returned"
 
 EDITABLE_STATUSES = (STATUS_NEW, STATUS_PREPARING)
-NOT_PAYABLE = (STATUS_CANCELLED, STATUS_RETURN_REQUESTED, STATUS_RETURNED)
+PAYABLE = (
+    STATUS_NEW,
+    STATUS_PREPARING,
+    STATUS_SHIPPED,
+    STATUS_DELIVERED,
+    STATUS_COMPLETED,
+)
 MIN_REASON_LENGTH = 3
 ZERO = Decimal(0)
 TR_IBAN = re.compile(r"TR\d{24}")
@@ -76,16 +83,50 @@ IBAN_MOD = 97
 PAYMENT_STATES = (PAYMENT_UNPAID, PAYMENT_PAID, PAYMENT_REFUNDED)
 
 
+@dataclass(frozen=True)
+class Rule:
+    """When an operation is legal: the Fulfilment and Payment states it accepts."""
+
+    statuses: tuple[str, ...]
+    payments: tuple[str, ...] = PAYMENT_STATES
+
+    def allows(self, order: Order) -> bool:
+        if order.status not in self.statuses:
+            return False
+        # The Payment status costs a query, so ask for it only when the rule cares.
+        return (
+            self.payments == PAYMENT_STATES
+            or tracking.payment_status_of(order) in self.payments
+        )
+
+
+# The one place that says which operation is legal in which state. `available_actions`
+# lists the ones that hold right now; every operation guards itself with `_guard`.
+RULES: dict[str, Rule] = {
+    "mark_paid": Rule(PAYABLE, (PAYMENT_UNPAID,)),
+    "cancel": Rule(EDITABLE_STATUSES),
+    "edit_shipping": Rule(EDITABLE_STATUSES),
+    "ship": Rule((STATUS_PREPARING,)),
+    "deliver": Rule((STATUS_SHIPPED,)),
+    "request_return": Rule((STATUS_DELIVERED, STATUS_COMPLETED)),
+    "mark_returned": Rule((STATUS_RETURN_REQUESTED,)),
+    "refund": Rule((STATUS_RETURNED, STATUS_CANCELLED), (PAYMENT_PAID,)),
+}
+
+
 def _invalid(field: str, message: str) -> UnprocessableError:
     return UnprocessableError(message, fields={field: [message]})
 
 
-def _illegal(order: Order, action: str) -> ConflictError:
-    return ConflictError(
-        f"Bu işlem “{order.status}” durumundaki sipariş için yapılamaz.",
-        code="illegal_transition",
-        fields={"status": [action]},
-    )
+def _guard(order: Order, action: str) -> None:
+    """409 `illegal_transition` unless `action` is legal for this Order right now."""
+    if not RULES[action].allows(order):
+        msg = f"Bu işlem “{order.status}” durumundaki sipariş için yapılamaz."
+        raise ConflictError(
+            msg,
+            code="illegal_transition",
+            fields={"status": [action]},
+        )
 
 
 # --- reading ------------------------------------------------------------------
@@ -173,24 +214,7 @@ def search(
 
 def available_actions(order: Order) -> list[str]:
     """The transitions that are legal right now (permissions are checked separately)."""
-    status = order.status
-    payment = tracking.payment_status_of(order)
-    actions: list[str] = []
-    if payment == PAYMENT_UNPAID and status not in NOT_PAYABLE:
-        actions.append("mark_paid")
-    if status in EDITABLE_STATUSES:
-        actions += ["cancel", "edit_shipping"]
-    if status == STATUS_PREPARING:
-        actions.append("ship")
-    if status == STATUS_SHIPPED:
-        actions.append("deliver")
-    if status in (STATUS_DELIVERED, STATUS_COMPLETED):
-        actions.append("request_return")
-    if status == STATUS_RETURN_REQUESTED:
-        actions.append("mark_returned")
-    if payment == PAYMENT_PAID and status in (STATUS_RETURNED, STATUS_CANCELLED):
-        actions.append("refund")
-    return actions
+    return [action for action, rule in RULES.items() if rule.allows(order)]
 
 
 # --- stock --------------------------------------------------------------------
@@ -231,10 +255,34 @@ def _snapshot(order: Order) -> dict:
     return {"status": order.status, "payment_status": tracking.payment_status_of(order)}
 
 
-def _debit(order: Order, record: OrderRecord, amount: Decimal, when: datetime) -> None:
-    source_of(order).debit(amount)
-    record.paid_amount = amount
-    record.paid_at = when
+def _apply(  # noqa: PLR0913
+    actor: User | None,
+    order: Order,
+    action: audit.Action,
+    *,
+    summary: str,
+    before: dict,
+    to: str | None = None,
+    stamps: dict | None = None,
+    extra: dict | None = None,
+) -> None:
+    """Commit one transition: new status, stamps on the record, one audit entry."""
+    if to is not None:
+        order.status = to
+        order.save(update_fields=["status"])
+    if stamps:
+        record = record_of(order)
+        for field, value in stamps.items():
+            setattr(record, field, value)
+        record.save(update_fields=list(stamps))
+    audit.record(
+        actor,
+        action,
+        target=order,
+        summary=f"{order.number}: {summary}",
+        before=before,
+        after={**_snapshot(order), **(extra or {})},
+    )
 
 
 @transaction.atomic
@@ -247,10 +295,7 @@ def mark_paid(
 ) -> Order:
     """Record that the money arrived. A new bank-transfer Order moves to preparing."""
     order = locked(number)
-    if order.status in NOT_PAYABLE or (
-        tracking.payment_status_of(order) != PAYMENT_UNPAID
-    ):
-        raise _illegal(order, "mark_paid")
+    _guard(order, "mark_paid")
     if amount != order.total_incl_tax:
         raise _invalid(
             "amount",
@@ -261,26 +306,42 @@ def mark_paid(
     if (paid_at - timezone.now()).total_seconds() > MAX_FUTURE:
         raise _invalid("paid_at", "Ödeme tarihi gelecekte olamaz.")
     before = _snapshot(order)
-    record = record_of(order)
-    _debit(order, record, amount, paid_at)
-    record.save(update_fields=["paid_amount", "paid_at"])
-    if order.status == STATUS_NEW:
-        order.status = STATUS_PREPARING
-        order.save(update_fields=["status"])
-    audit.record(
+    source_of(order).debit(amount)
+    _apply(
         actor,
+        order,
         audit.Action.MARK_PAID,
-        target=order,
-        summary=f"{order.number}: {amount} TL ödendi",
+        summary=f"{amount} TL ödendi",
         before=before,
-        after={
-            **_snapshot(order),
-            "amount": str(amount),
-            "paid_at": paid_at.isoformat(),
-        },
+        to=STATUS_PREPARING if order.status == STATUS_NEW else None,
+        stamps={"paid_amount": amount, "paid_at": paid_at},
+        extra={"amount": str(amount), "paid_at": paid_at.isoformat()},
     )
     outbox.notify_shopper(order, "order_paid")
     return order
+
+
+def _cancel_order(
+    actor: User | None,
+    order: Order,
+    *,
+    reason: str,
+    summary: str,
+    at: datetime | None = None,
+) -> None:
+    """Cancel and release the reserved stock; a person's cancel and the timed one."""
+    before = _snapshot(order)
+    _release_stock(order)
+    _apply(
+        actor,
+        order,
+        audit.Action.CANCEL,
+        summary=summary,
+        before=before,
+        to=STATUS_CANCELLED,
+        stamps={"cancel_reason": reason, "cancelled_at": at or timezone.now()},
+        extra={"reason": reason},
+    )
 
 
 @transaction.atomic
@@ -291,8 +352,7 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
     then waits for a recorded refund.
     """
     order = locked(number)
-    if order.status not in EDITABLE_STATUSES:
-        raise _illegal(order, "cancel")
+    _guard(order, "cancel")
     reason = reason.strip()
     if len(reason) < MIN_REASON_LENGTH:
         raise _invalid("reason", "Bir neden yazın.")
@@ -302,22 +362,7 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
             "Ödenmiş siparişi yalnızca mağaza sahibi iptal edebilir.",
             code="owner_only",
         )
-    before = _snapshot(order)
-    _release_stock(order)
-    order.status = STATUS_CANCELLED
-    order.save(update_fields=["status"])
-    record = record_of(order)
-    record.cancel_reason = reason
-    record.cancelled_at = timezone.now()
-    record.save(update_fields=["cancel_reason", "cancelled_at"])
-    audit.record(
-        actor,
-        audit.Action.CANCEL,
-        target=order,
-        summary=f"{order.number}: iptal ({reason})",
-        before=before,
-        after={**_snapshot(order), "reason": reason},
-    )
+    _cancel_order(actor, order, reason=reason, summary=f"iptal ({reason})")
     outbox.notify_shopper(order, "order_cancelled", reason=reason)
     return order
 
@@ -326,8 +371,7 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
 def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Order:
     """Hand the parcel to the carrier: consumes the reserved stock."""
     order = locked(number)
-    if order.status != STATUS_PREPARING:
-        raise _illegal(order, "ship")
+    _guard(order, "ship")
     carrier, tracking_number = carrier.strip(), tracking_number.strip()
     errors = {
         name: ["Bu alan zorunludur."]
@@ -338,20 +382,19 @@ def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Ord
         raise UnprocessableError(fields=errors)
     before = _snapshot(order)
     _consume_stock(order)
-    order.status = STATUS_SHIPPED
-    order.save(update_fields=["status"])
-    record = record_of(order)
-    record.carrier = carrier
-    record.tracking_number = tracking_number
-    record.shipped_at = timezone.now()
-    record.save(update_fields=["carrier", "tracking_number", "shipped_at"])
-    audit.record(
+    _apply(
         actor,
+        order,
         audit.Action.SHIP,
-        target=order,
-        summary=f"{order.number}: {carrier} {tracking_number}",
+        summary=f"{carrier} {tracking_number}",
         before=before,
-        after={**_snapshot(order), "carrier": carrier, "tracking": tracking_number},
+        to=STATUS_SHIPPED,
+        stamps={
+            "carrier": carrier,
+            "tracking_number": tracking_number,
+            "shipped_at": timezone.now(),
+        },
+        extra={"carrier": carrier, "tracking": tracking_number},
     )
     outbox.notify_shopper(
         order,
@@ -366,81 +409,53 @@ def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Ord
 def deliver(actor: User, number: str) -> Order:
     """Mark delivered. Cash on delivery is recorded as paid in full now."""
     order = locked(number)
-    if order.status != STATUS_SHIPPED:
-        raise _illegal(order, "deliver")
+    _guard(order, "deliver")
     before = _snapshot(order)
     now = timezone.now()
-    record = record_of(order)
+    stamps: dict = {"delivered_at": now}
     if tracking.payment_status_of(order) == PAYMENT_UNPAID:
-        _debit(order, record, order.total_incl_tax, now)
-    record.delivered_at = now
-    record.save(update_fields=["paid_amount", "paid_at", "delivered_at"])
-    order.status = STATUS_DELIVERED
-    order.save(update_fields=["status"])
-    audit.record(
+        source_of(order).debit(order.total_incl_tax)
+        stamps |= {"paid_amount": order.total_incl_tax, "paid_at": now}
+    _apply(
         actor,
+        order,
         audit.Action.DELIVER,
-        target=order,
-        summary=f"{order.number}: teslim edildi",
+        summary="teslim edildi",
         before=before,
-        after=_snapshot(order),
-    )
-    return order
-
-
-def _move(  # noqa: PLR0913
-    actor: User,
-    number: str,
-    *,
-    allowed_from: tuple[str, ...],
-    to: str,
-    action: audit.Action,
-    stamp: str,
-    summary: str,
-) -> Order:
-    order = locked(number)
-    if order.status not in allowed_from:
-        raise _illegal(order, str(action))
-    before = _snapshot(order)
-    order.status = to
-    order.save(update_fields=["status"])
-    record = record_of(order)
-    setattr(record, stamp, timezone.now())
-    record.save(update_fields=[stamp])
-    audit.record(
-        actor,
-        action,
-        target=order,
-        summary=f"{order.number}: {summary}",
-        before=before,
-        after=_snapshot(order),
+        to=STATUS_DELIVERED,
+        stamps=stamps,
     )
     return order
 
 
 @transaction.atomic
 def request_return(actor: User, number: str) -> Order:
-    return _move(
+    order = locked(number)
+    _guard(order, "request_return")
+    _apply(
         actor,
-        number,
-        allowed_from=(STATUS_DELIVERED, STATUS_COMPLETED),
-        to=STATUS_RETURN_REQUESTED,
-        action=audit.Action.RETURN_REQUEST,
-        stamp="return_requested_at",
+        order,
+        audit.Action.RETURN_REQUEST,
         summary="iade talebi",
+        before=_snapshot(order),
+        to=STATUS_RETURN_REQUESTED,
+        stamps={"return_requested_at": timezone.now()},
     )
+    return order
 
 
 @transaction.atomic
 def mark_returned(actor: User, number: str) -> Order:
-    order = _move(
+    order = locked(number)
+    _guard(order, "mark_returned")
+    _apply(
         actor,
-        number,
-        allowed_from=(STATUS_RETURN_REQUESTED,),
-        to=STATUS_RETURNED,
-        action=audit.Action.RETURN_RECEIVED,
-        stamp="returned_at",
+        order,
+        audit.Action.RETURN_RECEIVED,
         summary="iade teslim alındı",
+        before=_snapshot(order),
+        to=STATUS_RETURNED,
+        stamps={"returned_at": timezone.now()},
     )
     outbox.notify_shopper(order, "return_received")
     return order
@@ -469,32 +484,26 @@ def refund(
 ) -> Order:
     """Record a refund for a paid Order that was returned or cancelled."""
     order = locked(number)
-    if tracking.payment_status_of(order) != PAYMENT_PAID or order.status not in (
-        STATUS_RETURNED,
-        STATUS_CANCELLED,
-    ):
-        raise _illegal(order, "refund")
+    _guard(order, "refund")
     source = source_of(order)
     if amount <= ZERO or amount > source.amount_debited:
         raise _invalid("amount", "İade tutarı ödenen tutarı aşamaz.")
     clean = clean_iban(iban) if method == RefundMethod.BANK_TRANSFER else ""
     before = _snapshot(order)
     source.refund(amount)
-    record = record_of(order)
-    record.refund_amount = amount
-    record.refund_method = method
-    record.refund_iban = clean
-    record.refunded_at = timezone.now()
-    record.save(
-        update_fields=["refund_amount", "refund_method", "refund_iban", "refunded_at"],
-    )
-    audit.record(
+    _apply(
         actor,
+        order,
         audit.Action.REFUND,
-        target=order,
-        summary=f"{order.number}: {amount} TL iade ({method.label})",
+        summary=f"{amount} TL iade ({method.label})",
         before=before,
-        after={**_snapshot(order), "amount": str(amount), "method": str(method)},
+        stamps={
+            "refund_amount": amount,
+            "refund_method": method,
+            "refund_iban": clean,
+            "refunded_at": timezone.now(),
+        },
+        extra={"amount": str(amount), "method": str(method)},
     )
     outbox.notify_shopper(
         order,
@@ -531,8 +540,7 @@ def shipping_fields(order: Order) -> dict[str, str]:
 def edit_shipping(actor: User, number: str, **changes: str) -> Order:
     """Change the delivery address and/or phone while the Order is new or preparing."""
     order = locked(number)
-    if order.status not in EDITABLE_STATUSES:
-        raise _illegal(order, "edit_shipping")
+    _guard(order, "edit_shipping")
     address = order.shipping_address
     if address is None or not changes:
         raise _invalid("address", "Değiştirilecek bilgi gönderilmedi.")
@@ -690,21 +698,12 @@ def cancel_unpaid_transfers(*, now: datetime | None = None) -> int:
                 tracking.payment_status_of(order) != PAYMENT_UNPAID
             ):
                 continue
-            before = _snapshot(order)
-            _release_stock(order)
-            order.status = STATUS_CANCELLED
-            order.save(update_fields=["status"])
-            record = record_of(order)
-            record.cancel_reason = AUTO_CANCEL_REASON
-            record.cancelled_at = now
-            record.save(update_fields=["cancel_reason", "cancelled_at"])
-            audit.record(
+            _cancel_order(
                 None,
-                audit.Action.CANCEL,
-                target=order,
-                summary=f"{order.number}: ödeme süresi doldu, otomatik iptal",
-                before=before,
-                after={**_snapshot(order), "reason": AUTO_CANCEL_REASON},
+                order,
+                reason=AUTO_CANCEL_REASON,
+                summary="ödeme süresi doldu, otomatik iptal",
+                at=now,
             )
             outbox.notify_shopper(order, "order_auto_cancelled")
             cancelled += 1
