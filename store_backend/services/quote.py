@@ -49,6 +49,10 @@ class Quote:
     def items_total(self) -> Decimal:
         return sum((s.total_incl for s in self.snapshots.values()), pricing.ZERO)
 
+    @property
+    def free_shipping(self) -> bool:
+        return _is_free(self.items_total, self.store)
+
 
 def _snapshots(lines: list[BasketLine]) -> dict[int, pricing.LineSnapshot]:
     return {
@@ -61,6 +65,11 @@ def _snapshots(lines: list[BasketLine]) -> dict[int, pricing.LineSnapshot]:
     }
 
 
+def _is_free(items_total: Decimal, store: StoreSettings) -> bool:
+    threshold = store.free_shipping_threshold
+    return threshold is not None and items_total >= threshold
+
+
 def _shipping_amount(
     lines: list[BasketLine],
     items_total: Decimal,
@@ -68,8 +77,7 @@ def _shipping_amount(
     province: str | None,
 ) -> Decimal:
     """Free above the threshold, else the cheapest carrier, else the flat fee."""
-    threshold = store.free_shipping_threshold
-    if threshold is not None and items_total >= threshold:
+    if _is_free(items_total, store):
         return pricing.ZERO
     desi = sum(catalog.desi_for(line.product) * line.quantity for line in lines)
     computed = shipping.fee_for(desi, province)

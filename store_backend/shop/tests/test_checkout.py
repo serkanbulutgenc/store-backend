@@ -576,3 +576,77 @@ def test_a_taken_order_number_is_retried(guest, shop, monkeypatch):
 
     assert response.status_code == HTTPStatus.CREATED, response.content
     assert response.json()["number"] == "AT-FRESH2"
+
+
+# --- quote preview -----------------------------------------------------------
+
+QUOTE = "/api/store/checkout/quote"
+
+
+def quote_body(il="Trabzon", method="bank_transfer"):
+    return {"province": il, "payment_method": method}
+
+
+def test_quote_matches_the_order_that_is_then_placed(guest, owner, computed_shipping):
+    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+
+    quoted = guest.post(QUOTE, quote_body("TRABZON")).json()
+    placed = guest.post(CHECKOUT, ship_to("TRABZON")).json()
+
+    assert quoted["shipping_fee"] == placed["shipping_fee"] == "95.00"
+    assert quoted["total"] == placed["total"] == "295.00"
+    assert quoted["items_total"] == placed["items_total"]
+
+
+def test_quote_follows_the_province(guest, owner, computed_shipping):
+    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+
+    near = guest.post(QUOTE, quote_body("Mersin")).json()
+    far = guest.post(QUOTE, quote_body("Trabzon")).json()
+
+    assert Decimal(near["shipping_fee"]) < Decimal(far["shipping_fee"])
+    assert Decimal(far["total"]) - Decimal(near["total"]) == (
+        Decimal(far["shipping_fee"]) - Decimal(near["shipping_fee"])
+    )
+
+
+def test_quote_without_a_known_province_is_the_flat_fee(
+    guest,
+    owner,
+    computed_shipping,
+):
+    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+
+    assert guest.post(QUOTE, quote_body("")).json()["shipping_fee"] == "30.00"
+    assert guest.post(QUOTE, quote_body("Atlantis")).json()["shipping_fee"] == "30.00"
+
+
+def test_quote_is_free_above_the_threshold(guest, owner, computed_shipping):
+    set_fees(owner, free_shipping_threshold="200.00")
+
+    body = guest.post(QUOTE, quote_body()).json()
+
+    assert body["shipping_fee"] == "0.00"
+    assert body["free_shipping"] is True
+
+
+def test_quote_adds_the_cod_fee_for_cash_on_delivery(guest, owner):
+    set_fees(owner, shipping_fee="30.00", cod_fee="15.00", free_shipping_threshold=None)
+
+    body = guest.post(QUOTE, quote_body("Mersin", "cod")).json()
+
+    assert body["cod_fee"] == "15.00"
+    assert body["total"] == "245.00"
+
+
+def test_quote_writes_nothing(guest, computed_shipping):
+    response = guest.post(QUOTE, quote_body())
+
+    assert response.status_code == HTTPStatus.OK
+    assert Order.objects.count() == 0
+
+
+def test_quote_of_an_empty_basket_is_rejected(shop):
+    response = Guest().post(QUOTE, quote_body())
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST

@@ -68,6 +68,25 @@ class CheckoutIn(Schema):
     )
 
 
+class QuoteIn(Schema):
+    province: str = Field(
+        "",
+        max_length=100,
+        description="Destination il; empty or unknown gives the flat Settings fee.",
+    )
+    payment_method: PaymentMethod
+
+
+class QuoteOut(Schema):
+    items_total: Money
+    shipping_fee: Money
+    cod_fee: Money
+    total: Money
+    free_shipping: bool = Field(
+        description="True when the items total reached the free-shipping threshold.",
+    )
+
+
 def _address(data: AddressIn | None) -> contact.Address | None:
     return contact.Address(**data.dict()) if data else None
 
@@ -189,3 +208,28 @@ def place_order(request, data: CheckoutIn):
         ),
     )
     return HTTPStatus.CREATED, placed_summary(order)
+
+
+@router.post(
+    "/checkout/quote",
+    operation_id="checkout_quote",
+    response=QuoteOut,
+)
+def quote_order(request, data: QuoteIn):
+    """What the current basket would cost sent to `province`. Writes nothing.
+
+    400 `basket_empty` when there is nothing to price.
+    """
+    quote = checkout_service.preview(
+        request.basket,
+        data.payment_method,
+        data.province.strip() or None,
+    )
+    cod = quote.fees.cod
+    return {
+        "items_total": quote.items_total,
+        "shipping_fee": quote.fees.shipping.total_incl,
+        "cod_fee": cod.total_incl if cod else pricing.ZERO,
+        "total": quote.totals.total_incl,
+        "free_shipping": quote.free_shipping,
+    }

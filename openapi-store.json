@@ -1594,6 +1594,75 @@
         "title": "QuantityIn",
         "type": "object"
       },
+      "QuoteIn": {
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "province": {
+            "default": "",
+            "description": "Destination il; empty or unknown gives the flat Settings fee.",
+            "maxLength": 100,
+            "title": "Province",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_method"
+        ],
+        "title": "QuoteIn",
+        "type": "object"
+      },
+      "QuoteOut": {
+        "properties": {
+          "cod_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod Fee",
+            "type": "string"
+          },
+          "free_shipping": {
+            "description": "True when the items total reached the free-shipping threshold.",
+            "title": "Free Shipping",
+            "type": "boolean"
+          },
+          "items_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Items Total",
+            "type": "string"
+          },
+          "shipping_fee": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping Fee",
+            "type": "string"
+          },
+          "total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items_total",
+          "shipping_fee",
+          "cod_fee",
+          "total",
+          "free_shipping"
+        ],
+        "title": "QuoteOut",
+        "type": "object"
+      },
       "SavedAddressIn": {
         "properties": {
           "full_name": {
@@ -2457,6 +2526,44 @@
           }
         ],
         "summary": "Place Order",
+        "tags": [
+          "checkout"
+        ]
+      }
+    },
+    "/api/store/checkout/quote": {
+      "post": {
+        "description": "What the current basket would cost sent to `province`. Writes nothing.\n\n400 `basket_empty` when there is nothing to price.",
+        "operationId": "checkout_quote",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Quote Order",
         "tags": [
           "checkout"
         ]

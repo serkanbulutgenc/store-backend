@@ -141,9 +141,14 @@ def _check_legal_versions(form: CheckoutForm, store: StoreSettings) -> None:
 
 
 def _lock_basket(basket: BasketModel) -> list[BasketLine]:
-    lines: list[BasketLine] = []
     if basket.id is not None:
         BasketModel.objects.select_for_update().filter(pk=basket.pk).first()
+    return _basket_lines(basket)
+
+
+def _basket_lines(basket: BasketModel) -> list[BasketLine]:
+    lines: list[BasketLine] = []
+    if basket.id is not None:
         lines = list(
             basket.lines.select_related(
                 "product__variant_profile__colour",
@@ -256,3 +261,21 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
         province=form.shipping_address.il,
     )
     return place(basket, quote, form, caller)
+
+
+def preview(
+    basket: BasketModel,
+    method: PaymentMethod,
+    province: str | None,
+) -> Quote:
+    """Price the basket for a destination without locking or writing anything.
+
+    The same `quote` that `place_order` uses, so what the Shopper is shown is what the
+    Order is charged, unless prices, fees or the basket change in between.
+    """
+    return quoting.quote(
+        _basket_lines(basket),
+        method,
+        shop_settings.get(),
+        province=province,
+    )
