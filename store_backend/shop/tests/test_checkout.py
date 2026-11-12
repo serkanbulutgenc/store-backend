@@ -524,13 +524,13 @@ def test_matching_legal_versions_are_accepted(guest, owner):
 
 def test_a_taken_order_number_is_retried(guest, shop, monkeypatch):
     _, v = shop
-    from store_backend.services import checkout  # noqa: PLC0415
+    from store_backend.services import order_creation  # noqa: PLC0415
 
     first = guest.post(CHECKOUT, payload()).json()["number"]
     fresh = Guest()
     fill(fresh, v["M"], 1)
     numbers = iter([first, first, "AT-FRESH2"])
-    monkeypatch.setattr(checkout, "_order_number", lambda: next(numbers))
+    monkeypatch.setattr(order_creation, "_order_number", lambda: next(numbers))
 
     response = fresh.post(CHECKOUT, payload())
 

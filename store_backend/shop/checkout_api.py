@@ -18,6 +18,8 @@ from store_backend.api.money import Money
 from store_backend.api.ratelimit import Rate
 from store_backend.api.ratelimit import count_attempt
 from store_backend.services import checkout as checkout_service
+from store_backend.services import contact
+from store_backend.services import payment
 from store_backend.services import pricing
 from store_backend.services import shop_settings
 from store_backend.services import tracking
@@ -66,8 +68,8 @@ class CheckoutIn(Schema):
     )
 
 
-def _address(data: AddressIn | None) -> checkout_service.Address | None:
-    return checkout_service.Address(**data.dict()) if data else None
+def _address(data: AddressIn | None) -> contact.Address | None:
+    return contact.Address(**data.dict()) if data else None
 
 
 class PlacedLineOut(Schema):
@@ -106,7 +108,7 @@ class OrderPlacedOut(Schema):
 
 
 def placed_summary(order) -> dict:
-    method = checkout_service.payment_method_of(order)
+    method = payment.payment_method_of(order)
     cod_fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
     lines = [
         {
@@ -168,7 +170,7 @@ def place_order(request, data: CheckoutIn):
         full_name=data.full_name,
         email=data.email,
         phone=data.phone,
-        shipping_address=checkout_service.Address(**data.shipping_address.dict()),
+        shipping_address=contact.Address(**data.shipping_address.dict()),
         billing_address=_address(data.billing_address),
         payment_method=data.payment_method,
         contract_acknowledged=data.contract_acknowledged,

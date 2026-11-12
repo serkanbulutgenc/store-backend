@@ -19,10 +19,10 @@ if TYPE_CHECKING:
 
     from oscar.apps.basket.models import Line as BasketLine
 
-    from store_backend.services.checkout import Address
     from store_backend.services.checkout import CheckoutForm
-    from store_backend.services.checkout import Quote
+    from store_backend.services.contact import Address
     from store_backend.services.pricing import LineSnapshot
+    from store_backend.services.quote import Quote
     from store_backend.shop.models import StoreSettings
 
 WITHDRAWAL = (

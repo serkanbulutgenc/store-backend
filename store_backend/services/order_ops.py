@@ -32,7 +32,7 @@ from store_backend.api.errors import ForbiddenError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
-from store_backend.services import checkout
+from store_backend.services import contact
 from store_backend.services import outbox
 from store_backend.services import pre_information
 from store_backend.services import stock
@@ -517,14 +517,14 @@ def edit_shipping(actor: User, number: str, **changes: str) -> Order:
         raise _invalid("address", "Değiştirilecek bilgi gönderilmedi.")
     before = shipping_fields(order)
     merged = {**before, **changes}
-    clean = checkout.clean_address(
+    clean = contact.clean_address(
         "shipping_address",
-        checkout.Address(**{f: merged[f] for f in ADDRESS_FIELDS}),
+        contact.Address(**{f: merged[f] for f in ADDRESS_FIELDS}),
     )
     for field in ADDRESS_FIELDS:
         setattr(address, _ADDRESS_COLUMNS[field], getattr(clean, field))
     if "phone" in changes:
-        address.phone_number = checkout.clean_phone(changes["phone"])
+        address.phone_number = contact.clean_phone(changes["phone"])
     address.save()
     address.refresh_from_db()  # the phone is a plain string until reloaded
     after = shipping_fields(order)

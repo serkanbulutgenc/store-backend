@@ -100,12 +100,12 @@ def order_context(order: Order, store: StoreSettings) -> dict[str, Any]:
         for line in sorted(order.lines.all(), key=lambda row: row.pk)
     ]
     # These import checkout, which imports this module.
-    from store_backend.services import checkout  # noqa: PLC0415
+    from store_backend.services import payment  # noqa: PLC0415
     from store_backend.services import tracking  # noqa: PLC0415
     from store_backend.shop.models import PaymentMethod  # noqa: PLC0415
 
     base = settings.STOREFRONT_URL.rstrip("/")
-    is_cod = checkout.payment_method_of(order) == PaymentMethod.COD
+    is_cod = payment.payment_method_of(order) == PaymentMethod.COD
     context = {
         "number": order.number,
         "is_cod": is_cod,

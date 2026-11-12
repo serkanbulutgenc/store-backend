@@ -19,9 +19,9 @@ from store_backend.api.money import Money
 from store_backend.api.ordering import apply_ordering
 from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
-from store_backend.services import checkout
 from store_backend.services import invoicing
 from store_backend.services import order_ops
+from store_backend.services import payment
 from store_backend.services import pricing
 from store_backend.services import tracking
 from store_backend.shop.models import InvoiceStatus
@@ -247,7 +247,7 @@ def order_detail(order) -> dict:
         "placed_at": order.date_placed,
         "status": order.status,
         "payment_status": tracking.payment_status_of(order),
-        "payment_method": checkout.payment_method_of(order),
+        "payment_method": payment.payment_method_of(order),
         "email": order.guest_email or (order.user.email if order.user else ""),
         "customer_id": order.user_id,
         "shipping_address": _shipping(order),

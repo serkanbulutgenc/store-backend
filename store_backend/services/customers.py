@@ -15,7 +15,7 @@ from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
-from store_backend.services import checkout
+from store_backend.services import contact
 from store_backend.services import outbox
 from store_backend.shop.models import MAX_SAVED_ADDRESSES
 from store_backend.shop.models import AccountDeletionRequest
@@ -49,7 +49,7 @@ def update_profile(
     if name is not None:
         user.name = " ".join(name.split())
     if phone is not None:
-        user.phone = checkout.clean_phone(phone) if phone.strip() else ""
+        user.phone = contact.clean_phone(phone) if phone.strip() else ""
     if marketing_consent is not None:
         if marketing_consent and user.marketing_consent_at is None:
             user.marketing_consent_at = timezone.now()
@@ -68,12 +68,12 @@ def addresses_of(user: User) -> QuerySet[SavedAddress]:
 
 def _clean(data: dict) -> dict:
     name = " ".join(data["full_name"].split())
-    if len(name.split()) < checkout.MIN_NAME_PARTS:
+    if len(name.split()) < contact.MIN_NAME_PARTS:
         msg = "Ad ve soyadınızı girin."
         raise UnprocessableError(msg, fields={"full_name": [msg]})
-    address = checkout.clean_address(
+    address = contact.clean_address(
         "address",
-        checkout.Address(
+        contact.Address(
             il=data["il"],
             ilce=data["ilce"],
             mahalle=data["mahalle"],
@@ -83,7 +83,7 @@ def _clean(data: dict) -> dict:
     )
     return {
         "full_name": name,
-        "phone": checkout.clean_phone(data["phone"]),
+        "phone": contact.clean_phone(data["phone"]),
         "il": address.il,
         "ilce": address.ilce,
         "mahalle": address.mahalle,

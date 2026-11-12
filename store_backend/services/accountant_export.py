@@ -19,9 +19,9 @@ from django.utils import timezone
 
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
-from store_backend.services import checkout
 from store_backend.services import invoicing
 from store_backend.services import order_ops
+from store_backend.services import payment
 from store_backend.shop.models import Invoice
 
 if TYPE_CHECKING:
@@ -106,7 +106,7 @@ def _rows(order: Order, invoice: Invoice | None):
     ]
     tail = [
         sheet["total_incl"],
-        checkout.payment_method_of(order).value,
+        payment.payment_method_of(order).value,
         _day(record.paid_at),
         record.carrier,
         invoice.number if invoice else "",
