@@ -514,9 +514,10 @@ def set_product_status(request, product_id: int, data: StatusIn):
     response={201: VariantOut},
 )
 def create_variant(request, product_id: int, data: VariantIn):
+    product = catalog.get_product(product_id)
     colour = catalog.ref(Colour, data.colour_id, "colour_id")
     variant = catalog.create_variant(
-        catalog.get_product(product_id),
+        product,
         colour=colour,
         size=data.size,
         sku=data.sku,

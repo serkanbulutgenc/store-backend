@@ -444,7 +444,11 @@ def update_product(  # noqa: C901, PLR0912
     product: Product,
     **changes: object,
 ) -> Product:
-    """Apply the given changes (only the keys passed). Price changes are audited."""
+    """Apply the given changes (only the keys passed). Price changes are audited.
+
+    Takes resolved objects; the Dashboard API goes through `patch_product`, which
+    resolves ids and enforces the Owner-only field policy first.
+    """
     unknown = set(changes) - PRODUCT_FIELDS
     if unknown:
         raise _invalid(sorted(unknown)[0], "Bilinmeyen alan.")
