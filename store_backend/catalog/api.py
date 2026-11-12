@@ -25,7 +25,6 @@ from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
 from oscar.apps.catalogue.models import ProductClass
 
-from store_backend.api.errors import ForbiddenError
 from store_backend.api.errors import UnprocessableError
 from store_backend.api.money import Money
 from store_backend.api.ordering import apply_ordering
@@ -36,16 +35,15 @@ from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import Supplier
-from store_backend.catalog.sizes import sizes_for
 from store_backend.services import catalog
+from store_backend.services import catalog_policy
+from store_backend.services import catalog_views as views
 from store_backend.services import media
 from store_backend.services import stock
 from store_backend.staff.permissions import Perm
-from store_backend.staff.permissions import omit_owner_only
 
 router = Router(tags=["catalog"])
 
-OWNER_PRODUCT_FIELDS = ("cost_price", "supplier", "supplier_code")
 PRODUCT_ORDERING = {"id", "title", "shelf_price", "status"}
 
 
@@ -234,138 +232,6 @@ class LowStockOut(Schema):
     threshold: int
 
 
-# --- helpers ---------------------------------------------------------------
-
-
-def _can(user, perm: Perm) -> bool:
-    return user.has_perm(perm.permission_name)
-
-
-def _product(pk: int) -> Product:
-    return get_object_or_404(
-        Product.objects.select_related("profile", "product_class__profile"),
-        pk=pk,
-        structure=Product.PARENT,
-    )
-
-
-def _variant(pk: int) -> Product:
-    return get_object_or_404(
-        Product.objects.select_related("variant_profile__colour", "parent__profile"),
-        pk=pk,
-        structure=Product.CHILD,
-    )
-
-
-def _ref(model, pk: int | None, field: str):
-    if pk is None:
-        return None
-    obj = model.objects.filter(pk=pk).first()
-    if obj is None:
-        msg = "Kayıt bulunamadı."
-        raise UnprocessableError(msg, fields={field: [msg]})
-    return obj
-
-
-def _named(obj) -> dict | None:
-    return None if obj is None else {"id": obj.pk, "name": obj.name}
-
-
-def _colour(c: Colour) -> dict:
-    return {
-        "id": c.pk,
-        "name": c.name,
-        "code": c.code,
-        "hex_code": c.hex_code,
-        "is_active": c.is_active,
-    }
-
-
-def _variant_dict(v: Product) -> dict:
-    vp = v.variant_profile
-    records = list(v.stockrecords.all())
-    record = records[0] if records else None
-    on_hand = record.num_in_stock if record else 0
-    allocated = (record.num_allocated or 0) if record else 0
-    threshold = v.parent.profile.low_stock_threshold
-    return {
-        "id": v.pk,
-        "product_id": v.parent_id,
-        "sku": vp.sku,
-        "barcode": vp.barcode,
-        "colour": _colour(vp.colour),
-        "size": vp.size,
-        "price_override": vp.price_override,
-        "stock": {"on_hand": on_hand, "allocated": allocated},
-        "is_low_stock": stock.is_low(record, threshold),
-    }
-
-
-def _category_of(product: Product) -> Category | None:
-    return product.categories.first()
-
-
-def _product_dict(user, product: Product) -> dict:
-    profile = product.profile
-    pc = product.product_class
-    variants = (
-        product.children.select_related("variant_profile__colour", "parent__profile")
-        .prefetch_related("stockrecords")
-        .order_by("variant_profile__colour__name", "pk")
-    )
-    payload: dict[str, Any] = {
-        "id": product.pk,
-        "title": product.title,
-        "slug": profile.slug,
-        "status": profile.status,
-        "product_class": {
-            "id": pc.pk,
-            "name": pc.name,
-            "size_scheme": pc.profile.size_scheme,
-            "sizes": sizes_for(pc.profile.size_scheme),
-            "default_kdv_rate": pc.profile.default_kdv_rate,
-            "is_hygiene": pc.profile.is_hygiene,
-        },
-        "category": _named(_category_of(product)),
-        "brand": _named(profile.brand),
-        "shelf_price": profile.shelf_price,
-        "old_price": profile.old_price,
-        "kdv_rate": catalog.kdv_rate_for(product),
-        "low_stock_threshold": profile.low_stock_threshold,
-        "variants": [_variant_dict(v) for v in variants],
-        "cost_price": profile.cost_price,
-        "supplier": None
-        if profile.supplier is None
-        else {
-            "id": profile.supplier.pk,
-            "name": profile.supplier.name,
-            "code": profile.supplier.code,
-        },
-        "supplier_code": profile.supplier_code,
-    }
-    return omit_owner_only(user, payload, *OWNER_PRODUCT_FIELDS)
-
-
-def _require_owner_fields_allowed(user, data: dict) -> None:
-    """Staff may not send cost price or Supplier data, even to clear it."""
-    sent = [f for f in ("cost_price", "supplier_id", "supplier_code") if f in data]
-    if sent and not _can(user, Perm.VIEW_COST_PRICES):
-        raise ForbiddenError
-
-
-def _changes(data: dict) -> dict:
-    """Patch keys to service keywords, resolving referenced ids to objects."""
-    changes = dict(data)
-    if "category_id" in changes:
-        cat_id = changes.pop("category_id")
-        changes["category"] = _ref(Category, cat_id, "category_id")
-    if "brand_id" in changes:
-        changes["brand"] = _ref(Brand, changes.pop("brand_id"), "brand_id")
-    if "supplier_id" in changes:
-        changes["supplier"] = _ref(Supplier, changes.pop("supplier_id"), "supplier_id")
-    return changes
-
-
 # --- reference data --------------------------------------------------------
 
 
@@ -376,17 +242,8 @@ def _changes(data: dict) -> dict:
     response=list[ProductClassOut],
 )
 def list_product_classes(request):
-    return [
-        {
-            "id": pc.pk,
-            "name": pc.name,
-            "size_scheme": pc.profile.size_scheme,
-            "sizes": sizes_for(pc.profile.size_scheme),
-            "default_kdv_rate": pc.profile.default_kdv_rate,
-            "is_hygiene": pc.profile.is_hygiene,
-        }
-        for pc in ProductClass.objects.select_related("profile").order_by("pk")
-    ]
+    classes = ProductClass.objects.select_related("profile").order_by("pk")
+    return [views.product_class_dict(pc) for pc in classes]
 
 
 @router.get(
@@ -488,15 +345,7 @@ def update_supplier(request, supplier_id: int, data: SupplierPatch):
     response=list[CategoryOut],
 )
 def list_categories(request):
-    return [
-        {
-            "id": c.pk,
-            "name": c.name,
-            "slug": c.slug,
-            "parent_id": c.get_parent().pk if c.depth > 1 else None,
-        }
-        for c in Category.objects.all().order_by("path")
-    ]
+    return [views.category_dict(c) for c in Category.objects.all().order_by("path")]
 
 
 @router.post(
@@ -506,14 +355,8 @@ def list_categories(request):
     response={201: CategoryOut},
 )
 def create_category(request, data: CategoryIn):
-    parent = _ref(Category, data.parent_id, "parent_id")
-    c = catalog.create_category(data.name, parent=parent)
-    return 201, {
-        "id": c.pk,
-        "name": c.name,
-        "slug": c.slug,
-        "parent_id": data.parent_id,
-    }
+    parent = catalog.ref(Category, data.parent_id, "parent_id")
+    return 201, views.category_dict(catalog.create_category(data.name, parent=parent))
 
 
 @router.patch(
@@ -527,12 +370,7 @@ def update_category(request, category_id: int, data: NameIn):
         get_object_or_404(Category, pk=category_id),
         name=data.name,
     )
-    return {
-        "id": c.pk,
-        "name": c.name,
-        "slug": c.slug,
-        "parent_id": c.get_parent().pk if c.depth > 1 else None,
-    }
+    return views.category_dict(c)
 
 
 # --- products and variants -----------------------------------------------------
@@ -575,7 +413,7 @@ def list_products(
     if category_id:
         qs = qs.filter(categories__pk=category_id)
     qs = apply_ordering(qs, ordering or "-id", allowed=PRODUCT_ORDERING)
-    return MappedRows(qs, _list_dict)
+    return MappedRows(qs, views.list_dict)
 
 
 class MappedRows:
@@ -596,23 +434,6 @@ class MappedRows:
         return [self.fn(row) for row in self.qs[item]]
 
 
-def _list_dict(p: Product) -> dict:
-    children = list(p.children.all())
-    categories = list(p.categories.all())
-    return {
-        "id": p.pk,
-        "title": p.title,
-        "slug": p.profile.slug,
-        "status": p.profile.status,
-        "category": _named(categories[0]) if categories else None,
-        "shelf_price": p.profile.shelf_price,
-        "variant_count": len(children),
-        "stock_total": sum(
-            r.num_in_stock for c in children for r in c.stockrecords.all()
-        ),
-    }
-
-
 @router.get(
     "/products/{product_id}",
     auth=requires(Perm.VIEW_PRODUCTS),
@@ -621,7 +442,7 @@ def _list_dict(p: Product) -> dict:
     exclude_unset=True,
 )
 def get_product(request, product_id: int):
-    return _product_dict(request.auth, _product(product_id))
+    return views.product_dict(request.auth, catalog.get_product(product_id))
 
 
 @router.post(
@@ -633,24 +454,26 @@ def get_product(request, product_id: int):
 )
 def create_product(request, data: ProductIn):
     user = request.auth
-    sent = data.model_dump(exclude_unset=True)
-    _require_owner_fields_allowed(user, sent)
-    product_class = _ref(ProductClass, data.product_class_id, "product_class_id")
+    catalog_policy.require_owner_fields_allowed(
+        user,
+        data.model_dump(exclude_unset=True),
+    )
+    ref = catalog.ref
     product = catalog.create_product(
         title=data.title,
-        product_class=product_class,
-        category=_ref(Category, data.category_id, "category_id"),
+        product_class=ref(ProductClass, data.product_class_id, "product_class_id"),
+        category=ref(Category, data.category_id, "category_id"),
         shelf_price=data.shelf_price,
         old_price=data.old_price,
-        brand=_ref(Brand, data.brand_id, "brand_id"),
-        supplier=_ref(Supplier, data.supplier_id, "supplier_id"),
+        brand=ref(Brand, data.brand_id, "brand_id"),
+        supplier=ref(Supplier, data.supplier_id, "supplier_id"),
         supplier_code=data.supplier_code,
         cost_price=data.cost_price,
         kdv_rate=data.kdv_rate,
         low_stock_threshold=data.low_stock_threshold,
         slug=data.slug,
     )
-    return 201, _product_dict(user, _product(product.pk))
+    return 201, views.product_dict(user, catalog.get_product(product.pk))
 
 
 @router.patch(
@@ -662,11 +485,12 @@ def create_product(request, data: ProductIn):
 )
 def update_product(request, product_id: int, data: ProductPatch):
     user = request.auth
-    sent = data.model_dump(exclude_unset=True)
-    _require_owner_fields_allowed(user, sent)
-    product = _product(product_id)
-    catalog.update_product(user, product, **_changes(sent))
-    return _product_dict(user, _product(product_id))
+    product = catalog.patch_product(
+        user,
+        product_id,
+        data.model_dump(exclude_unset=True),
+    )
+    return views.product_dict(user, product)
 
 
 @router.post(
@@ -679,12 +503,8 @@ def update_product(request, product_id: int, data: ProductPatch):
 def set_product_status(request, product_id: int, data: StatusIn):
     """Publish or return to draft; archiving and unarchiving are Owner-only."""
     user = request.auth
-    product = _product(product_id)
-    touches_archive = ProductStatus.ARCHIVED in (data.status, product.profile.status)
-    if touches_archive and not _can(user, Perm.ARCHIVE_PRODUCTS):
-        raise ForbiddenError
-    catalog.set_status(product, data.status)
-    return _product_dict(user, _product(product_id))
+    product = catalog.change_status(user, product_id, data.status)
+    return views.product_dict(user, product)
 
 
 @router.post(
@@ -694,10 +514,9 @@ def set_product_status(request, product_id: int, data: StatusIn):
     response={201: VariantOut},
 )
 def create_variant(request, product_id: int, data: VariantIn):
-    product = _product(product_id)
-    colour = _ref(Colour, data.colour_id, "colour_id")
+    colour = catalog.ref(Colour, data.colour_id, "colour_id")
     variant = catalog.create_variant(
-        product,
+        catalog.get_product(product_id),
         colour=colour,
         size=data.size,
         sku=data.sku,
@@ -705,7 +524,7 @@ def create_variant(request, product_id: int, data: VariantIn):
         stock=data.stock,
         price_override=data.price_override,
     )
-    return 201, _variant_dict(_variant(variant.pk))
+    return 201, views.variant_dict(catalog.get_variant(variant.pk))
 
 
 @router.patch(
@@ -715,9 +534,12 @@ def create_variant(request, product_id: int, data: VariantIn):
     response=VariantOut,
 )
 def update_variant(request, variant_id: int, data: VariantPatch):
-    variant = _variant(variant_id)
-    catalog.update_variant(request.auth, variant, **data.model_dump(exclude_unset=True))
-    return _variant_dict(_variant(variant_id))
+    catalog.update_variant(
+        request.auth,
+        catalog.get_variant(variant_id),
+        **data.model_dump(exclude_unset=True),
+    )
+    return views.variant_dict(catalog.get_variant(variant_id))
 
 
 # --- stock ---------------------------------------------------------------------
@@ -730,9 +552,9 @@ def update_variant(request, variant_id: int, data: VariantPatch):
     response=VariantOut,
 )
 def adjust_stock(request, variant_id: int, data: StockAdjustmentIn):
-    variant = _variant(variant_id)
+    variant = catalog.get_variant(variant_id)
     stock.adjust(request.auth, variant, delta=data.delta, reason=data.reason)
-    return _variant_dict(_variant(variant_id))
+    return views.variant_dict(catalog.get_variant(variant_id))
 
 
 @router.get(
@@ -743,20 +565,7 @@ def adjust_stock(request, variant_id: int, data: StockAdjustmentIn):
 )
 @paginate(PageOffsetPagination)
 def list_low_stock(request):
-    return MappedRows(stock.low_stock_variants(), _low_stock_dict)
-
-
-def _low_stock_dict(v: Product) -> dict:
-    return {
-        "variant_id": v.pk,
-        "product_id": v.parent_id,
-        "product_title": v.parent.title,
-        "sku": v.variant_profile.sku,
-        "colour": v.variant_profile.colour.name,
-        "size": v.variant_profile.size,
-        "on_hand": v.free,
-        "threshold": v.parent.profile.low_stock_threshold,
-    }
+    return MappedRows(stock.low_stock_variants(), views.low_stock_dict)
 
 
 # --- product photos -------------------------------------------------------------
@@ -793,24 +602,6 @@ class ImageOrderIn(Schema):
     ids: list[int]
 
 
-def _image_dict(image: ProductPhoto) -> dict:
-    return {
-        "id": image.pk,
-        "product_id": image.product_id,
-        "colour": _colour(image.colour) if image.colour else None,
-        "sort_order": image.sort_order,
-        "is_primary": image.is_primary,
-        "status": image.status,
-        "alt_text": image.effective_alt_text,
-        "custom_alt_text": image.alt_text,
-        "original_url": media.media_url(image.original),
-        "width": image.width,
-        "height": image.height,
-        "derivatives": image.derivative_urls(),
-        "error": image.error,
-    }
-
-
 def _images(product: Product) -> list[ProductPhoto]:
     return list(
         ProductPhoto.objects.filter(product=product).select_related(
@@ -834,7 +625,7 @@ def _image(pk: int) -> ProductPhoto:
     response=list[ProductImageOut],
 )
 def list_product_images(request, product_id: int):
-    return [_image_dict(i) for i in _images(_product(product_id))]
+    return [views.image_dict(i) for i in _images(catalog.get_product(product_id))]
 
 
 @router.post(
@@ -852,10 +643,10 @@ def upload_product_image(
     """One photo per request (JPEG, PNG or WebP); processing continues in the
     background and the image reports `processing` until its derivatives exist.
     """
-    product = _product(product_id)
-    colour = _ref(Colour, colour_id, "colour_id")
+    product = catalog.get_product(product_id)
+    colour = catalog.ref(Colour, colour_id, "colour_id")
     image = media.upload(request.auth, product, file, colour=colour)
-    return 201, _image_dict(_image(image.pk))
+    return 201, views.image_dict(_image(image.pk))
 
 
 @router.patch(
@@ -869,13 +660,13 @@ def update_product_image(request, image_id: int, data: ProductImagePatch):
     sent = data.model_dump(exclude_unset=True)
     changes: dict[str, Any] = {}
     if "colour_id" in sent:
-        changes["colour"] = _ref(Colour, sent["colour_id"], "colour_id")
+        changes["colour"] = catalog.ref(Colour, sent["colour_id"], "colour_id")
     if sent.get("alt_text") is not None:
         changes["alt_text"] = sent["alt_text"]
     if sent.get("is_primary") is not None:
         changes["is_primary"] = sent["is_primary"]
     media.update(request.auth, image, **changes)
-    return _image_dict(_image(image_id))
+    return views.image_dict(_image(image_id))
 
 
 @router.delete(
@@ -896,6 +687,6 @@ def delete_product_image(request, image_id: int):
     response=list[ProductImageOut],
 )
 def reorder_product_images(request, product_id: int, data: ImageOrderIn):
-    product = _product(product_id)
+    product = catalog.get_product(product_id)
     media.reorder(request.auth, product, data.ids)
-    return [_image_dict(i) for i in _images(product)]
+    return [views.image_dict(i) for i in _images(product)]

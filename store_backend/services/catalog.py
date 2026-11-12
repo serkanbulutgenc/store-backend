@@ -35,6 +35,7 @@ from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.signals import has_orders
 from store_backend.catalog.sizes import sizes_for
 from store_backend.services import audit
+from store_backend.services import catalog_policy
 from store_backend.services import shop_settings
 
 if TYPE_CHECKING:
@@ -546,6 +547,69 @@ def update_variant(actor: User, variant: Product, **changes: object) -> Product:
             before=before, after=after,
         )  # fmt: skip
     return variant
+
+
+# --- lookups and use cases for the Dashboard API ------------------------------
+
+
+def get_product(pk: int) -> Product:
+    """A parent Product with its profiles loaded, or NotFoundError."""
+    product = (
+        Product.objects.select_related("profile", "product_class__profile")
+        .filter(pk=pk, structure=Product.PARENT)
+        .first()
+    )
+    if product is None:
+        raise NotFoundError
+    return product
+
+
+def get_variant(pk: int) -> Product:
+    """A child Product (Variant) with profile and colour loaded, or NotFoundError."""
+    variant = (
+        Product.objects.select_related("variant_profile__colour", "parent__profile")
+        .filter(pk=pk, structure=Product.CHILD)
+        .first()
+    )
+    if variant is None:
+        raise NotFoundError
+    return variant
+
+
+def ref(model: type, pk: int | None, field: str):
+    """The row a request refers to by id (None stays None), else a 422 on `field`."""
+    if pk is None:
+        return None
+    obj = model.objects.filter(pk=pk).first()
+    if obj is None:
+        msg = "Kayıt bulunamadı."
+        raise _invalid(field, msg)
+    return obj
+
+
+def patch_product(actor: User, pk: int, patch: dict[str, object]) -> Product:
+    """Update a Product from an API patch: `*_id` keys are resolved to objects and
+    renamed; returns the Product reloaded with its new state.
+    """
+    catalog_policy.require_owner_fields_allowed(actor, patch)
+    product = get_product(pk)
+    changes = dict(patch)
+    if "category_id" in changes:
+        changes["category"] = ref(Category, changes.pop("category_id"), "category_id")
+    if "brand_id" in changes:
+        changes["brand"] = ref(Brand, changes.pop("brand_id"), "brand_id")
+    if "supplier_id" in changes:
+        changes["supplier"] = ref(Supplier, changes.pop("supplier_id"), "supplier_id")
+    update_product(actor, product, **changes)
+    return get_product(pk)
+
+
+def change_status(actor: User, pk: int, status: ProductStatus) -> Product:
+    """Publish, return to draft or archive; archiving is Owner-only."""
+    product = get_product(pk)
+    catalog_policy.require_status_change_allowed(actor, product, status)
+    set_status(product, status)
+    return get_product(pk)
 
 
 # --- brands, suppliers, colours, categories -----------------------------------
