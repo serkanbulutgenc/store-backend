@@ -119,7 +119,8 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_SSL = EMAIL_PORT == 465  # noqa: PLR2004
-EMAIL_USE_TLS = not EMAIL_USE_SSL
+# STARTTLS unless the relay is implicit-TLS; EMAIL_USE_TLS=False is for the local mail catcher.
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=not EMAIL_USE_SSL)
 ANYMAIL = {}
 
 
