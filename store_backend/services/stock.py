@@ -130,8 +130,13 @@ def restock(
         quantities[line.stockrecord_id] = (
             quantities.get(line.stockrecord_id, 0) + quantity
         )
-    records = StockRecord.objects.select_for_update().filter(pk__in=quantities)
-    for record in records.select_related("product__variant_profile").order_by("pk"):
+    # Lock the stock rows only (`of`): the joined variant profile is a nullable side.
+    records = (
+        StockRecord.objects.select_for_update(of=("self",))
+        .select_related("product__variant_profile")
+        .filter(pk__in=quantities)
+    )
+    for record in records.order_by("pk"):
         before = record.num_in_stock
         record.num_in_stock += quantities[record.pk]
         record.save(update_fields=["num_in_stock"])

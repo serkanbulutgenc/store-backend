@@ -271,9 +271,18 @@ def test_a_customer_requests_a_return_on_their_own_order(
 
 def test_staff_whole_order_return_flow_is_untouched(placed, staff):
     deliver(staff, placed["number"])
-    request_return(placed)
 
     response = act(staff, placed["number"], "request-return")
 
     assert response.status_code == HTTPStatus.OK, response.content
     assert response.json()["status"] == "return_requested"
+
+
+def test_staff_whole_order_return_waits_for_an_open_shopper_request(placed, staff):
+    deliver(staff, placed["number"])
+    request_return(placed)
+
+    response = act(staff, placed["number"], "request-return")
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json()["code"] == "open_return_request"
