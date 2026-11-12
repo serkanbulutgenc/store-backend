@@ -17,6 +17,7 @@ from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import SlugRedirect
 from store_backend.catalog.tests.conftest import add_ready_photo
 from store_backend.services import catalog
+from store_backend.services import stock
 
 pytestmark = pytest.mark.django_db
 
@@ -270,10 +271,10 @@ def test_old_price_must_exceed_shelf_price(giyim, elbise):
 def test_low_stock_threshold_default_and_override(product, kirmizi):
     v = catalog.create_variant(product, colour=kirmizi, size="M", stock=2)
     assert product.profile.low_stock_threshold == SECOND
-    assert catalog.is_low_stock(v)
+    assert stock.is_low(v.stockrecords.get(), product.profile.low_stock_threshold)
     product.profile.low_stock_threshold = 0
     product.profile.save()
-    assert not catalog.is_low_stock(v)
+    assert not stock.is_low(v.stockrecords.get(), 0)
 
 
 def test_kdv_rate_comes_from_class_unless_overridden(product):

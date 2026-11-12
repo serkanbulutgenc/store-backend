@@ -20,7 +20,6 @@ from django.db.models import Max
 from django.db.models import Min
 from django.db.models import OuterRef
 from django.db.models import Subquery
-from django.db.models import Value
 from django.db.models.functions import Coalesce
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import ProductCategory
@@ -35,6 +34,7 @@ from store_backend.catalog.models import SlugRedirect
 from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import search
+from store_backend.services import stock
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -71,8 +71,7 @@ def _variants(
 ) -> QuerySet[VariantProfile]:
     """Variants meeting the given variant filters (a blank filter is not applied)."""
     qs = VariantProfile.objects.annotate(
-        available=F("product__stockrecords__num_in_stock")
-        - Coalesce("product__stockrecords__num_allocated", Value(0)),
+        available=stock.available_sql("product__stockrecords__"),
     )
     if colours:
         qs = qs.filter(colour_id__in=colours)

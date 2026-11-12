@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 from django.db import transaction
 from oscar.apps.basket.models import Basket as BasketModel
 from oscar.apps.catalogue.models import Product
-from oscar.apps.partner.models import StockRecord
 
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
@@ -29,10 +28,7 @@ MAX_QUANTITY = 99
 
 
 def _available(variant: Product) -> int:
-    # Same record Oscar's strategy uses (UseFirstStockRecord): the first by id.
-    return stock.units(
-        StockRecord.objects.filter(product=variant).order_by("pk").first(),
-    )
+    return stock.units(stock.record_for(variant))
 
 
 def _lock(basket: Basket) -> None:
@@ -137,11 +133,7 @@ def view(basket: Basket) -> dict:
     )
     parent_ids = list({line.product.parent_id for line in lines})
     photos = browse.photos_by_product(parent_ids)
-    records: dict[int, StockRecord] = {}
-    for record in StockRecord.objects.filter(
-        product_id__in=[line.product_id for line in lines],
-    ).order_by("-pk"):
-        records[record.product_id] = record  # lowest pk wins, as in _available
+    records = stock.records_for([line.product_id for line in lines])
     out = []
     subtotal = pricing.ZERO
     for line in lines:

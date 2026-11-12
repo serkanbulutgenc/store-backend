@@ -287,6 +287,7 @@ def _variant_dict(v: Product) -> dict:
     record = records[0] if records else None
     on_hand = record.num_in_stock if record else 0
     allocated = (record.num_allocated or 0) if record else 0
+    threshold = v.parent.profile.low_stock_threshold
     return {
         "id": v.pk,
         "product_id": v.parent_id,
@@ -296,7 +297,7 @@ def _variant_dict(v: Product) -> dict:
         "size": vp.size,
         "price_override": vp.price_override,
         "stock": {"on_hand": on_hand, "allocated": allocated},
-        "is_low_stock": on_hand - allocated <= v.parent.profile.low_stock_threshold,
+        "is_low_stock": stock.is_low(record, threshold),
     }
 
 

@@ -26,8 +26,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from oscar.apps.order.models import Order
-from oscar.apps.partner.exceptions import InvalidStockAdjustment
-from oscar.apps.partner.models import StockRecord
 
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import ForbiddenError
@@ -37,6 +35,7 @@ from store_backend.services import audit
 from store_backend.services import checkout
 from store_backend.services import outbox
 from store_backend.services import pre_information
+from store_backend.services import stock
 from store_backend.services import tracking
 from store_backend.services.checkout import STATUS_NEW
 from store_backend.services.checkout import STATUS_PREPARING
@@ -217,37 +216,6 @@ def available_actions(order: Order) -> list[str]:
     return [action for action, rule in RULES.items() if rule.allows(order)]
 
 
-# --- stock --------------------------------------------------------------------
-
-
-def _locked_stock(order: Order) -> list[tuple[StockRecord, int]]:
-    """(stock record, quantity) for each line, records locked in primary-key order."""
-    quantities: dict[int, int] = {}
-    for line in order.lines.all():
-        if line.stockrecord_id is not None:
-            quantities[line.stockrecord_id] = (
-                quantities.get(line.stockrecord_id, 0) + line.quantity
-            )
-    records = StockRecord.objects.select_for_update().filter(pk__in=quantities)
-    return [(r, quantities[r.pk]) for r in records.order_by("pk")]
-
-
-def _release_stock(order: Order) -> None:
-    for record, quantity in _locked_stock(order):
-        record.cancel_allocation(quantity)
-
-
-def _consume_stock(order: Order) -> None:
-    for record, quantity in _locked_stock(order):
-        try:
-            record.consume_allocation(quantity)
-        except InvalidStockAdjustment:
-            raise ConflictError(
-                "Stok kaydı bu siparişi göndermek için yetersiz. Stoğu kontrol edin.",
-                code="stock_mismatch",
-            ) from None
-
-
 # --- payment ------------------------------------------------------------------
 
 
@@ -331,7 +299,7 @@ def _cancel_order(
 ) -> None:
     """Cancel and release the reserved stock; a person's cancel and the timed one."""
     before = _snapshot(order)
-    _release_stock(order)
+    stock.release(order)
     _apply(
         actor,
         order,
@@ -381,7 +349,7 @@ def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Ord
     if errors:
         raise UnprocessableError(fields=errors)
     before = _snapshot(order)
-    _consume_stock(order)
+    stock.consume(order)
     _apply(
         actor,
         order,

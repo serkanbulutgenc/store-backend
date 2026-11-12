@@ -411,13 +411,6 @@ def create_variant(  # noqa: PLR0913
     return variant
 
 
-def is_low_stock(variant: Product) -> bool:
-    """At or below the Product's low-stock threshold (counting reserved units)."""
-    record = variant.stockrecords.get()
-    threshold = variant.parent.profile.low_stock_threshold
-    return record.net_stock_level <= threshold
-
-
 # --- updates ---------------------------------------------------------------
 
 PRODUCT_FIELDS = frozenset(

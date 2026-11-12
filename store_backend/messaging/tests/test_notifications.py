@@ -288,7 +288,7 @@ def test_one_failing_order_does_not_stop_the_batch(shop, monkeypatch):
     first = place(shop[1]["M"])
     second = place(shop[1]["M"])
     placed = Order.objects.get(number=second).date_placed
-    real = order_ops._release_stock  # noqa: SLF001
+    real = stock.release
 
     def flaky(order):
         if order.number == first:
@@ -296,7 +296,7 @@ def test_one_failing_order_does_not_stop_the_batch(shop, monkeypatch):
             raise RuntimeError(msg)
         real(order)
 
-    monkeypatch.setattr(order_ops, "_release_stock", flaky)
+    monkeypatch.setattr(stock, "release", flaky)
     assert order_ops.cancel_unpaid_transfers(now=placed + timedelta(hours=49)) == 1
     assert Order.objects.get(number=first).status == "new"
     assert Order.objects.get(number=second).status == "cancelled"

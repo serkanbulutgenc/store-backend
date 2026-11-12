@@ -29,7 +29,6 @@ from oscar.apps.order.models import Order
 from oscar.apps.order.models import ShippingAddress
 from oscar.apps.order.models import Surcharge
 from oscar.apps.order.utils import OrderCreator
-from oscar.apps.partner.models import StockRecord
 from oscar.apps.payment.models import Source
 from oscar.apps.payment.models import SourceType
 from oscar.core.prices import Price
@@ -56,6 +55,7 @@ if TYPE_CHECKING:
     from decimal import Decimal
 
     from oscar.apps.basket.models import Line as BasketLine
+    from oscar.apps.partner.models import StockRecord
 
     from store_backend.shop.models import StoreSettings
     from store_backend.users.models import User
@@ -281,19 +281,6 @@ def _lock_basket(basket: BasketModel) -> list[BasketLine]:
     return lines
 
 
-def _locked_records(lines: list[BasketLine]) -> dict[int, StockRecord]:
-    """The first stock record of each Variant, locked in primary-key order."""
-    records: dict[int, StockRecord] = {}
-    locked = (
-        StockRecord.objects.select_for_update()
-        .filter(product_id__in=[line.product_id for line in lines])
-        .order_by("pk")
-    )
-    for record in locked:
-        records.setdefault(record.product_id, record)  # lowest pk, as the strategy
-    return records
-
-
 def _check_stock(lines: list[BasketLine], records: dict[int, StockRecord]) -> None:
     """Raise a 409 naming the first problem; nothing has been written yet."""
     problems: list[_Problem] = []
@@ -447,7 +434,10 @@ def _order_with_unique_number(creator: OrderCreator, **kwargs) -> Order:
 def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> Order:
     form = _validated(raw_form)
     lines = _lock_basket(basket)
-    _check_stock(lines, _locked_records(lines))
+    _check_stock(
+        lines,
+        stock.records_for([line.product_id for line in lines], lock=True),
+    )
 
     store = shop_settings.get()
     _check_legal_versions(form, store)
