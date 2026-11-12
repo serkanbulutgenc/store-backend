@@ -754,7 +754,7 @@ def _low_stock_dict(v: Product) -> dict:
         "sku": v.variant_profile.sku,
         "colour": v.variant_profile.colour.name,
         "size": v.variant_profile.size,
-        "on_hand": v.on_hand,
+        "on_hand": v.free,
         "threshold": v.parent.profile.low_stock_threshold,
     }
 

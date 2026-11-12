@@ -117,14 +117,17 @@ def _invalid(field: str, message: str) -> UnprocessableError:
     return UnprocessableError(message, fields={field: [message]})
 
 
-def _guard(order: Order, action: str) -> None:
-    """409 `illegal_transition` unless `action` is legal for this Order right now."""
+def _guard(order: Order, action: str, *, named: str | None = None) -> None:
+    """409 `illegal_transition` unless `action` is legal for this Order right now.
+
+    The error names the action as `named` (the audit action's name, for returns).
+    """
     if not RULES[action].allows(order):
         msg = f"Bu işlem “{order.status}” durumundaki sipariş için yapılamaz."
         raise ConflictError(
             msg,
             code="illegal_transition",
-            fields={"status": [action]},
+            fields={"status": [named or action]},
         )
 
 
@@ -399,7 +402,7 @@ def deliver(actor: User, number: str) -> Order:
 @transaction.atomic
 def request_return(actor: User, number: str) -> Order:
     order = locked(number)
-    _guard(order, "request_return")
+    _guard(order, "request_return", named=str(audit.Action.RETURN_REQUEST))
     _apply(
         actor,
         order,
@@ -415,7 +418,7 @@ def request_return(actor: User, number: str) -> Order:
 @transaction.atomic
 def mark_returned(actor: User, number: str) -> Order:
     order = locked(number)
-    _guard(order, "mark_returned")
+    _guard(order, "mark_returned", named=str(audit.Action.RETURN_RECEIVED))
     _apply(
         actor,
         order,

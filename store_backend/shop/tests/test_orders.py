@@ -233,6 +233,25 @@ def test_transitions_out_of_order_return_409(transfer, staff, action):
     assert audit_actions(transfer) == []
 
 
+@pytest.mark.parametrize(
+    ("action", "named"),
+    [
+        ("deliver", "deliver"),
+        ("request-return", "return_request"),
+        ("mark-returned", "return_received"),
+    ],
+)
+def test_an_illegal_transition_names_the_action_it_refused(
+    transfer,
+    staff,
+    action,
+    named,
+):
+    response = act(staff, transfer, action)
+
+    assert response.json()["fields"] == {"status": [named]}
+
+
 def test_a_shipped_or_cancelled_order_cannot_be_cancelled(cod, transfer, staff):
     act(staff, cod, "ship", {"carrier": "X", "tracking_number": "1"})
     act(staff, transfer, "cancel", {"reason": "Vazgeçti"})

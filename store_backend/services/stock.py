@@ -1,5 +1,6 @@
 # ruff: noqa: EM101, TRY003
-"""Stock: what is free to sell, which record counts, reservations and adjustments.
+"""Stock: what is free to sell, which record counts, reservations, adjustments and
+the low-stock digest.
 
 A Variant's stock is its first `StockRecord` by id (the record Oscar's strategy
 uses). Free to sell is on hand minus what open Orders have reserved (`num_allocated`).
@@ -52,9 +53,9 @@ def available_sql(prefix: str = "") -> Expression:
 
 def is_low(record: StockRecord | None, threshold: int) -> bool:
     """At or below the low-stock threshold, counting reserved units as gone."""
-    return (record.num_in_stock - (record.num_allocated or 0) if record else 0) <= (
-        threshold
-    )
+    if record is None:
+        return threshold >= 0
+    return record.num_in_stock - (record.num_allocated or 0) <= threshold
 
 
 def record_for(variant: Product) -> StockRecord | None:
@@ -124,7 +125,7 @@ def adjust(actor: User, variant: Product, *, delta: int, reason: str) -> StockRe
         raise _invalid("reason", "Bir neden yazın.")
     if delta == 0:
         raise _invalid("delta", "Değişiklik miktarı sıfır olamaz.")
-    record = StockRecord.objects.select_for_update().get(product=variant)
+    record = records_for([variant.pk], lock=True)[variant.pk]
     new_level = record.num_in_stock + delta
     if new_level < 0:
         raise _invalid("delta", "Stok sıfırın altına düşemez.")
@@ -148,11 +149,11 @@ def low_stock_variants() -> QuerySet[Product]:
         Product.objects.filter(structure=Product.CHILD)
         .exclude(parent__profile__status="archived")
         .annotate(
-            on_hand=available_sql("stockrecords__"),
+            free=available_sql("stockrecords__"),
         )
-        .filter(on_hand__lte=F("parent__profile__low_stock_threshold"))
+        .filter(free__lte=F("parent__profile__low_stock_threshold"))
         .select_related("variant_profile__colour", "parent__profile")
-        .order_by("on_hand", "variant_profile__sku")
+        .order_by("free", "variant_profile__sku")
     )
 
 
@@ -164,7 +165,7 @@ def send_low_stock_digest() -> int:
             "colour": v.variant_profile.colour.name,
             "size": v.variant_profile.size,
             "sku": v.variant_profile.sku,
-            "on_hand": v.on_hand,
+            "on_hand": v.free,
         }
         for v in low_stock_variants()
     ]
