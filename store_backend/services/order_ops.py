@@ -475,7 +475,7 @@ def refund(
     order = locked(number)
     _guard(order, "refund")
     source = source_of(order)
-    if amount <= ZERO or amount > source.amount_debited:
+    if amount <= ZERO or amount > source.amount_debited - source.amount_refunded:
         raise _invalid("amount", "İade tutarı ödenen tutarı aşamaz.")
     clean = clean_iban(iban) if method == RefundMethod.BANK_TRANSFER else ""
     before = _snapshot(order)

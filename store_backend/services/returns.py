@@ -14,15 +14,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from store_backend.api.errors import ConflictError
+from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.services import order_ops
+from store_backend.services import outbox
+from store_backend.services import pre_information
+from store_backend.services import stock
+from store_backend.services import tracking
+from store_backend.shop.models import RefundMethod
 from store_backend.shop.models import ReturnLine
 from store_backend.shop.models import ReturnReason
 from store_backend.shop.models import ReturnRequest
@@ -30,13 +37,19 @@ from store_backend.shop.models import ReturnStatus
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from decimal import Decimal
 
     from oscar.apps.order.models import Line
     from oscar.apps.order.models import Order
 
+    from store_backend.users.models import User
+
 RETURN_WINDOW = timedelta(days=14)
 RETURNABLE_STATUSES = (order_ops.STATUS_DELIVERED, order_ops.STATUS_COMPLETED)
 NOTE_MAX = 500
+MIN_REASON_LENGTH = 3
+# The shop pays the return carrier when the fault is the shop's.
+SHOP_PAYS_SHIPPING = (ReturnReason.DEFECTIVE, ReturnReason.WRONG_ITEM)
 
 
 @dataclass(frozen=True)
@@ -171,5 +184,243 @@ def request_return(
             "return_request": request.pk,
             "lines": {str(i.line_id): i.quantity for i in items},
         },
+    )
+    context = _email_context(request)
+    outbox.notify_shopper(order, "return_requested", **context)
+    outbox.notify_staff(
+        "staff_return_request",
+        {
+            "number": order.number,
+            "admin_url": outbox.admin_url(f"orders/{order.number}"),
+            **context,
+        },
+    )
+    return request
+
+
+# --- Staff review ----------------------------------------------------------------
+
+
+def _email_context(request: ReturnRequest) -> dict[str, Any]:
+    """What the return emails say about a request: reason, lines, who pays shipping."""
+    lines = request.lines.select_related(
+        "order_line__product__parent",
+        "order_line__product__variant_profile__colour",
+    ).order_by("pk")
+    return {
+        "reason_label": ReturnReason(request.reason).label,
+        "reject_reason": request.reject_reason,
+        "shop_pays_shipping": request.reason in SHOP_PAYS_SHIPPING,
+        "return_lines": [
+            {
+                "title": row.order_line.product.parent.title,
+                "colour": row.order_line.product.variant_profile.colour.name,
+                "size": row.order_line.product.variant_profile.size,
+                "quantity": row.quantity,
+            }
+            for row in lines
+        ],
+    }
+
+
+def _locked_request(order: Order, request_id: int) -> ReturnRequest:
+    request = (
+        ReturnRequest.objects.select_for_update()
+        .filter(pk=request_id, order=order)
+        .first()
+    )
+    if request is None:
+        raise NotFoundError
+    return request
+
+
+def _expect(request: ReturnRequest, *statuses: ReturnStatus, step: str) -> None:
+    if request.status not in statuses:
+        raise ConflictError(
+            f"Bu işlem “{ReturnStatus(request.status).label}” durumundaki iade "
+            "talebi için yapılamaz.",
+            code="illegal_transition",
+            fields={"status": [step]},
+        )
+
+
+def _step(  # noqa: PLR0913
+    actor: User,
+    order: Order,
+    request: ReturnRequest,
+    action: audit.Action,
+    *,
+    summary: str,
+    before: ReturnStatus,
+    extra: dict | None = None,
+) -> None:
+    audit.record(
+        actor,
+        action,
+        target=order,
+        summary=f"{order.number}: {summary}",
+        before={"return_request": request.pk, "status": str(before)},
+        after={"return_request": request.pk, "status": request.status, **(extra or {})},
+    )
+
+
+@transaction.atomic
+def approve(actor: User, number: str, request_id: int) -> ReturnRequest:
+    """Accept a request; the Shopper is told who pays the return shipping."""
+    order = order_ops.locked(number)
+    request = _locked_request(order, request_id)
+    _expect(request, ReturnStatus.REQUESTED, step="approve")
+    before = ReturnStatus(request.status)
+    request.status = ReturnStatus.APPROVED
+    request.decided_at = timezone.now()
+    request.save(update_fields=["status", "decided_at"])
+    shop_pays = request.reason in SHOP_PAYS_SHIPPING
+    _step(
+        actor,
+        order,
+        request,
+        audit.Action.RETURN_APPROVED,
+        summary=f"iade talebi #{request.pk} onaylandı",
+        before=before,
+        extra={"shop_pays_shipping": shop_pays},
+    )
+    outbox.notify_shopper(order, "return_approved", **_email_context(request))
+    return request
+
+
+@transaction.atomic
+def reject(actor: User, number: str, request_id: int, *, reason: str) -> ReturnRequest:
+    """Turn a request down. The reason goes to the Shopper; the quantities are freed."""
+    order = order_ops.locked(number)
+    request = _locked_request(order, request_id)
+    _expect(request, ReturnStatus.REQUESTED, step="reject")
+    reason = reason.strip()
+    if len(reason) < MIN_REASON_LENGTH:
+        raise UnprocessableError(
+            "Bir neden yazın.",
+            fields={"reason": ["Bir neden yazın."]},
+        )
+    before = ReturnStatus(request.status)
+    request.status = ReturnStatus.REJECTED
+    request.decided_at = timezone.now()
+    request.reject_reason = reason[:NOTE_MAX]
+    request.save(update_fields=["status", "decided_at", "reject_reason"])
+    _step(
+        actor,
+        order,
+        request,
+        audit.Action.RETURN_REJECTED,
+        summary=f"iade talebi #{request.pk} reddedildi ({request.reject_reason})",
+        before=before,
+        extra={"reason": request.reject_reason},
+    )
+    outbox.notify_shopper(order, "return_rejected", **_email_context(request))
+    return request
+
+
+@transaction.atomic
+def mark_received(
+    actor: User,
+    number: str,
+    request_id: int,
+    *,
+    restock: dict[int, bool],
+) -> ReturnRequest:
+    """The parcel arrived. `restock` says, per Order line in the request, whether the
+    units go back on the shelf (they may be damaged or worn)."""
+    order = order_ops.locked(number)
+    request = _locked_request(order, request_id)
+    _expect(request, ReturnStatus.APPROVED, step="receive")
+    rows = list(request.lines.select_related("order_line").order_by("pk"))
+    if set(restock) != {row.order_line_id for row in rows}:
+        msg = "Her iade satırı için stoğa dönüp dönmeyeceğini belirtin."
+        raise UnprocessableError(msg, fields={"lines": [msg]})
+    before = ReturnStatus(request.status)
+    back = [row for row in rows if restock[row.order_line_id]]
+    stock.restock((row.order_line, row.quantity) for row in back)
+    for row in back:
+        row.restocked = True
+        row.save(update_fields=["restocked"])
+    request.status = ReturnStatus.RECEIVED
+    request.received_at = timezone.now()
+    request.save(update_fields=["status", "received_at"])
+    _step(
+        actor,
+        order,
+        request,
+        audit.Action.RETURN_RECEIVED,
+        summary=f"iade talebi #{request.pk} teslim alındı",
+        before=before,
+        extra={"restocked": {str(r.order_line_id): r.quantity for r in back}},
+    )
+    outbox.notify_shopper(order, "return_received")
+    return request
+
+
+@transaction.atomic
+def refund(  # noqa: PLR0913
+    actor: User,
+    number: str,
+    request_id: int,
+    *,
+    amount: Decimal,
+    method: RefundMethod,
+    iban: str = "",
+) -> ReturnRequest:
+    """Record the money paid back for a received request (Owner only, as in phase 1).
+
+    Several requests on one Order can each be refunded; together they can never
+    exceed what the Shopper paid.
+    """
+    order = order_ops.locked(number)
+    request = _locked_request(order, request_id)
+    _expect(request, ReturnStatus.RECEIVED, step="refund")
+    source = order_ops.source_of(order)
+    refundable = source.amount_debited - source.amount_refunded
+    if amount <= 0 or amount > refundable:
+        msg = "İade tutarı ödenen tutarı aşamaz."
+        raise UnprocessableError(msg, fields={"amount": [msg]})
+    clean = order_ops.clean_iban(iban) if method == RefundMethod.BANK_TRANSFER else ""
+    before = ReturnStatus(request.status)
+    payment_before = tracking.payment_status_of(order)
+    source.refund(amount)
+    request.status = ReturnStatus.REFUNDED
+    request.refund_amount = amount
+    request.refund_method = method
+    request.refund_iban = clean
+    request.refunded_at = timezone.now()
+    request.save(
+        update_fields=[
+            "status",
+            "refund_amount",
+            "refund_method",
+            "refund_iban",
+            "refunded_at",
+        ],
+    )
+    audit.record(
+        actor,
+        audit.Action.REFUND,
+        target=order,
+        summary=f"{order.number}: iade talebi #{request.pk}, {amount} TL iade "
+        f"({method.label})",
+        before={
+            "return_request": request.pk,
+            "status": str(before),
+            "payment_status": payment_before,
+        },
+        after={
+            "return_request": request.pk,
+            "status": request.status,
+            "payment_status": tracking.payment_status_of(order),
+            "amount": str(amount),
+            "method": str(method),
+        },
+    )
+    outbox.notify_shopper(
+        order,
+        "refund_issued",
+        amount=pre_information.format_try(amount),
+        method=method.label,
     )
     return request

@@ -472,6 +472,17 @@ class ReturnRequest(models.Model):
     reason = models.CharField(max_length=20, choices=ReturnReason.choices)
     note = models.CharField(max_length=500, blank=True)
     requested_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    reject_reason = models.CharField(max_length=500, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+    refund_amount = _money(null=True, blank=True)
+    refund_method = models.CharField(
+        max_length=20,
+        choices=RefundMethod.choices,
+        blank=True,
+    )
+    refund_iban = models.CharField(max_length=34, blank=True)
+    refunded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-requested_at", "-pk")
@@ -492,6 +503,10 @@ class ReturnLine(models.Model):
         related_name="return_lines",
     )
     quantity = models.PositiveIntegerField()
+    restocked = models.BooleanField(
+        default=False,
+        help_text="Staff put the returned units back on the shelf.",
+    )
 
     class Meta:
         constraints = [

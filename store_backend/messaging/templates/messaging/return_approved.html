@@ -1,0 +1,8 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Sipariş no: {{ number }}</p>
+  <p>İade talebiniz onaylandı. Ürünleri bize geri gönderebilirsiniz.</p>
+  <ul>{% for line in return_lines %}<li>{{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}</li>{% endfor %}</ul>
+  <p>{% if shop_pays_shipping %}İade kargo ücretini mağazamız öder.{% else %}İade kargo ücretini siz ödersiniz.{% endif %}</p>
+  <p><a href="{{ tracking_url }}" style="color:#6b2d5c;">Sipariş durumu</a></p>
+{% endblock %}

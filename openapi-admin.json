@@ -1590,6 +1590,13 @@
             ],
             "title": "Refunded At"
           },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnAdminOut"
+            },
+            "title": "Returns",
+            "type": "array"
+          },
           "shipped_at": {
             "anyOf": [
               {
@@ -1668,7 +1675,8 @@
           "company_title",
           "audit",
           "messages",
-          "invoice"
+          "invoice",
+          "returns"
         ],
         "title": "OrderDetail",
         "type": "object"
@@ -3197,6 +3205,217 @@
           "cash"
         ],
         "title": "RefundMethod",
+        "type": "string"
+      },
+      "ReturnAdminOut": {
+        "properties": {
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnLineAdminOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReturnReason"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "refund_amount": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Amount"
+          },
+          "refund_method": {
+            "title": "Refund Method",
+            "type": "string"
+          },
+          "refunded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refunded At"
+          },
+          "reject_reason": {
+            "title": "Reject Reason",
+            "type": "string"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "shop_pays_shipping": {
+            "title": "Shop Pays Shipping",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReturnStatus"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "note",
+          "requested_at",
+          "shop_pays_shipping",
+          "reject_reason",
+          "decided_at",
+          "received_at",
+          "refund_amount",
+          "refund_method",
+          "refunded_at",
+          "lines"
+        ],
+        "title": "ReturnAdminOut",
+        "type": "object"
+      },
+      "ReturnLineAdminOut": {
+        "properties": {
+          "line_id": {
+            "title": "Line Id",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "restocked": {
+            "title": "Restocked",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "title",
+          "quantity",
+          "restocked"
+        ],
+        "title": "ReturnLineAdminOut",
+        "type": "object"
+      },
+      "ReturnReason": {
+        "enum": [
+          "wrong_size",
+          "changed_mind",
+          "defective",
+          "wrong_item",
+          "other"
+        ],
+        "title": "ReturnReason",
+        "type": "string"
+      },
+      "ReturnReceiveIn": {
+        "properties": {
+          "lines": {
+            "description": "One entry for every line of the request.",
+            "items": {
+              "$ref": "#/components/schemas/ReturnReceiveLineIn"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "ReturnReceiveIn",
+        "type": "object"
+      },
+      "ReturnReceiveLineIn": {
+        "properties": {
+          "line_id": {
+            "title": "Line Id",
+            "type": "integer"
+          },
+          "restock": {
+            "description": "Put the units back on the shelf.",
+            "title": "Restock",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "line_id",
+          "restock"
+        ],
+        "title": "ReturnReceiveLineIn",
+        "type": "object"
+      },
+      "ReturnRejectIn": {
+        "properties": {
+          "reason": {
+            "description": "Shown to the Shopper.",
+            "maxLength": 500,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReturnRejectIn",
+        "type": "object"
+      },
+      "ReturnStatus": {
+        "enum": [
+          "requested",
+          "approved",
+          "rejected",
+          "received",
+          "refunded"
+        ],
+        "title": "ReturnStatus",
         "type": "string"
       },
       "SettingsOut": {
@@ -5789,6 +6008,224 @@
           }
         ],
         "summary": "Request Return",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/returns/{return_id}/approve": {
+      "post": {
+        "description": "Accept a return request. The Shopper's email says who pays return shipping.",
+        "operationId": "orders_return_approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "return_id",
+            "required": true,
+            "schema": {
+              "title": "Return Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Approve Return",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/returns/{return_id}/receive": {
+      "post": {
+        "description": "The parcel arrived; per line, say whether the units go back on the shelf.",
+        "operationId": "orders_return_receive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "return_id",
+            "required": true,
+            "schema": {
+              "title": "Return Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnReceiveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Receive Return",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/returns/{return_id}/refund": {
+      "post": {
+        "description": "Owner-only. Record the money paid back for a received return request.",
+        "operationId": "orders_return_refund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "return_id",
+            "required": true,
+            "schema": {
+              "title": "Return Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRefundIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Refund Return",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/admin/orders/{number}/returns/{return_id}/reject": {
+      "post": {
+        "description": "Turn a return request down with a reason the Shopper will read.",
+        "operationId": "orders_return_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "return_id",
+            "required": true,
+            "schema": {
+              "title": "Return Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnRejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetail"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reject Return",
         "tags": [
           "orders"
         ]

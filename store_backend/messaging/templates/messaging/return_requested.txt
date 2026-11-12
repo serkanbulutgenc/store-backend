@@ -1,0 +1,10 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Sipariş no: {{ number }}
+
+İade talebinizi aldık. Ekibimiz inceleyip size e-posta ile dönecek.
+
+İade nedeni: {{ reason_label }}
+
+{% for line in return_lines %}- {{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}
+{% endfor %}
+Sipariş durumu: {{ tracking_url }}{% endblock %}

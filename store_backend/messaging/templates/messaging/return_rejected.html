@@ -1,0 +1,7 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Sipariş no: {{ number }}</p>
+  <p>İade talebiniz kabul edilemedi.</p>
+  <p>Neden: {{ reject_reason }}</p>
+  <p><a href="{{ tracking_url }}" style="color:#6b2d5c;">Sipariş durumu</a></p>
+{% endblock %}

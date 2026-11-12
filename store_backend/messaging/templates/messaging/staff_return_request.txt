@@ -1,0 +1,8 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Yeni iade talebi: {{ number }}
+
+İade nedeni: {{ reason_label }}
+
+{% for line in return_lines %}- {{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}
+{% endfor %}
+Panel: {{ admin_url }}{% endblock %}

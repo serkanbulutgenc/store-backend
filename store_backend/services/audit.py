@@ -28,6 +28,8 @@ class Action(StrEnum):
     SHIP = "ship"
     DELIVER = "deliver"
     RETURN_REQUEST = "return_request"
+    RETURN_APPROVED = "return_approved"
+    RETURN_REJECTED = "return_rejected"
     RETURN_RECEIVED = "return_received"
     ORDER_EDIT = "order_edit"
     MESSAGE_RESEND = "message_resend"

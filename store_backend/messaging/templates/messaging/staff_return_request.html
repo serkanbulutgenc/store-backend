@@ -1,0 +1,7 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Yeni iade talebi: {{ number }}</p>
+  <p>İade nedeni: {{ reason_label }}</p>
+  <ul>{% for line in return_lines %}<li>{{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}</li>{% endfor %}</ul>
+  <p><a href="{{ admin_url }}" style="color:#6b2d5c;">Panel</a></p>
+{% endblock %}

@@ -23,10 +23,13 @@ from store_backend.services import invoicing
 from store_backend.services import order_ops
 from store_backend.services import payment
 from store_backend.services import pricing
+from store_backend.services import returns
 from store_backend.services import tracking
 from store_backend.shop.models import InvoiceStatus
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import RefundMethod
+from store_backend.shop.models import ReturnReason
+from store_backend.shop.models import ReturnStatus
 from store_backend.staff.models import AuditEntry
 from store_backend.staff.permissions import Perm
 
@@ -127,6 +130,29 @@ class InvoiceOut(Schema):
     credit_note_date: dt.date | None
 
 
+class ReturnLineAdminOut(Schema):
+    line_id: int
+    title: str
+    quantity: int
+    restocked: bool
+
+
+class ReturnAdminOut(Schema):
+    id: int
+    status: ReturnStatus
+    reason: ReturnReason
+    note: str
+    requested_at: datetime
+    shop_pays_shipping: bool
+    reject_reason: str
+    decided_at: datetime | None
+    received_at: datetime | None
+    refund_amount: Money | None
+    refund_method: str
+    refunded_at: datetime | None
+    lines: list[ReturnLineAdminOut]
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -159,6 +185,7 @@ class OrderDetail(Schema):
     audit: list[OrderAuditOut]
     messages: list[OrderMessageOut]
     invoice: InvoiceOut
+    returns: list[ReturnAdminOut]
 
 
 def _shipping(order) -> dict | None:
@@ -238,6 +265,36 @@ def _invoice(order) -> dict:
     }
 
 
+def _returns(order) -> list[dict]:
+    requests = order.return_requests.prefetch_related("lines__order_line")
+    return [
+        {
+            "id": r.pk,
+            "status": r.status,
+            "reason": r.reason,
+            "note": r.note,
+            "requested_at": r.requested_at,
+            "shop_pays_shipping": r.reason in returns.SHOP_PAYS_SHIPPING,
+            "reject_reason": r.reject_reason,
+            "decided_at": r.decided_at,
+            "received_at": r.received_at,
+            "refund_amount": r.refund_amount,
+            "refund_method": r.refund_method,
+            "refunded_at": r.refunded_at,
+            "lines": [
+                {
+                    "line_id": row.order_line_id,
+                    "title": row.order_line.title,
+                    "quantity": row.quantity,
+                    "restocked": row.restocked,
+                }
+                for row in sorted(r.lines.all(), key=lambda row: row.pk)
+            ],
+        }
+        for r in requests
+    ]
+
+
 def order_detail(order) -> dict:
     record = order_ops.peek_record(order)
     lines = _lines(order)
@@ -274,11 +331,16 @@ def order_detail(order) -> dict:
         "audit": _audit(order),
         "messages": _messages(order),
         "invoice": _invoice(order),
+        "returns": _returns(order),
     }
 
 
 def _fresh(order) -> dict:
     return order_detail(order_ops.get(order.number))
+
+
+def _fresh_number(number: str) -> dict:
+    return order_detail(order_ops.get(number))
 
 
 # --- input --------------------------------------------------------------------
@@ -304,6 +366,21 @@ class OrderRefundIn(Schema):
     amount: Decimal = Amount
     method: RefundMethod
     iban: str = Field("", max_length=50, description="Required for bank transfer.")
+
+
+class ReturnRejectIn(Schema):
+    reason: str = Field(max_length=500, description="Shown to the Shopper.")
+
+
+class ReturnReceiveLineIn(Schema):
+    line_id: int
+    restock: bool = Field(description="Put the units back on the shelf.")
+
+
+class ReturnReceiveIn(Schema):
+    lines: list[ReturnReceiveLineIn] = Field(
+        description="One entry for every line of the request.",
+    )
 
 
 class OrderShippingPatch(Schema):
@@ -500,6 +577,66 @@ def refund(request, number: str, data: OrderRefundIn):
         iban=data.iban,
     )
     return _fresh(order)
+
+
+@router.post(
+    "/orders/{number}/returns/{return_id}/approve",
+    auth=requires(Perm.MANAGE_ORDERS),
+    operation_id="orders_return_approve",
+    response=OrderDetail,
+)
+def approve_return(request, number: str, return_id: int):
+    """Accept a return request. The Shopper's email says who pays return shipping."""
+    returns.approve(request.auth, number, return_id)
+    return _fresh_number(number)
+
+
+@router.post(
+    "/orders/{number}/returns/{return_id}/reject",
+    auth=requires(Perm.MANAGE_ORDERS),
+    operation_id="orders_return_reject",
+    response=OrderDetail,
+)
+def reject_return(request, number: str, return_id: int, data: ReturnRejectIn):
+    """Turn a return request down with a reason the Shopper will read."""
+    returns.reject(request.auth, number, return_id, reason=data.reason)
+    return _fresh_number(number)
+
+
+@router.post(
+    "/orders/{number}/returns/{return_id}/receive",
+    auth=requires(Perm.MANAGE_ORDERS),
+    operation_id="orders_return_receive",
+    response=OrderDetail,
+)
+def receive_return(request, number: str, return_id: int, data: ReturnReceiveIn):
+    """The parcel arrived; per line, say whether the units go back on the shelf."""
+    returns.mark_received(
+        request.auth,
+        number,
+        return_id,
+        restock={row.line_id: row.restock for row in data.lines},
+    )
+    return _fresh_number(number)
+
+
+@router.post(
+    "/orders/{number}/returns/{return_id}/refund",
+    auth=requires(Perm.RECORD_REFUNDS),
+    operation_id="orders_return_refund",
+    response=OrderDetail,
+)
+def refund_return(request, number: str, return_id: int, data: OrderRefundIn):
+    """Owner-only. Record the money paid back for a received return request."""
+    returns.refund(
+        request.auth,
+        number,
+        return_id,
+        amount=data.amount,
+        method=data.method,
+        iban=data.iban,
+    )
+    return _fresh_number(number)
 
 
 @router.patch(

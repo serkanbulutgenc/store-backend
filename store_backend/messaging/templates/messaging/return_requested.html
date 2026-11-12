@@ -1,0 +1,8 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>Sipariş no: {{ number }}</p>
+  <p>İade talebinizi aldık. Ekibimiz inceleyip size e-posta ile dönecek.</p>
+  <p>İade nedeni: {{ reason_label }}</p>
+  <ul>{% for line in return_lines %}<li>{{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}</li>{% endfor %}</ul>
+  <p><a href="{{ tracking_url }}" style="color:#6b2d5c;">Sipariş durumu</a></p>
+{% endblock %}

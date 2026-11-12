@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from django.db.models import Expression
     from django.db.models import QuerySet
+    from oscar.apps.order.models import Line
     from oscar.apps.order.models import Order
 
     from store_backend.users.models import User
@@ -107,6 +108,26 @@ def consume(order: Order) -> None:
                 "Stok kaydı bu siparişi göndermek için yetersiz. Stoğu kontrol edin.",
                 code="stock_mismatch",
             ) from None
+
+
+def restock(units: Iterable[tuple[Line, int]]) -> None:
+    """Put returned units back on the shelf: `(Order line, quantity)` pairs.
+
+    The units go back to the stock record the line was sold from, locked in
+    primary-key order like every other stock write.
+    """
+    quantities: dict[int, int] = {}
+    for line, quantity in units:
+        if line.stockrecord_id is None:
+            msg = f"{line.title} için stok kaydı bulunamadı."
+            raise ConflictError(msg, code="stock_record_missing")
+        quantities[line.stockrecord_id] = (
+            quantities.get(line.stockrecord_id, 0) + quantity
+        )
+    records = StockRecord.objects.select_for_update().filter(pk__in=quantities)
+    for record in records.order_by("pk"):
+        record.num_in_stock += quantities[record.pk]
+        record.save(update_fields=["num_in_stock"])
 
 
 def _invalid(field: str, message: str) -> UnprocessableError:
