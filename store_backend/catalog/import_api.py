@@ -80,7 +80,7 @@ def _out(plan: catalog_import.Plan) -> dict:
 def preview_import(request, file: File[UploadedFile]):
     """Dry run: what the CSV would create and update, and every row error.
     Writes nothing."""
-    return _out(catalog_import.preview(file.read()))
+    return _out(catalog_import.preview(file.read(catalog_import.MAX_BYTES + 1)))
 
 
 @router.post(
@@ -92,4 +92,10 @@ def preview_import(request, file: File[UploadedFile]):
 def confirm_import(request, file: File[UploadedFile]):
     """Apply the same CSV in one transaction: every row or none (422 names the
     row and column). Products are created as drafts."""
-    return _out(catalog_import.run(request.auth, file.name or "", file.read()))
+    return _out(
+        catalog_import.run(
+            request.auth,
+            file.name or "",
+            file.read(catalog_import.MAX_BYTES + 1),
+        ),
+    )

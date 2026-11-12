@@ -29,7 +29,6 @@ import re
 from dataclasses import dataclass
 from dataclasses import field
 from decimal import Decimal
-from decimal import InvalidOperation
 from typing import TYPE_CHECKING
 
 from django.db import transaction
@@ -169,28 +168,49 @@ def _read(raw: bytes) -> tuple[list[tuple[int, dict[str, str]]], list[RowError]]
         raise UnprocessableError(msg, fields={"file": [msg]})
     rows: list[tuple[int, dict[str, str]]] = []
     errors: list[RowError] = []
-    for number, cells in enumerate(reader, start=2):
-        if not any(c.strip() for c in cells):
-            continue
-        if len(rows) >= MAX_ROWS:
-            msg = f"En fazla {MAX_ROWS} satır yüklenebilir."
-            raise UnprocessableError(msg, fields={"file": [msg]})
-        if len(cells) > len(header):
-            errors.append(RowError(number, "", "Satırda fazladan sütun var."))
-            continue
-        values = dict(zip(header, (c.strip() for c in cells), strict=False))
-        rows.append((number, values))
+    try:
+        for number, cells in enumerate(reader, start=2):
+            if not any(c.strip() for c in cells):
+                continue
+            if len(rows) >= MAX_ROWS:
+                msg = f"En fazla {MAX_ROWS} satır yüklenebilir."
+                raise UnprocessableError(msg, fields={"file": [msg]})
+            if len(cells) > len(header):
+                errors.append(RowError(number, "", "Satırda fazladan sütun var."))
+                continue
+            values = dict(zip(header, (c.strip() for c in cells), strict=False))
+            rows.append((number, values))
+    except csv.Error:
+        msg = "Dosya geçerli bir CSV değil."
+        raise UnprocessableError(msg, fields={"file": [msg]}) from None
     return rows, errors
 
 
+NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)*")
+MAX_AMOUNT = Decimal(1_000_000)
+MAX_QUANTITY = 1_000_000
+
+
 def _decimal(text: str) -> Decimal | None:
+    """`199.90`, `199,90`, `1.299,90` or `1,299.90`, at most two decimals.
+    Ambiguous (`1.299`) or non-numeric text (`nan`, `1e9`) is None, not a guess."""
     cleaned = text.replace("₺", "").replace("TL", "").replace(" ", "")
-    if "," in cleaned:  # 1.299,90 -> 1299.90
-        cleaned = cleaned.replace(".", "").replace(",", ".")
-    try:
-        return Decimal(cleaned)
-    except InvalidOperation:
+    if not NUMBER_RE.fullmatch(cleaned):
         return None
+    marks = [c for c in cleaned if c in ".,"]
+    whole, frac = cleaned, ""
+    if marks:
+        head, _, tail = cleaned.replace(",", ".").rpartition(".")
+        thousands_only = len(marks) > 1 and len(set(marks)) == 1
+        groups = re.split(r"[.,]", cleaned)
+        if thousands_only and not all(len(g) == 3 for g in groups[1:]):  # noqa: PLR2004
+            return None
+        if len(tail) == 0 or (len(tail) == 3 and not thousands_only):  # noqa: PLR2004
+            return None
+        if not thousands_only:
+            whole, frac = head, tail
+    value = Decimal(f"{whole.replace('.', '').replace(',', '')}.{frac or '0'}")
+    return value.quantize(Decimal("0.01")) if value <= MAX_AMOUNT else None
 
 
 # --- lookups ---------------------------------------------------------------------
@@ -277,12 +297,17 @@ def _parse_line(  # noqa: C901
         bad("size", "Bu ürün sınıfı için geçersiz beden.")
     price = _decimal(get("shelf_price_try"))
     if price is None or price <= 0:
-        bad("shelf_price_try", "Geçerli bir fiyat girin.")
-    else:
-        price = price.quantize(Decimal("0.01"))
+        bad("shelf_price_try", "Geçerli bir fiyat girin (en fazla 2 ondalık).")
     quantity_text = get("quantity")
-    quantity = int(quantity_text) if quantity_text.isdecimal() else None
-    if quantity is None:
+    quantity = (
+        int(quantity_text)
+        if quantity_text.isascii()
+        and quantity_text.isdecimal()
+        and len(quantity_text) <= len(str(MAX_QUANTITY))
+        else None
+    )
+    if quantity is None or quantity > MAX_QUANTITY:
+        quantity = None
         bad("quantity", "Adet 0 veya daha büyük bir tam sayı olmalı.")
     kdv = None
     if get("kdv_class"):
@@ -335,6 +360,11 @@ def _group(lines: list[Line], errors: list[RowError]) -> list[ProductPlan]:
         plan.brand = plan.brand or ln.brand
         plan.supplier = plan.supplier or ln.supplier
         plan.lines.append(ln)
+    for plan in groups.values():
+        # The Product price is the most common line price (lowest on a tie), so row
+        # order does not decide it.
+        prices = [ln.price for ln in plan.lines]
+        plan.price = min(prices, key=lambda x: (-prices.count(x), x))
     return list(groups.values())
 
 
@@ -384,7 +414,7 @@ def _match_products(
     return by_product
 
 
-def _match_variants(
+def _match_variants(  # noqa: C901
     plans: list[ProductPlan],
     by_product: dict[int, dict[tuple[int, str], VariantProfile]],
     errors: list[RowError],
@@ -437,6 +467,9 @@ def _match_variants(
                 continue
             if match is not None:
                 ln.variant = match
+        if plan.product is not None and set(known) - seen:
+            # A partial file must not reprice the variants it leaves out.
+            plan.price = plan.product.profile.shelf_price
 
 
 def _classify(
@@ -451,6 +484,7 @@ def _classify(
         for ln in plan.lines:
             if (
                 profile is not None
+                and profile.shelf_price != plan.price
                 and profile.old_price is not None
                 and profile.old_price <= plan.price
             ):

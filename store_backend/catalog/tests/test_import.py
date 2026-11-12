@@ -262,3 +262,45 @@ def test_a_thousand_rows_preview_in_a_few_seconds(colours):
     assert plan.errors == []
     assert plan.counts()["variants_to_create"] == 1000  # noqa: PLR2004
     assert time.monotonic() - started < 5  # noqa: PLR2004
+
+
+@pytest.mark.parametrize(
+    "price",
+    ["nan", "inf", "1e999999", "1.299", "0.004", "99999999999"],
+)
+def test_odd_prices_are_row_errors_not_crashes(colours, price):
+    plan = catalog_import.preview(csv_bytes(f"E,K,,,Giyim,Siyah,M,,{price},,1,\n"))
+    assert [e.column for e in plan.errors] == ["shelf_price_try"]
+
+
+@pytest.mark.parametrize("quantity", ["9" * 5000, "nan", "1000001", "１２"])
+def test_odd_quantities_are_row_errors_not_crashes(colours, quantity):
+    plan = catalog_import.preview(csv_bytes(f"E,K,,,Giyim,Siyah,M,,10,,{quantity},\n"))
+    assert [e.column for e in plan.errors] == ["quantity"]
+
+
+def test_kdv_nan_is_a_row_error(colours):
+    plan = catalog_import.preview(csv_bytes("E,K,,,Giyim,Siyah,M,,10,nan,1,\n"))
+    assert [e.column for e in plan.errors] == ["kdv_class"]
+
+
+def test_unparseable_csv_is_422_not_500(colours):
+    with pytest.raises(UnprocessableError):
+        catalog_import.preview(csv_bytes('E,"' + "x" * 200_000 + '",,,,,,,,,,\n'))
+
+
+def test_a_partial_file_does_not_reprice_variants_it_leaves_out(owner, colours):
+    catalog_import.run(owner, "a.csv", csv_bytes())  # Elbise 199.90, red 219.90
+    only_red = "Elbise,Kadın > Elbise,,,Giyim,Kırmızı,M,,229.90,,2,\n"
+    catalog_import.run(owner, "b.csv", csv_bytes(only_red))
+    product = Product.objects.get(structure=Product.PARENT)
+    assert product.profile.shelf_price == Decimal("199.90")
+    red = VariantProfile.objects.get(colour__name="Kırmızı")
+    assert red.price_override == Decimal("229.90")
+
+
+def test_product_price_does_not_depend_on_row_order(colours):
+    rows = ROWS.splitlines()
+    flipped = "\n".join(reversed(rows)) + "\n"
+    first = catalog_import.preview(csv_bytes(ROWS)).products[0].price
+    assert catalog_import.preview(csv_bytes(flipped)).products[0].price == first
