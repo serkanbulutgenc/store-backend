@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 
 from allauth.mfa.models import Authenticator
+from django.conf import settings
 
 from store_backend.staff.permissions import APP_LABEL
 from store_backend.staff.permissions import OWNER_GROUP
@@ -36,8 +37,11 @@ def permissions(user: User) -> list[str]:
 
 
 def mfa_required(user: User) -> bool:
-    """TOTP is required for the Owner, optional for Staff."""
-    return role(user) == "owner"
+    """TOTP is required for the Owner, optional for Staff.
+
+    `OWNER_MFA_REQUIRED=False` is for the local development stack only.
+    """
+    return settings.OWNER_MFA_REQUIRED and role(user) == "owner"
 
 
 def mfa_enrolled(user: User) -> bool:

@@ -89,6 +89,8 @@ DJANGO_APPS = [
     "django.contrib.postgres",
     "django.forms",
 ]
+# Owners must enrol TOTP before the Dashboard API works. Only the local dev stack turns this off.
+OWNER_MFA_REQUIRED = env.bool("OWNER_MFA_REQUIRED", default=True)
 THIRD_PARTY_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
