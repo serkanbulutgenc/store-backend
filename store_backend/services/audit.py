@@ -37,6 +37,7 @@ class Action(StrEnum):
     PHOTO_EDIT = "photo_edit"
     INVOICE_EDIT = "invoice_edit"
     EXPORT_RUN = "export_run"
+    CATALOGUE_IMPORT = "catalogue_import"
     ACCOUNT_DELETION = "account_deletion"
 
 

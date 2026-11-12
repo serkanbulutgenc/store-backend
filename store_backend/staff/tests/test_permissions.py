@@ -39,6 +39,7 @@ def test_owner_only_permissions_match_the_prd(db):
         "MANAGE_ACCOUNT_DELETIONS",
         "EXPORT_ACCOUNTANT_CSV",
         "VIEW_AUDIT_LOG",
+        "IMPORT_CATALOGUE",
     }
 
 

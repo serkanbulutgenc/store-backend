@@ -356,6 +356,152 @@
         "title": "ImageOrderIn",
         "type": "object"
       },
+      "ImportCountsOut": {
+        "properties": {
+          "products_to_create": {
+            "title": "Products To Create",
+            "type": "integer"
+          },
+          "products_to_update": {
+            "title": "Products To Update",
+            "type": "integer"
+          },
+          "variants_to_create": {
+            "title": "Variants To Create",
+            "type": "integer"
+          },
+          "variants_to_update": {
+            "title": "Variants To Update",
+            "type": "integer"
+          },
+          "variants_unchanged": {
+            "title": "Variants Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "products_to_create",
+          "products_to_update",
+          "variants_to_create",
+          "variants_to_update",
+          "variants_unchanged"
+        ],
+        "title": "ImportCountsOut",
+        "type": "object"
+      },
+      "ImportErrorOut": {
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "message"
+        ],
+        "title": "ImportErrorOut",
+        "type": "object"
+      },
+      "ImportPlanOut": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/ImportCountsOut"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ImportErrorOut"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "new_brands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "New Brands",
+            "type": "array"
+          },
+          "new_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "New Categories",
+            "type": "array"
+          },
+          "new_suppliers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "New Suppliers",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ImportRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counts",
+          "rows",
+          "errors",
+          "new_brands",
+          "new_suppliers",
+          "new_categories"
+        ],
+        "title": "ImportPlanOut",
+        "type": "object"
+      },
+      "ImportRowOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "product": {
+            "title": "Product",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "action",
+          "product",
+          "colour",
+          "size",
+          "sku"
+        ],
+        "title": "ImportRowOut",
+        "type": "object"
+      },
       "Input": {
         "properties": {
           "page": {
@@ -3583,6 +3729,104 @@
           }
         ],
         "summary": "Update Brand",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/catalog/import/confirm": {
+      "post": {
+        "description": "Apply the same CSV in one transaction: every row or none (422 names the\nrow and column). Products are created as drafts.",
+        "operationId": "catalog_import_confirm",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPlanOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Confirm Import",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/catalog/import/preview": {
+      "post": {
+        "description": "Dry run: what the CSV would create and update, and every row error.\nWrites nothing.",
+        "operationId": "catalog_import_preview",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPlanOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Preview Import",
         "tags": [
           "catalog"
         ]

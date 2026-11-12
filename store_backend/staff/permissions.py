@@ -44,6 +44,7 @@ class Perm(StrEnum):
     MANAGE_ACCOUNT_DELETIONS = "manage_account_deletions"
     EXPORT_ACCOUNTANT_CSV = "export_accountant_csv"
     VIEW_AUDIT_LOG = "view_audit_log"
+    IMPORT_CATALOGUE = "import_catalogue"
 
     @property
     def label(self) -> str:
@@ -68,6 +69,7 @@ OWNER_ONLY: frozenset[Perm] = frozenset(
         Perm.MANAGE_ACCOUNT_DELETIONS,
         Perm.EXPORT_ACCOUNTANT_CSV,
         Perm.VIEW_AUDIT_LOG,
+        Perm.IMPORT_CATALOGUE,
     },
 )
 
