@@ -281,6 +281,15 @@ def kdv_rate_for(product: Product) -> Decimal:
     return parent.product_class.profile.default_kdv_rate
 
 
+def desi_for(product: Product) -> int:
+    """Carrier size of one item: the Product's own desi or its class default."""
+    parent = product.parent or product
+    override = parent.profile.desi
+    return (
+        override if override is not None else parent.product_class.profile.default_desi
+    )
+
+
 def shelf_price_for(variant: Product) -> Decimal:
     """KDV-inclusive price: the Variant's override, else the Product's shelf price."""
     override = variant.variant_profile.price_override

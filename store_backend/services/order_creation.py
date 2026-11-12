@@ -47,7 +47,7 @@ NUMBER_ATTEMPTS = 5
 
 
 class _ShippingMethod:
-    """The flat fee as Oscar's `OrderCreator` wants to see a shipping method."""
+    """The shipping fee as Oscar's `OrderCreator` wants to see a shipping method."""
 
     name = SHIPPING_NAME
     code = SHIPPING_CODE

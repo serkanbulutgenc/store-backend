@@ -13,7 +13,7 @@ from store_backend.shop.models import PaymentMethod
 from store_backend.shop.tests.conftest import Guest
 from store_backend.shop.tests.test_checkout import fill
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("computed_shipping")]
 
 WRITES = ("INSERT", "UPDATE", "DELETE")
 
@@ -69,3 +69,80 @@ def test_quote_carries_the_settings_it_was_priced_with(lines):
     store = shop_settings.get()
 
     assert quoting.quote(lines, PaymentMethod.COD, store).store is store
+
+
+def one_item(lines, desi):
+    """A single-item basket (100.00) whose product weighs `desi`."""
+    line = lines[0]
+    line.quantity = 1
+    profile = line.product.parent.profile
+    profile.desi = desi
+    profile.save()
+    return [line]
+
+
+def zone_4_price(lines, desi, province="Trabzon", **store_changes):
+    store = shop_settings.get()
+    for key, value in store_changes.items():
+        setattr(store, key, value)
+    return quoting.quote(
+        one_item(lines, desi),
+        PaymentMethod.BANK_TRANSFER,
+        store,
+        province=province,
+    )
+
+
+def test_zone_4_seven_desi_pays_the_cheapest_6_to_10_band(lines):
+    q = zone_4_price(lines, 7)
+
+    assert q.fees.shipping.total_incl == Decimal("125.00")  # PTT, zone 4, 6-10
+    assert q.fees.shipping.total_excl + q.fees.shipping.total_kdv == Decimal("125.00")
+    assert q.fees.shipping.kdv_rate == shop_settings.get().fee_kdv_rate
+
+
+def test_order_desi_sums_desi_times_quantity(lines):
+    line = one_item(lines, 3)[0]
+    line.quantity = 4  # 12 desi: PTT zone 4, 125 + 2 * 10
+
+    q = quoting.quote(
+        [line],
+        PaymentMethod.BANK_TRANSFER,
+        shop_settings.get(),
+        province="Trabzon",
+    )
+
+    assert q.fees.shipping.total_incl == Decimal("145.00")
+
+
+def test_class_default_desi_applies_without_an_override(lines):
+    line = lines[0]
+    line.quantity = 1
+    line.product.parent.product_class.profile.default_desi = 4
+
+    q = quoting.quote(
+        [line],
+        PaymentMethod.BANK_TRANSFER,
+        shop_settings.get(),
+        province="Mersin",
+    )
+
+    assert q.fees.shipping.total_incl == Decimal("55.00")  # PTT, zone 1, 3-5
+
+
+def test_free_shipping_threshold_still_wins(lines):
+    q = zone_4_price(lines, 7, free_shipping_threshold=Decimal("100.00"))
+
+    assert q.fees.shipping.total_incl == 0
+
+
+def test_unknown_province_falls_back_to_the_flat_fee(lines):
+    q = zone_4_price(lines, 7, province="Atlantis")
+
+    assert q.fees.shipping.total_incl == shop_settings.get().shipping_fee
+
+
+def test_no_province_falls_back_to_the_flat_fee(lines):
+    q = zone_4_price(lines, 7, province=None)
+
+    assert q.fees.shipping.total_incl == shop_settings.get().shipping_fee

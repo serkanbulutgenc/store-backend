@@ -249,5 +249,10 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
     )
     store = shop_settings.get()
     _check_legal_versions(form, store)
-    quote = quoting.quote(lines, form.payment_method, store)
+    quote = quoting.quote(
+        lines,
+        form.payment_method,
+        store,
+        province=form.shipping_address.il,
+    )
     return place(basket, quote, form, caller)

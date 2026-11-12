@@ -11,7 +11,7 @@ from store_backend.shop.models import ProvinceZone
 from store_backend.shop.models import RateRow
 from store_backend.shop.models import Zone
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("computed_shipping")]
 
 D = Decimal
 BAND_2, BAND_5, BAND_10 = 2, 5, 10

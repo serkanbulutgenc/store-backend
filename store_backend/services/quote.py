@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from store_backend.services import catalog
 from store_backend.services import pricing
+from store_backend.services import shipping
 from store_backend.shop.models import PaymentMethod
 
 if TYPE_CHECKING:
@@ -60,12 +61,31 @@ def _snapshots(lines: list[BasketLine]) -> dict[int, pricing.LineSnapshot]:
     }
 
 
-def _fees(items_total: Decimal, method: PaymentMethod, store: StoreSettings) -> Fees:
-    rate = store.fee_kdv_rate
+def _shipping_amount(
+    lines: list[BasketLine],
+    items_total: Decimal,
+    store: StoreSettings,
+    province: str | None,
+) -> Decimal:
+    """Free above the threshold, else the cheapest carrier, else the flat fee."""
     threshold = store.free_shipping_threshold
-    free = threshold is not None and items_total >= threshold
-    shipping = pricing.fee_line(
-        pricing.ZERO if free else store.shipping_fee,
+    if threshold is not None and items_total >= threshold:
+        return pricing.ZERO
+    desi = sum(catalog.desi_for(line.product) * line.quantity for line in lines)
+    computed = shipping.fee_for(desi, province)
+    return computed.fee if computed else store.shipping_fee
+
+
+def _fees(
+    lines: list[BasketLine],
+    items_total: Decimal,
+    method: PaymentMethod,
+    store: StoreSettings,
+    province: str | None,
+) -> Fees:
+    rate = store.fee_kdv_rate
+    shipping_fee = pricing.fee_line(
+        _shipping_amount(lines, items_total, store, province),
         kdv_rate=rate,
     )
     cod = (
@@ -73,15 +93,25 @@ def _fees(items_total: Decimal, method: PaymentMethod, store: StoreSettings) -> 
         if method == PaymentMethod.COD
         else None
     )
-    return Fees(shipping=shipping, cod=cod)
+    return Fees(shipping=shipping_fee, cod=cod)
 
 
 def quote(
     lines: list[BasketLine],
     method: PaymentMethod,
     store: StoreSettings,
+    province: str | None = None,
 ) -> Quote:
-    """Price `lines` for a payment method under `store`'s fees. No writes."""
+    """Price `lines` for a payment method under `store`'s fees. No writes.
+
+    `province` is the destination il; without a known one (or desi) shipping is the
+    flat Settings fee.
+    """
     snapshots = _snapshots(lines)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
-    return Quote(lines, snapshots, _fees(items_total, method, store), store)
+    return Quote(
+        lines,
+        snapshots,
+        _fees(lines, items_total, method, store, province),
+        store,
+    )

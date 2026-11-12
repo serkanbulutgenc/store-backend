@@ -168,6 +168,46 @@ def test_free_shipping_at_the_threshold(guest, owner):
     assert body["total"] == "200.00"
 
 
+def ship_to(il):
+    body = payload()
+    body["shipping_address"]["il"] = il
+    return body
+
+
+def test_the_order_is_charged_the_cheapest_carrier_for_its_province(
+    guest,
+    owner,
+    computed_shipping,
+):
+    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+
+    body = guest.post(CHECKOUT, ship_to("TRABZON")).json()
+
+    # 2 x Giyim (2 desi) = 4 desi: PTT, zone 4, 3-5 desi band.
+    assert body["shipping_fee"] == "95.00"
+    assert body["total"] == "295.00"
+    order = Order.objects.get(number=body["number"])
+    assert order.shipping_incl_tax == Decimal("95.00")
+    fee = order.fee_snapshots.get(kind="shipping")
+    assert fee.total_excl + fee.total_kdv == Decimal("95.00")
+
+
+def test_an_unknown_province_is_charged_the_flat_fee(guest, owner, computed_shipping):
+    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+
+    body = guest.post(CHECKOUT, ship_to("Atlantis")).json()
+
+    assert body["shipping_fee"] == "30.00"
+
+
+def test_free_shipping_beats_the_computed_fee(guest, owner, computed_shipping):
+    set_fees(owner, free_shipping_threshold="200.00")
+
+    body = guest.post(CHECKOUT, ship_to("Trabzon")).json()
+
+    assert body["shipping_fee"] == "0.00"
+
+
 def test_a_signed_in_customer_owns_the_order(shop, customer, log_in):
     from django.test import Client  # noqa: PLC0415
 

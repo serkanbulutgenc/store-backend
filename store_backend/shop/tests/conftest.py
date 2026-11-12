@@ -5,6 +5,7 @@ from oscar.apps.catalogue.models import ProductClass
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import catalog
+from store_backend.shop.models import RateRow
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
 from store_backend.staff.tests.conftest import owner  # noqa: F401
 from store_backend.staff.tests.conftest import staff_user  # noqa: F401
@@ -72,3 +73,15 @@ def shop():
         status=ProductStatus.PUBLISHED,
     )
     return product, variants
+
+
+@pytest.fixture
+def computed_shipping():
+    """Ask for this to keep the seeded carrier rates; see `flat_shipping`."""
+
+
+@pytest.fixture(autouse=True)
+def flat_shipping(request):
+    """Most tests price shipping from the flat Settings fee; with no rates, it is."""
+    if "computed_shipping" not in request.fixturenames:
+        RateRow.objects.all().delete()
