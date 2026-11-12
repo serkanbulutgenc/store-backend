@@ -159,8 +159,16 @@ def notify_shopper(order: Order, template: str, **extra: Any) -> None:
 
 
 def notify_staff(template: str, context: dict[str, Any]) -> None:
-    """Email every recipient configured in Store settings (not logged on an Order)."""
-    for to in shop_settings.get().notification_emails:
+    """Email every recipient configured in Store settings (not logged on an Order).
+
+    With no recipients configured the Owners get it, so a new Order or return request
+    is never dropped silently.
+    """
+    recipients = shop_settings.get().notification_emails
+    if not recipients:
+        notify_owners(template, context)
+        return
+    for to in recipients:
         _safely(
             f"{template} to staff",
             lambda to=to: enqueue(template, to=to, context=context),

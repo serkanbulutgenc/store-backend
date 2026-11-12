@@ -119,6 +119,14 @@ def test_staff_get_one_email_per_new_order(shop, owner):
     assert f"/admin/orders/{number}" in staff_mail[0].body_text
 
 
+def test_with_no_recipients_configured_the_owners_get_the_staff_email(shop, owner):
+    number = place(shop[1]["M"])
+
+    staff_mail = Message.objects.filter(template="staff_new_order")
+    assert [m.recipient for m in staff_mail] == [owner.email]
+    assert number in staff_mail[0].subject
+
+
 def test_low_stock_digest_goes_to_the_recipients_only_when_something_is_low(
     shop,
     owner,

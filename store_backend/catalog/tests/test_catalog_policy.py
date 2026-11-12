@@ -119,3 +119,10 @@ def test_change_status_enforces_archive_policy(owner, staff, product):
         catalog.change_status(staff, product.pk, ProductStatus.ARCHIVED)
     archived = catalog.change_status(owner, product.pk, ProductStatus.ARCHIVED)
     assert archived.profile.status == ProductStatus.ARCHIVED
+
+
+def test_only_the_owner_may_send_a_product_desi(owner, staff):
+    catalog_policy.require_owner_fields_allowed(owner, {"desi": 3})
+    with pytest.raises(ForbiddenError):
+        catalog_policy.require_owner_fields_allowed(staff, {"desi": 3})
+    catalog_policy.require_owner_fields_allowed(staff, {"title": "Yeni ad"})

@@ -198,6 +198,10 @@ def test_receiving_with_restock_puts_the_units_back_on_the_shelf(
     assert response.json()["returns"][0]["lines"][0]["restocked"] is True
     assert response.json()["status"] == "delivered"  # the Order is untouched
     assert audited(audit.Action.RETURN_RECEIVED, delivered).count() == 1
+    assert AuditEntry.objects.filter(
+        action=audit.Action.STOCK_ADJUSTMENT,
+        summary__contains="iade talebi",
+    ).exists()  # a restock shows in the stock history like any adjustment
     assert len(mails("return_received")) == 1
 
 
@@ -372,3 +376,12 @@ def test_home_counts_only_requests_waiting_for_a_decision(delivered, staff):
     home = staff.get("/api/admin/home").json()
 
     assert home["open_returns"] == {"count": 0, "rows": []}
+
+
+def test_staff_cannot_mark_the_order_returned_while_a_request_is_open(delivered, staff):
+    filed(delivered)
+
+    response = staff.post(f"{ORDERS}/{delivered['number']}/request_return", {})
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json()["code"] == "open_return_request"

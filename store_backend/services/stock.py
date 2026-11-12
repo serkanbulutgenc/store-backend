@@ -110,11 +110,17 @@ def consume(order: Order) -> None:
             ) from None
 
 
-def restock(units: Iterable[tuple[Line, int]]) -> None:
+def restock(
+    actor: User,
+    units: Iterable[tuple[Line, int]],
+    *,
+    reason: str,
+) -> None:
     """Put returned units back on the shelf: `(Order line, quantity)` pairs.
 
     The units go back to the stock record the line was sold from, locked in
-    primary-key order like every other stock write.
+    primary-key order like every other stock write. Each record gets a stock
+    adjustment entry, so the stock history shows returns like any other change.
     """
     quantities: dict[int, int] = {}
     for line, quantity in units:
@@ -125,9 +131,21 @@ def restock(units: Iterable[tuple[Line, int]]) -> None:
             quantities.get(line.stockrecord_id, 0) + quantity
         )
     records = StockRecord.objects.select_for_update().filter(pk__in=quantities)
-    for record in records.order_by("pk"):
+    for record in records.select_related("product__variant_profile").order_by("pk"):
+        before = record.num_in_stock
         record.num_in_stock += quantities[record.pk]
         record.save(update_fields=["num_in_stock"])
+        audit.record(
+            actor,
+            audit.Action.STOCK_ADJUSTMENT,
+            target=record.product,
+            summary=(
+                f"{record.product.variant_profile.sku}: "
+                f"{quantities[record.pk]:+d} ({reason})"
+            ),
+            before={"num_in_stock": before},
+            after={"num_in_stock": record.num_in_stock, "reason": reason},
+        )
 
 
 def _invalid(field: str, message: str) -> UnprocessableError:

@@ -94,28 +94,6 @@ class TrackingOut(Schema):
     returns: list[ReturnRequestOut]
 
 
-def _returns_of(order) -> list[dict]:
-    requests = order.return_requests.prefetch_related("lines__order_line")
-    return [
-        {
-            "id": request.pk,
-            "status": request.status,
-            "reason": request.reason,
-            "note": request.note,
-            "requested_at": request.requested_at,
-            "lines": [
-                {
-                    "line_id": line.order_line_id,
-                    "title": line.order_line.title,
-                    "quantity": line.quantity,
-                }
-                for line in request.lines.all()
-            ],
-        }
-        for request in requests
-    ]
-
-
 def order_out(order) -> dict:
     summary = placed_summary(order)
     carrier, tracking_number = tracking.shipment_of(order)
@@ -132,7 +110,7 @@ def order_out(order) -> dict:
         "tracking_number": tracking_number,
         "can_cancel": order_ops.RULES["cancel"].allows(order),
         "return_deadline": returns.deadline(order),
-        "returns": _returns_of(order),
+        "returns": returns.request_views(order),
     }
 
 

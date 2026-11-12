@@ -358,7 +358,11 @@ def mark_received(
         raise UnprocessableError(msg, fields={"lines": [msg]})
     before = ReturnStatus(request.status)
     back = [row for row in rows if restock[row.order_line_id]]
-    stock.restock((row.order_line, row.quantity) for row in back)
+    stock.restock(
+        actor,
+        ((row.order_line, row.quantity) for row in back),
+        reason=f"iade talebi #{request.pk}, {order.number}",
+    )
     for row in back:
         row.restocked = True
         row.save(update_fields=["restocked"])
@@ -445,3 +449,39 @@ def refund(  # noqa: PLR0913
         method=method.label,
     )
     return request
+
+
+def request_views(order: Order, *, staff: bool = False) -> list[dict]:
+    """The Order's return requests as response dicts. The Shopper sees what they asked
+    for and its status; Staff also see the decision, receipt and refund details."""
+    requests = order.return_requests.prefetch_related("lines__order_line")
+    out = []
+    for r in requests:
+        row: dict[str, Any] = {
+            "id": r.pk,
+            "status": r.status,
+            "reason": r.reason,
+            "note": r.note,
+            "requested_at": r.requested_at,
+            "lines": [
+                {
+                    "line_id": line.order_line_id,
+                    "title": line.order_line.title,
+                    "quantity": line.quantity,
+                    **({"restocked": line.restocked} if staff else {}),
+                }
+                for line in sorted(r.lines.all(), key=lambda line: line.pk)
+            ],
+        }
+        if staff:
+            row |= {
+                "shop_pays_shipping": r.reason in SHOP_PAYS_SHIPPING,
+                "reject_reason": r.reject_reason,
+                "decided_at": r.decided_at,
+                "received_at": r.received_at,
+                "refund_amount": r.refund_amount,
+                "refund_method": r.refund_method,
+                "refunded_at": r.refunded_at,
+            }
+        out.append(row)
+    return out

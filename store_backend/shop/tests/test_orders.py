@@ -168,13 +168,13 @@ def test_ship_consumes_stock_and_shows_on_tracking(cod, shop, staff):
         staff,
         cod,
         "ship",
-        {"carrier": "Yurtiçi Kargo", "tracking_number": "YK123"},
+        {"carrier": "Yurtiçi", "tracking_number": "YK123"},
     )
 
     assert response.status_code == HTTPStatus.OK, response.content
     body = response.json()
     assert body["status"] == "shipped"
-    assert (body["carrier"], body["tracking_number"]) == ("Yurtiçi Kargo", "YK123")
+    assert (body["carrier"], body["tracking_number"]) == ("Yurtiçi", "YK123")
     record = stock(shop[1]["M"])
     assert (record.num_allocated, record.num_in_stock) == (0, 3)
     assert audit_actions(cod) == ["ship"]
@@ -187,7 +187,7 @@ def test_ship_consumes_stock_and_shows_on_tracking(cod, shop, staff):
         )
         .json()
     )
-    assert public["carrier"] == "Yurtiçi Kargo"
+    assert public["carrier"] == "Yurtiçi"
     assert public["tracking_number"] == "YK123"
 
 
@@ -199,8 +199,27 @@ def test_ship_needs_carrier_and_tracking_number(cod, staff):
     assert order_state(cod)[0] == "preparing"
 
 
+def test_ship_only_with_a_carrier_from_the_list(cod, staff):
+    response = act(staff, cod, "ship", {"carrier": "X", "tracking_number": "1"})
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert set(response.json()["fields"]) == {"carrier"}
+    assert order_state(cod)[0] == "preparing"
+
+    # Any spelling of a listed name is stored under the listed name.
+    ok = act(staff, cod, "ship", {"carrier": " aras ", "tracking_number": "1"})
+    assert ok.json()["carrier"] == "Aras"
+
+
+def test_staff_can_list_the_carriers(staff):
+    response = staff.get(f"{ORDERS.rsplit('/', 1)[0]}/carriers")
+
+    assert response.status_code == HTTPStatus.OK
+    assert set(response.json()) >= {"Yurtiçi", "Aras", "PTT"}
+
+
 def test_an_unpaid_transfer_cannot_ship(transfer, shop, staff):
-    response = act(staff, transfer, "ship", {"carrier": "X", "tracking_number": "1"})
+    response = act(staff, transfer, "ship", {"carrier": "Aras", "tracking_number": "1"})
 
     assert response.status_code == HTTPStatus.CONFLICT
     assert response.json()["code"] == "illegal_transition"
@@ -208,7 +227,7 @@ def test_an_unpaid_transfer_cannot_ship(transfer, shop, staff):
 
 
 def test_cod_becomes_paid_on_delivery(cod, staff):
-    act(staff, cod, "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, cod, "ship", {"carrier": "Aras", "tracking_number": "1"})
     assert order_state(cod) == ("shipped", "unpaid")
 
     response = act(staff, cod, "deliver")
@@ -253,7 +272,7 @@ def test_an_illegal_transition_names_the_action_it_refused(
 
 
 def test_a_shipped_or_cancelled_order_cannot_be_cancelled(cod, transfer, staff):
-    act(staff, cod, "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, cod, "ship", {"carrier": "Aras", "tracking_number": "1"})
     act(staff, transfer, "cancel", {"reason": "Vazgeçti"})
 
     for number in (cod, transfer):
@@ -270,7 +289,7 @@ def test_unknown_order_is_404(staff):
 
 
 def returned_cod(staff, number):
-    act(staff, number, "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, number, "ship", {"carrier": "Aras", "tracking_number": "1"})
     act(staff, number, "deliver")
     assert act(staff, number, "request-return").status_code == HTTPStatus.OK
     assert act(staff, number, "mark-returned").status_code == HTTPStatus.OK
@@ -372,7 +391,7 @@ def test_shipping_edit_is_refused_once_shipped_or_for_a_bad_phone(cod, staff):
     bad = staff.patch(f"{ORDERS}/{cod}/shipping", {"phone": "123"})
     assert bad.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    act(staff, cod, "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, cod, "ship", {"carrier": "Aras", "tracking_number": "1"})
     late = staff.patch(f"{ORDERS}/{cod}/shipping", {"street": "Başka Sok."})
     assert late.status_code == HTTPStatus.CONFLICT
     assert late.json()["code"] == "illegal_transition"
@@ -399,7 +418,7 @@ def test_email_correction_is_audited_and_changes_the_lookup(transfer, staff):
 
 
 def test_invoice_details_work_in_any_status_and_are_validated(cod, staff):
-    act(staff, cod, "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, cod, "ship", {"carrier": "Aras", "tracking_number": "1"})
     url = f"{ORDERS}/{cod}/invoice-details"
 
     bad = staff.patch(url, {"buyer_tax_number": "12ab"})

@@ -4904,6 +4904,38 @@
         ]
       }
     },
+    "/api/admin/carriers": {
+      "get": {
+        "description": "The carrier names Staff can pick when marking an Order shipped.",
+        "operationId": "orders_carriers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Carriers",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
     "/api/admin/catalog/import/confirm": {
       "post": {
         "description": "Apply the same CSV in one transaction: every row or none (422 names the\nrow and column). Products are created as drafts.",

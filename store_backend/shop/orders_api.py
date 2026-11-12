@@ -288,36 +288,6 @@ def _invoice(order) -> dict:
     }
 
 
-def _returns(order) -> list[dict]:
-    requests = order.return_requests.prefetch_related("lines__order_line")
-    return [
-        {
-            "id": r.pk,
-            "status": r.status,
-            "reason": r.reason,
-            "note": r.note,
-            "requested_at": r.requested_at,
-            "shop_pays_shipping": r.reason in returns.SHOP_PAYS_SHIPPING,
-            "reject_reason": r.reject_reason,
-            "decided_at": r.decided_at,
-            "received_at": r.received_at,
-            "refund_amount": r.refund_amount,
-            "refund_method": r.refund_method,
-            "refunded_at": r.refunded_at,
-            "lines": [
-                {
-                    "line_id": row.order_line_id,
-                    "title": row.order_line.title,
-                    "quantity": row.quantity,
-                    "restocked": row.restocked,
-                }
-                for row in sorted(r.lines.all(), key=lambda row: row.pk)
-            ],
-        }
-        for r in requests
-    ]
-
-
 def order_detail(order) -> dict:
     record = order_ops.peek_record(order)
     lines = _lines(order)
@@ -354,15 +324,16 @@ def order_detail(order) -> dict:
         "audit": _audit(order),
         "messages": _messages(order),
         "invoice": _invoice(order),
-        "returns": _returns(order),
+        "returns": returns.request_views(order, staff=True),
     }
 
 
 def _fresh(order) -> dict:
-    return order_detail(order_ops.get(order.number))
+    return _fresh_by_number(order.number)
 
 
-def _fresh_number(number: str) -> dict:
+def _fresh_by_number(number: str) -> dict:
+    """The Order detail reloaded after a change, so it shows what was saved."""
     return order_detail(order_ops.get(number))
 
 
@@ -499,6 +470,17 @@ def list_orders(
 
 
 @router.get(
+    "/carriers",
+    auth=requires(Perm.MANAGE_ORDERS),
+    operation_id="orders_carriers",
+    response=list[str],
+)
+def list_carriers(request):
+    """The carrier names Staff can pick when marking an Order shipped."""
+    return order_ops.carrier_names()
+
+
+@router.get(
     "/returns",
     auth=requires(Perm.VIEW_ORDERS),
     operation_id="returns_list",
@@ -624,7 +606,7 @@ def refund(request, number: str, data: OrderRefundIn):
 def approve_return(request, number: str, return_id: int):
     """Accept a return request. The Shopper's email says who pays return shipping."""
     returns.approve(request.auth, number, return_id)
-    return _fresh_number(number)
+    return _fresh_by_number(number)
 
 
 @router.post(
@@ -636,7 +618,7 @@ def approve_return(request, number: str, return_id: int):
 def reject_return(request, number: str, return_id: int, data: ReturnRejectIn):
     """Turn a return request down with a reason the Shopper will read."""
     returns.reject(request.auth, number, return_id, reason=data.reason)
-    return _fresh_number(number)
+    return _fresh_by_number(number)
 
 
 @router.post(
@@ -653,7 +635,7 @@ def receive_return(request, number: str, return_id: int, data: ReturnReceiveIn):
         return_id,
         restock={row.line_id: row.restock for row in data.lines},
     )
-    return _fresh_number(number)
+    return _fresh_by_number(number)
 
 
 @router.post(
@@ -672,7 +654,7 @@ def refund_return(request, number: str, return_id: int, data: OrderRefundIn):
         method=data.method,
         iban=data.iban,
     )
-    return _fresh_number(number)
+    return _fresh_by_number(number)
 
 
 @router.patch(

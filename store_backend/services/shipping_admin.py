@@ -52,6 +52,10 @@ def update_rate(actor: User, rate_id: int, **changes: object) -> RateRow:
     unknown = set(changes) - set(PRICE_FIELDS)
     if unknown:
         raise _invalid(sorted(unknown)[0], "Bilinmeyen alan.")
+    blank = [f for f, v in changes.items() if v is None]
+    if blank:
+        msg = "Bu alan boş bırakılamaz."
+        raise UnprocessableError(msg, fields={f: [msg] for f in blank})
     row = (
         RateRow.objects.select_for_update()
         .select_related("carrier", "zone")

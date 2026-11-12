@@ -6,7 +6,6 @@ from __future__ import annotations
 from ninja import Router
 from ninja import Schema
 
-from store_backend.api.errors import UnprocessableError
 from store_backend.api.money import Money
 from store_backend.api.permissions import requires
 from store_backend.services import shipping_admin
@@ -92,12 +91,11 @@ def get_shipping(request):
     response=RateOut,
 )
 def update_rate(request, rate_id: int, data: RatePatch):
-    sent = data.model_dump(exclude_unset=True)
-    nulls = [k for k, v in sent.items() if v is None]
-    if nulls:
-        msg = "Bu alan boş bırakılamaz."
-        raise UnprocessableError(msg, fields={k: [msg] for k in nulls})
-    return shipping_admin.update_rate(request.auth, rate_id, **sent)
+    return shipping_admin.update_rate(
+        request.auth,
+        rate_id,
+        **data.model_dump(exclude_unset=True),
+    )
 
 
 @router.patch(

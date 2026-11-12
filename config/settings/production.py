@@ -1,6 +1,9 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 from .base import DATABASES
 from .base import INSTALLED_APPS
+from .base import OWNER_MFA_REQUIRED
 from .base import REDIS_URL
 from .base import env
 
@@ -119,9 +122,22 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_SSL = EMAIL_PORT == 465  # noqa: PLR2004
-# STARTTLS unless the relay is implicit-TLS; EMAIL_USE_TLS=False is for the local mail catcher.
+# STARTTLS unless the relay uses implicit TLS; False is for the dev mail catcher.
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=not EMAIL_USE_SSL)
 ANYMAIL = {}
+
+# Dev-stack relaxations
+# ------------------------------------------------------------------------------
+# The local Compose stack runs these settings with a mail catcher and no Owner TOTP.
+# A stray value in a real server's env file must not weaken production silently.
+DEV_STACK = env.bool("DJANGO_DEV_STACK", default=False)
+if not DEV_STACK:
+    if not OWNER_MFA_REQUIRED:
+        msg = "OWNER_MFA_REQUIRED=False is only allowed with DJANGO_DEV_STACK=True."
+        raise ImproperlyConfigured(msg)
+    if not (EMAIL_USE_SSL or EMAIL_USE_TLS):
+        msg = "Plain-text SMTP (EMAIL_USE_TLS=False) needs DJANGO_DEV_STACK=True."
+        raise ImproperlyConfigured(msg)
 
 
 # LOGGING

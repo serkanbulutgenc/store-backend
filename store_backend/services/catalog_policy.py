@@ -29,11 +29,14 @@ def _can(user: Any, perm: Perm) -> bool:
 
 
 def require_owner_fields_allowed(user: Any, data: Mapping[str, Any]) -> None:
-    """Staff may not send cost price or Supplier data, even to clear it."""
+    """Staff may not send cost price or Supplier data, even to clear it, nor a
+    product's own desi (the Owner owns shipping size, like the rate table)."""
     if any(f in data for f in OWNER_INPUT_FIELDS) and not _can(
         user,
         Perm.VIEW_COST_PRICES,
     ):
+        raise ForbiddenError
+    if "desi" in data and not _can(user, Perm.MANAGE_SETTINGS):
         raise ForbiddenError
 
 

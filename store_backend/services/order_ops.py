@@ -43,6 +43,7 @@ from store_backend.services.checkout import STATUS_PREPARING
 from store_backend.services.tracking import PAYMENT_PAID
 from store_backend.services.tracking import PAYMENT_REFUNDED
 from store_backend.services.tracking import PAYMENT_UNPAID
+from store_backend.shop.models import Carrier
 from store_backend.shop.models import OrderRecord
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import RefundMethod
@@ -356,6 +357,11 @@ def cancel_by_shopper(number: str) -> Order:
     return order
 
 
+def carrier_names() -> list[str]:
+    """The shop's carriers in tie-break order; an Order ships with one of them."""
+    return list(Carrier.objects.values_list("name", flat=True))
+
+
 @transaction.atomic
 def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Order:
     """Hand the parcel to the carrier: consumes the reserved stock."""
@@ -367,6 +373,12 @@ def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Ord
         for name, value in (("carrier", carrier), ("tracking_number", tracking_number))
         if not value
     }
+    if not errors:
+        known = {name.casefold(): name for name in carrier_names()}
+        if carrier.casefold() not in known:
+            msg = "Listeden bir kargo firması seçin."
+            raise UnprocessableError(msg, fields={"carrier": [msg]})
+        carrier = known[carrier.casefold()]
     if errors:
         raise UnprocessableError(fields=errors)
     before = _snapshot(order)
@@ -417,10 +429,21 @@ def deliver(actor: User, number: str) -> Order:
     return order
 
 
+def _refuse_while_requests_open(order: Order) -> None:
+    """Staff's Order-level return and the Shopper's line requests must not disagree."""
+    from store_backend.shop.models import ReturnStatus  # noqa: PLC0415
+
+    open_states = (ReturnStatus.REQUESTED, ReturnStatus.APPROVED)
+    if order.return_requests.filter(status__in=open_states).exists():
+        msg = "Bu siparişte açık bir iade talebi var; önce onu sonuçlandırın."
+        raise ConflictError(msg, code="open_return_request")
+
+
 @transaction.atomic
 def request_return(actor: User, number: str) -> Order:
     order = locked(number)
     _guard(order, "request_return", named=str(audit.Action.RETURN_REQUEST))
+    _refuse_while_requests_open(order)
     _apply(
         actor,
         order,
@@ -437,6 +460,7 @@ def request_return(actor: User, number: str) -> Order:
 def mark_returned(actor: User, number: str) -> Order:
     order = locked(number)
     _guard(order, "mark_returned", named=str(audit.Action.RETURN_RECEIVED))
+    _refuse_while_requests_open(order)
     _apply(
         actor,
         order,
