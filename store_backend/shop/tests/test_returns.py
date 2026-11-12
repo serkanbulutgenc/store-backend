@@ -46,7 +46,7 @@ def placed(shop):
 
 def deliver(staff, number, *, days_ago=0):
     act(staff, number, "pay", {"amount": "200.00"})
-    act(staff, number, "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, number, "ship", {"carrier": "Aras", "tracking_number": "1"})
     response = act(staff, number, "deliver")
     assert response.status_code == HTTPStatus.OK, response.content
     if days_ago:
@@ -108,7 +108,7 @@ def test_a_paid_preparing_order_can_still_be_cancelled_by_the_shopper(
 
 def test_a_shipped_order_cannot_be_cancelled_by_the_shopper(placed, staff):
     act(staff, placed["number"], "pay", {"amount": "200.00"})
-    act(staff, placed["number"], "ship", {"carrier": "X", "tracking_number": "1"})
+    act(staff, placed["number"], "ship", {"carrier": "Aras", "tracking_number": "1"})
 
     response = Guest().post(link(placed, "/cancel"))
 
