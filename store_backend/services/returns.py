@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from decimal import Decimal
 
+    from django.db.models import QuerySet
     from oscar.apps.order.models import Line
     from oscar.apps.order.models import Order
 
@@ -196,6 +197,26 @@ def request_return(
         },
     )
     return request
+
+
+def search(*, status: str | None = None) -> QuerySet[ReturnRequest]:
+    """Return requests, oldest first when waiting for a decision, else newest first."""
+    if status and status not in ReturnStatus.values:
+        msg = "Geçersiz iade durumu."
+        raise UnprocessableError(msg, fields={"status": [msg]})
+    requests = ReturnRequest.objects.select_related(
+        "order__shipping_address",
+    ).prefetch_related("lines")
+    if status:
+        requests = requests.filter(status=status)
+    if status == ReturnStatus.REQUESTED:
+        return requests.order_by("requested_at", "pk")
+    return requests.order_by("-requested_at", "-pk")
+
+
+def awaiting_decision() -> QuerySet[ReturnRequest]:
+    """Requests no Staff member has approved or rejected yet, oldest first."""
+    return search(status=ReturnStatus.REQUESTED)
 
 
 # --- Staff review ----------------------------------------------------------------

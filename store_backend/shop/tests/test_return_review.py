@@ -1,4 +1,4 @@
-# ruff: noqa: F811
+# ruff: noqa: PLR2004, F811
 """Staff review of return requests: approve or reject, receive, refund."""
 
 from http import HTTPStatus
@@ -330,3 +330,45 @@ def test_the_shopper_sees_the_decision_on_the_tracking_link(delivered, staff):
     shown = Guest().get(link(delivered)).json()
 
     assert shown["returns"][0]["status"] == "approved"
+
+
+# --- queue and Home ------------------------------------------------------------
+
+
+def test_the_queue_lists_requests_across_orders_filtered_by_status(
+    delivered,
+    shop,
+    staff,
+):
+    first = filed(delivered)
+    other = place(shop[1]["M"])
+    deliver(staff, other["number"])
+    second = filed(other)
+    review(staff, delivered, first.pk, "approve")
+
+    everything = staff.get("/api/admin/returns").json()
+    waiting = staff.get("/api/admin/returns?status=requested").json()
+
+    assert everything["total"] == 2
+    assert [row["id"] for row in everything["items"]] == [second.pk, first.pk]
+    assert [row["id"] for row in waiting["items"]] == [second.pk]
+    row = waiting["items"][0]
+    assert row["number"] == other["number"]
+    assert row["item_count"] == 1
+    assert row["reason"] == "wrong_size"
+
+
+def test_the_queue_refuses_an_unknown_status(staff):
+    response = staff.get("/api/admin/returns?status=nonsense")
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_home_counts_only_requests_waiting_for_a_decision(delivered, staff):
+    waiting = filed(delivered)
+    assert staff.get("/api/admin/home").json()["open_returns"]["count"] == 1
+
+    review(staff, delivered, waiting.pk, "approve")
+    home = staff.get("/api/admin/home").json()
+
+    assert home["open_returns"] == {"count": 0, "rows": []}

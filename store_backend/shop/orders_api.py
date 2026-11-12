@@ -153,6 +153,29 @@ class ReturnAdminOut(Schema):
     lines: list[ReturnLineAdminOut]
 
 
+class ReturnRow(Schema):
+    id: int
+    number: str
+    customer: str
+    status: ReturnStatus
+    reason: ReturnReason
+    requested_at: datetime
+    item_count: int
+
+    @staticmethod
+    def resolve_number(obj) -> str:
+        return obj.order.number
+
+    @staticmethod
+    def resolve_customer(obj) -> str:
+        address = obj.order.shipping_address
+        return f"{address.first_name} {address.last_name}".strip() if address else ""
+
+    @staticmethod
+    def resolve_item_count(obj) -> int:
+        return sum(line.quantity for line in obj.lines.all())
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -473,6 +496,19 @@ def list_orders(
         payment_status=payment_status,
     )
     return apply_ordering(orders, ordering, allowed=ORDERING_FIELDS)
+
+
+@router.get(
+    "/returns",
+    auth=requires(Perm.VIEW_ORDERS),
+    operation_id="returns_list",
+    response=list[ReturnRow],
+)
+@paginate(PageOffsetPagination)
+def list_returns(request, status: str | None = None):
+    """Return requests across all Orders. Waiting requests come oldest first, any
+    other filter (or none) newest first."""
+    return returns.search(status=status)
 
 
 @router.get(

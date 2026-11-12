@@ -21,6 +21,7 @@ from store_backend.services import checkout
 from store_backend.services import invoicing
 from store_backend.services import order_context
 from store_backend.services import order_ops
+from store_backend.services import returns
 from store_backend.services import stock
 from store_backend.shop.models import Invoice
 from store_backend.shop.models import InvoiceStatus
@@ -144,6 +145,26 @@ def products_without_photos() -> dict:
     return _capped(rows, lambda p: {"product_id": p.pk, "title": p.title})
 
 
+def open_returns() -> dict:
+    """Return requests waiting for Staff to approve or reject."""
+    return _capped(
+        returns.awaiting_decision(),
+        lambda r: {
+            "return_id": r.pk,
+            "number": r.order.number,
+            "placed_at": r.requested_at,
+            "customer": (
+                f"{r.order.shipping_address.first_name} "
+                f"{r.order.shipping_address.last_name}".strip()
+                if r.order.shipping_address
+                else ""
+            ),
+            "reason": r.reason,
+            "item_count": sum(line.quantity for line in r.lines.all()),
+        },
+    )
+
+
 def build(*, now: datetime | None = None) -> dict:
     now = now or timezone.now()
     return {
@@ -153,4 +174,5 @@ def build(*, now: datetime | None = None) -> dict:
         "shipped_without_invoice": shipped_without_invoice(),
         "invoice_attention": invoice_attention(),
         "products_without_photos": products_without_photos(),
+        "open_returns": open_returns(),
     }

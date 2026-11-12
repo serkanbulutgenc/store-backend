@@ -615,6 +615,9 @@
           "new_orders": {
             "$ref": "#/components/schemas/NewOrders"
           },
+          "open_returns": {
+            "$ref": "#/components/schemas/OpenReturns"
+          },
           "products_without_photos": {
             "$ref": "#/components/schemas/ProductsWithoutPhotos"
           },
@@ -631,7 +634,8 @@
           "low_stock",
           "shipped_without_invoice",
           "invoice_attention",
-          "products_without_photos"
+          "products_without_photos",
+          "open_returns"
         ],
         "title": "HomeOut",
         "type": "object"
@@ -1362,6 +1366,27 @@
           "rows"
         ],
         "title": "NewOrders",
+        "type": "object"
+      },
+      "OpenReturns": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "OpenReturns",
         "type": "object"
       },
       "OrderAuditOut": {
@@ -2304,6 +2329,37 @@
           "page_size"
         ],
         "title": "PagedProductListOut",
+        "type": "object"
+      },
+      "PagedReturnRow": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PagedReturnRow",
         "type": "object"
       },
       "PagedStaffUserOut": {
@@ -3405,6 +3461,45 @@
           "reason"
         ],
         "title": "ReturnRejectIn",
+        "type": "object"
+      },
+      "ReturnRow": {
+        "properties": {
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "placed_at": {
+            "description": "When the Shopper asked.",
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReturnReason"
+          },
+          "return_id": {
+            "title": "Return Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "return_id",
+          "number",
+          "placed_at",
+          "customer",
+          "reason",
+          "item_count"
+        ],
+        "title": "ReturnRow",
         "type": "object"
       },
       "ReturnStatus": {
@@ -6890,6 +6985,74 @@
         "summary": "Create Variant",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/admin/returns": {
+      "get": {
+        "description": "Return requests across all Orders. Waiting requests come oldest first, any\nother filter (or none) newest first.",
+        "operationId": "returns_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedReturnRow"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Returns",
+        "tags": [
+          "orders"
         ]
       }
     },

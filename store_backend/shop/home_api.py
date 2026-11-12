@@ -7,12 +7,14 @@ import datetime as dt
 from datetime import datetime
 from typing import Literal
 
+from ninja import Field
 from ninja import Router
 from ninja import Schema
 
 from store_backend.api.money import Money
 from store_backend.api.permissions import requires
 from store_backend.services import home
+from store_backend.shop.models import ReturnReason
 from store_backend.staff.permissions import Perm
 
 router = Router(tags=["home"])
@@ -51,6 +53,20 @@ class UnphotographedRow(Schema):
     title: str
 
 
+class ReturnRow(Schema):
+    return_id: int
+    number: str
+    placed_at: datetime = Field(description="When the Shopper asked.")
+    customer: str
+    reason: ReturnReason
+    item_count: int
+
+
+class OpenReturns(Schema):
+    count: int
+    rows: list[ReturnRow]
+
+
 class NewOrders(Schema):
     count: int
     rows: list[HomeOrderRow]
@@ -83,6 +99,7 @@ class HomeOut(Schema):
     shipped_without_invoice: NewOrders
     invoice_attention: InvoiceFlags
     products_without_photos: ProductsWithoutPhotos
+    open_returns: OpenReturns
 
 
 @router.get(
