@@ -36,6 +36,7 @@ from store_backend.catalog.signals import has_orders
 from store_backend.catalog.sizes import sizes_for
 from store_backend.services import audit
 from store_backend.services import catalog_policy
+from store_backend.services import shipping_admin
 from store_backend.services import shop_settings
 
 if TYPE_CHECKING:
@@ -220,6 +221,7 @@ def create_product(  # noqa: PLR0913
     cost_price: object | None = None,
     kdv_rate: object | None = None,
     low_stock_threshold: int | None = None,
+    desi: int | None = None,
     slug: str | None = None,
 ) -> Product:
     title = title.strip()
@@ -234,6 +236,8 @@ def create_product(  # noqa: PLR0913
         raise _invalid("kdv_rate", "KDV oranı 0 ile 100 arasında olmalı.")
     if low_stock_threshold is not None and low_stock_threshold < 0:
         raise _invalid("low_stock_threshold", "Eşik negatif olamaz.")
+    if desi is not None:
+        shipping_admin.validate_desi(desi)
     if slug:
         final_slug = slugify_tr(slug)
         if not final_slug or _slug_taken(final_slug):
@@ -266,6 +270,7 @@ def create_product(  # noqa: PLR0913
         shelf_price=shelf,
         old_price=old,
         kdv_rate=rate,
+        desi=desi,
         **extra,
     )
     set_category(product, category)
@@ -435,6 +440,7 @@ PRODUCT_FIELDS = frozenset(
         "old_price",
         "kdv_rate",
         "low_stock_threshold",
+        "desi",
         "slug",
     },
 )
@@ -500,6 +506,9 @@ def update_product(  # noqa: C901, PLR0912
         if not isinstance(threshold, int) or threshold < 0:
             raise _invalid("low_stock_threshold", "Eşik negatif olamaz.")
         profile.low_stock_threshold = threshold
+    if "desi" in changes:
+        value = changes["desi"]
+        profile.desi = None if value is None else shipping_admin.validate_desi(value)
     profile.save()
     if "slug" in changes:
         rename_slug(product, str(changes["slug"]))

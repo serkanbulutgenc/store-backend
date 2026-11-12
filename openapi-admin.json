@@ -196,6 +196,24 @@
         "title": "AuditLogQuery",
         "type": "object"
       },
+      "CarrierOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CarrierOut",
+        "type": "object"
+      },
       "CategoryIn": {
         "properties": {
           "name": {
@@ -2321,6 +2339,10 @@
       },
       "ProductClassOut": {
         "properties": {
+          "default_desi": {
+            "title": "Default Desi",
+            "type": "integer"
+          },
           "default_kdv_rate": {
             "examples": [
               "349.90"
@@ -2359,9 +2381,23 @@
           "size_scheme",
           "sizes",
           "default_kdv_rate",
-          "is_hygiene"
+          "is_hygiene",
+          "default_desi"
         ],
         "title": "ProductClassOut",
+        "type": "object"
+      },
+      "ProductClassPatch": {
+        "properties": {
+          "default_desi": {
+            "title": "Default Desi",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_desi"
+        ],
+        "title": "ProductClassPatch",
         "type": "object"
       },
       "ProductImageOut": {
@@ -2516,6 +2552,17 @@
               }
             ],
             "title": "Cost Price"
+          },
+          "desi": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desi"
           },
           "kdv_rate": {
             "anyOf": [
@@ -2704,6 +2751,17 @@
             ],
             "title": "Cost Price"
           },
+          "desi": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desi"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2798,6 +2856,7 @@
           "old_price",
           "kdv_rate",
           "low_stock_threshold",
+          "desi",
           "variants"
         ],
         "title": "ProductOut",
@@ -2841,6 +2900,17 @@
               }
             ],
             "title": "Cost Price"
+          },
+          "desi": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desi"
           },
           "kdv_rate": {
             "anyOf": [
@@ -2973,6 +3043,152 @@
           "rows"
         ],
         "title": "ProductsWithoutPhotos",
+        "type": "object"
+      },
+      "ProvinceOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "zone_id": {
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "zone_id"
+        ],
+        "title": "ProvinceOut",
+        "type": "object"
+      },
+      "ProvincePatch": {
+        "properties": {
+          "zone_id": {
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id"
+        ],
+        "title": "ProvincePatch",
+        "type": "object"
+      },
+      "RateOut": {
+        "properties": {
+          "band_0_2": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Band 0 2",
+            "type": "string"
+          },
+          "band_3_5": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Band 3 5",
+            "type": "string"
+          },
+          "band_6_10": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Band 6 10",
+            "type": "string"
+          },
+          "carrier_id": {
+            "title": "Carrier Id",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "per_extra_desi": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Per Extra Desi",
+            "type": "string"
+          },
+          "zone_id": {
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "carrier_id",
+          "zone_id",
+          "band_0_2",
+          "band_3_5",
+          "band_6_10",
+          "per_extra_desi"
+        ],
+        "title": "RateOut",
+        "type": "object"
+      },
+      "RatePatch": {
+        "description": "Prices arrive as strings; only the ones sent change.",
+        "properties": {
+          "band_0_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band 0 2"
+          },
+          "band_3_5": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band 3 5"
+          },
+          "band_6_10": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band 6 10"
+          },
+          "per_extra_desi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Extra Desi"
+          }
+        },
+        "title": "RatePatch",
         "type": "object"
       },
       "RefundMethod": {
@@ -3470,6 +3686,46 @@
         "title": "SheetLine",
         "type": "object"
       },
+      "ShippingOut": {
+        "properties": {
+          "carriers": {
+            "items": {
+              "$ref": "#/components/schemas/CarrierOut"
+            },
+            "title": "Carriers",
+            "type": "array"
+          },
+          "provinces": {
+            "items": {
+              "$ref": "#/components/schemas/ProvinceOut"
+            },
+            "title": "Provinces",
+            "type": "array"
+          },
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/RateOut"
+            },
+            "title": "Rates",
+            "type": "array"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/ZoneOut"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "carriers",
+          "zones",
+          "rates",
+          "provinces"
+        ],
+        "title": "ShippingOut",
+        "type": "object"
+      },
       "StaffUserOut": {
         "properties": {
           "email": {
@@ -3834,6 +4090,42 @@
           }
         },
         "title": "VariantPatch",
+        "type": "object"
+      },
+      "ZoneOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "name"
+        ],
+        "title": "ZoneOut",
+        "type": "object"
+      },
+      "ZonePatch": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ZonePatch",
         "type": "object"
       }
     },
@@ -5629,6 +5921,53 @@
         ]
       }
     },
+    "/api/admin/product-classes/{class_id}": {
+      "patch": {
+        "operationId": "catalog_update_product_class",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "title": "Class Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductClassPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductClassOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Product Class",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/admin/products": {
       "get": {
         "description": "Search by title, slug, or an exact SKU or barcode of any Variant.",
@@ -6176,6 +6515,174 @@
         "summary": "Update Settings",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/admin/shipping": {
+      "get": {
+        "operationId": "shipping_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Shipping",
+        "tags": [
+          "shipping"
+        ]
+      }
+    },
+    "/api/admin/shipping/provinces/{province_id}": {
+      "patch": {
+        "operationId": "shipping_move_province",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "province_id",
+            "required": true,
+            "schema": {
+              "title": "Province Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvincePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvinceOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Move Province",
+        "tags": [
+          "shipping"
+        ]
+      }
+    },
+    "/api/admin/shipping/rates/{rate_id}": {
+      "patch": {
+        "operationId": "shipping_update_rate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Rate",
+        "tags": [
+          "shipping"
+        ]
+      }
+    },
+    "/api/admin/shipping/zones/{zone_id}": {
+      "patch": {
+        "operationId": "shipping_rename_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZonePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Rename Zone",
+        "tags": [
+          "shipping"
         ]
       }
     },

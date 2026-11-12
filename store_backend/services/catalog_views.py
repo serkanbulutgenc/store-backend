@@ -53,6 +53,7 @@ def product_class_dict(pc: ProductClass) -> dict:
         "sizes": sizes_for(pc.profile.size_scheme),
         "default_kdv_rate": pc.profile.default_kdv_rate,
         "is_hygiene": pc.profile.is_hygiene,
+        "default_desi": pc.profile.default_desi,
     }
 
 
@@ -97,6 +98,7 @@ def product_dict(user: Any, product: Product) -> dict:
         "old_price": profile.old_price,
         "kdv_rate": catalog.kdv_rate_for(product),
         "low_stock_threshold": profile.low_stock_threshold,
+        "desi": profile.desi,
         "variants": [variant_dict(v) for v in variants],
         "cost_price": profile.cost_price,
         "supplier": None

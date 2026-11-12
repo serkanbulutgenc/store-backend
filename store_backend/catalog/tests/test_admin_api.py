@@ -330,3 +330,18 @@ def test_product_list_query_count_does_not_grow_with_products(
         catalog.create_variant(p, colour=seed["colour"], size="M", stock=1)
     with django_assert_max_num_queries(15):
         assert staff_api.get(f"{BASE}/products").json()["total"] == 6  # noqa: PLR2004
+
+
+def test_a_product_carries_its_own_desi_and_clears_it(staff_api, seed):
+    url = f"{BASE}/products/{seed['product'].pk}"
+
+    assert staff_api.get(url).json()["desi"] is None
+
+    assert staff_api.patch(url, {"desi": 6}).json()["desi"] == 6  # noqa: PLR2004
+    assert (
+        staff_api.patch(url, {"desi": 0}).status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    )
+    assert staff_api.patch(url, {"desi": None}).json()["desi"] is None
+
+    created = staff_api.post(f"{BASE}/products", new_product_body(seed, desi=3))
+    assert created.json()["desi"] == 3  # noqa: PLR2004

@@ -39,6 +39,7 @@ from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import catalog_views as views
 from store_backend.services import media
+from store_backend.services import shipping_admin
 from store_backend.services import stock
 from store_backend.staff.permissions import Perm
 
@@ -117,6 +118,11 @@ class ProductClassOut(Schema):
     sizes: list[str]
     default_kdv_rate: Money
     is_hygiene: bool
+    default_desi: int
+
+
+class ProductClassPatch(Schema):
+    default_desi: int
 
 
 class ProductIn(Schema):
@@ -128,6 +134,7 @@ class ProductIn(Schema):
     brand_id: int | None = None
     kdv_rate: Decimal | None = None
     low_stock_threshold: int | None = None
+    desi: int | None = None
     slug: str | None = None
     # Owner only:
     supplier_id: int | None = None
@@ -143,6 +150,7 @@ class ProductPatch(Schema):
     old_price: Money | None = None
     kdv_rate: Decimal | None = None
     low_stock_threshold: int | None = None
+    desi: int | None = None
     slug: str | None = None
     # Owner only:
     supplier_id: int | None = None
@@ -214,6 +222,7 @@ class ProductOut(Schema):
     old_price: Money | None
     kdv_rate: Money
     low_stock_threshold: int
+    desi: int | None
     variants: list[VariantOut]
     # Owner only; left out of the response for everyone else.
     cost_price: Money | None = None
@@ -244,6 +253,17 @@ class LowStockOut(Schema):
 def list_product_classes(request):
     classes = ProductClass.objects.select_related("profile").order_by("pk")
     return [views.product_class_dict(pc) for pc in classes]
+
+
+@router.patch(
+    "/product-classes/{class_id}",
+    auth=requires(Perm.MANAGE_SETTINGS),
+    operation_id="catalog_update_product_class",
+    response=ProductClassOut,
+)
+def update_product_class(request, class_id: int, data: ProductClassPatch):
+    pc = shipping_admin.set_class_desi(request.auth, class_id, data.default_desi)
+    return views.product_class_dict(pc)
 
 
 @router.get(
@@ -471,6 +491,7 @@ def create_product(request, data: ProductIn):
         cost_price=data.cost_price,
         kdv_rate=data.kdv_rate,
         low_stock_threshold=data.low_stock_threshold,
+        desi=data.desi,
         slug=data.slug,
     )
     return 201, views.product_dict(user, catalog.get_product(product.pk))
