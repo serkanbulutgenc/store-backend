@@ -69,6 +69,11 @@ class AuditEntryOut(Schema):
         return obj.actor_email or "Sistem"
 
 
+class AuditEntryDetail(AuditEntryOut):
+    before: dict | None
+    after: dict | None
+
+
 class AuditLogQuery(Schema):
     actor: int | None = Field(None, description="User id of the actor.")
     action: str | None = Field(None, description="An audit action name.")
@@ -149,3 +154,14 @@ def list_audit_log(request, params: Query[AuditLogQuery]):
         date_from=params.date_from,
         date_to=params.date_to,
     )
+
+
+@router.get(
+    "/audit-log/{entry_id}",
+    auth=requires(Perm.VIEW_AUDIT_LOG),
+    operation_id="audit_log_get",
+    response=AuditEntryDetail,
+)
+def get_audit_entry(request, entry_id: int):
+    """One entry with its before and after. Owner only; the list leaves them out."""
+    return audit.get(entry_id)

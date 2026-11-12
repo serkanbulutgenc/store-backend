@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from typing import Any
 
+from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.staff.models import AppendOnlyError
 from store_backend.staff.models import AuditEntry
@@ -94,3 +95,10 @@ def search(
     if date_to:
         entries = entries.filter(created_at__date__lte=date_to)
     return entries.order_by("-created_at", "-id")
+
+
+def get(entry_id: int) -> AuditEntry:
+    entry = AuditEntry.objects.filter(pk=entry_id).first()
+    if entry is None:
+        raise NotFoundError
+    return entry

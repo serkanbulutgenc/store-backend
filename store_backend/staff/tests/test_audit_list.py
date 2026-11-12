@@ -111,3 +111,27 @@ def test_paginated(entries, owner, api_for):
 
     assert body["total"] == everything
     assert (body["page"], len(body["items"])) == (2, everything - 2)
+
+
+def test_detail_has_before_and_after_for_the_owner_only(
+    entries,
+    owner,
+    staff_user,
+    api_for,
+):
+    first = entries[0]
+
+    detail = api_for(owner, enrol=True).get(f"{URL}/{first.pk}")
+    refused = api_for(staff_user).get(f"{URL}/{first.pk}")
+
+    assert detail.status_code == HTTPStatus.OK
+    assert detail.json()["before"] == {"secret": "x"}
+    assert detail.json()["after"] == {"secret": "y"}
+    assert detail.json()["summary"] == "Ödeme alındı"
+    assert refused.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_unknown_detail_is_404(owner, api_for):
+    response = api_for(owner, enrol=True).get(f"{URL}/999999")
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
