@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from allauth.account.models import EmailAddress
 from django.db import transaction
+from django.db.models import Count
+from django.db.models import Q
 from django.utils import timezone
 from oscar.apps.order.models import Order
 
@@ -258,3 +260,35 @@ def decline_deletion(actor: User, request_id: int) -> AccountDeletionRequest:
         summary="Silme talebi reddedildi",
     )
     return request
+
+
+# --- Dashboard: read-only customer list ---------------------------------------
+
+
+def customer_queryset(q: str | None = None) -> QuerySet[User]:
+    """Shoppers with an account (not Staff), newest first, with their order count.
+    Anonymised accounts stay in the list, flagged by `anonymised_at`.
+    """
+    customers = User.objects.filter(is_staff=False).annotate(
+        order_count=Count("orders", distinct=True),
+    )
+    if q and q.strip():
+        term = q.strip()
+        customers = customers.filter(Q(name__icontains=term) | Q(email__icontains=term))
+    return customers.order_by("-date_joined", "-pk")
+
+
+def customer_detail(user_id: int) -> User:
+    customer = customer_queryset().filter(pk=user_id).first()
+    if customer is None:
+        raise NotFoundError
+    return customer
+
+
+def orders_for_dashboard(user: User) -> QuerySet[Order]:
+    """The customer's orders as list rows, without a query per row."""
+    return (
+        orders_of(user)
+        .select_related("user", "shipping_address")
+        .prefetch_related("sources", "lines")
+    )

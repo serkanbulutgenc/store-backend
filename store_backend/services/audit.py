@@ -6,11 +6,15 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from typing import Any
 
+from store_backend.api.errors import UnprocessableError
 from store_backend.staff.models import AppendOnlyError
 from store_backend.staff.models import AuditEntry
 
 if TYPE_CHECKING:
+    import datetime as dt
+
     from django.db.models import Model
+    from django.db.models import QuerySet
 
 __all__ = ["Action", "AppendOnlyError", "record"]
 
@@ -67,3 +71,26 @@ def record(  # noqa: PLR0913
         before=before,
         after=after,
     )
+
+
+def search(
+    *,
+    actor: int | None = None,
+    action: str | None = None,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+) -> QuerySet[AuditEntry]:
+    """Entries newest first. The dates are inclusive days in the shop's time zone."""
+    if action and action not in {a.value for a in Action}:
+        msg = "Geçersiz işlem."
+        raise UnprocessableError(msg, fields={"action": [msg]})
+    entries = AuditEntry.objects.all()
+    if actor is not None:
+        entries = entries.filter(actor_id=actor)
+    if action:
+        entries = entries.filter(action=action)
+    if date_from:
+        entries = entries.filter(created_at__date__gte=date_from)
+    if date_to:
+        entries = entries.filter(created_at__date__lte=date_to)
+    return entries.order_by("-created_at", "-id")
