@@ -49,6 +49,11 @@ class ProductClassProfile(models.Model):
         default=False,
         help_text="Not returnable once opened.",
     )
+    default_desi = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text="Carrier size of one item of this class, in desi.",
+    )
 
     def __str__(self) -> str:
         return str(self.product_class)
@@ -141,6 +146,12 @@ class ProductProfile(models.Model):
     )
     low_stock_threshold = models.PositiveIntegerField(
         default=DEFAULT_LOW_STOCK_THRESHOLD,
+    )
+    desi = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Overrides the Product class default desi.",
     )
     # Storefront search; maintained only by `services.search.reindex`.
     search_text = models.TextField(blank=True, editable=False)

@@ -7,6 +7,10 @@ from django.db import migrations, models
 
 
 def reindex_existing(apps, schema_editor):
+    # The service reads the live model, which has columns later migrations add;
+    # on a fresh database there is nothing to reindex, so do not touch it.
+    if not apps.get_model("store_catalog", "ProductProfile").objects.exists():
+        return
     from store_backend.services import search  # noqa: PLC0415
 
     search.reindex_all()

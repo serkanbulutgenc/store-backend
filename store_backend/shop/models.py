@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import unicodedata
+
 from django.conf import settings
 from django.db import models
 
@@ -346,3 +348,88 @@ class AccountDeletionRequest(models.Model):
 
     def __str__(self) -> str:
         return f"Deletion request {self.pk} ({self.status})"
+
+
+def province_key(name: str) -> str:
+    """Fold a province name for lookup: case, dotted/dotless i and diacritics.
+
+    Python's own lower() turns "I" into "i" and "İ" into "i̇", so the Turkish
+    letters are mapped by hand first; everything else is NFKD with marks removed.
+    """
+    text = name.replace("İ", "i").replace("I", "i").replace("ı", "i").casefold()
+    decomposed = unicodedata.normalize("NFKD", text)
+    stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return " ".join(stripped.split())
+
+
+class Carrier(models.Model):
+    """A shipping company the shop prices against (Yurtiçi, Aras, PTT)."""
+
+    name = models.CharField(max_length=64, unique=True)
+    position = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Tie-break when two carriers cost the same: lower wins.",
+    )
+
+    class Meta:
+        ordering = ["position", "pk"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Zone(models.Model):
+    """A distance band from Mersin that groups provinces for pricing."""
+
+    number = models.PositiveSmallIntegerField(unique=True)
+    name = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["number"]
+
+    def __str__(self) -> str:
+        return f"Bölge {self.number}"
+
+
+class ProvinceZone(models.Model):
+    """Which Zone a province (il) belongs to. `key` is the folded name for lookups."""
+
+    name = models.CharField(max_length=64, unique=True)
+    key = models.CharField(max_length=64, unique=True, editable=False)
+    zone = models.ForeignKey(Zone, on_delete=models.PROTECT, related_name="provinces")
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def save(self, *args, **kwargs):
+        self.key = province_key(self.name)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "name" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "key"}
+        super().save(*args, **kwargs)
+
+
+class RateRow(models.Model):
+    """One carrier's KDV-inclusive TRY prices for one Zone, by desi band."""
+
+    carrier = models.ForeignKey(Carrier, on_delete=models.CASCADE, related_name="rates")
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name="rates")
+    band_0_2 = _money()
+    band_3_5 = _money()
+    band_6_10 = _money()
+    per_extra_desi = _money(help_text="For each desi above 10.")
+
+    class Meta:
+        ordering = ["zone__number", "carrier__position", "carrier_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["carrier", "zone"],
+                name="one_rate_row_per_carrier_zone",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.carrier} / {self.zone}"
