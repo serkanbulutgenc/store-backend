@@ -53,6 +53,8 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 - **Fulfilment status**: Where the goods are: new, preparing, shipped, delivered, completed, cancelled, return requested, returned.
 - **Payment status**: Whether money has been received: unpaid, paid, refunded.
 
+**Return request**: A Shopper's request to send back chosen lines and quantities of a delivered Order, within 14 days of delivery and never for hygiene lines. Has its own status (requested, approved, rejected, received, refunded) and leaves the Order's Fulfilment status alone, so a partial return does not mark the whole Order returned.
+
 **Bank transfer**: Payment method where the Shopper sends money to the shop's bank account quoting the **Order number**; Staff marks the Order paid after seeing it arrive.
 
 **Cash on delivery (COD)**: Payment method where the carrier collects cash on delivery; the Order becomes paid when delivered.

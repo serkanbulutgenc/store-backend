@@ -16,8 +16,11 @@ from store_backend.api.money import Money
 from store_backend.api.pagination import PageOffsetPagination
 from store_backend.services import customers
 from store_backend.services import tracking
+from store_backend.shop.tracking_api import ReturnIn
 from store_backend.shop.tracking_api import TrackingOut
+from store_backend.shop.tracking_api import cancel_order
 from store_backend.shop.tracking_api import order_out
+from store_backend.shop.tracking_api import request_order_return
 
 router = Router(tags=["account"], auth=CustomerAuth())
 
@@ -207,6 +210,27 @@ def get_order(request, number: str):
             "postal_code": address.postcode,
         }
     return {**order_out(order), "shipping_address": shipping}
+
+
+@router.post(
+    "/account/orders/{number}/cancel",
+    operation_id="account_cancel_order",
+    response=TrackingOut,
+)
+def cancel_my_order(request, number: str):
+    """Cancel one of my Orders while it is new or preparing."""
+    return cancel_order(customers.order_of(request.auth, number).number)
+
+
+@router.post(
+    "/account/orders/{number}/returns",
+    operation_id="account_request_return",
+    response={HTTPStatus.CREATED: TrackingOut},
+)
+def return_my_order(request, number: str, data: ReturnIn):
+    """Ask to return lines of one of my delivered Orders."""
+    order = customers.order_of(request.auth, number)
+    return HTTPStatus.CREATED, request_order_return(order.number, data)
 
 
 @router.post(

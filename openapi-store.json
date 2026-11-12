@@ -3,6 +3,11 @@
     "schemas": {
       "AccountOrderOut": {
         "properties": {
+          "can_cancel": {
+            "description": "The Shopper may still cancel the Order.",
+            "title": "Can Cancel",
+            "type": "boolean"
+          },
           "carrier": {
             "anyOf": [
               {
@@ -32,7 +37,7 @@
           },
           "lines": {
             "items": {
-              "$ref": "#/components/schemas/PlacedLineOut"
+              "$ref": "#/components/schemas/TrackingLineOut"
             },
             "title": "Lines",
             "type": "array"
@@ -52,6 +57,26 @@
             "format": "date-time",
             "title": "Placed At",
             "type": "string"
+          },
+          "return_deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last moment to request a return; null when none is possible.",
+            "title": "Return Deadline"
+          },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnRequestOut"
+            },
+            "title": "Returns",
+            "type": "array"
           },
           "shipping_address": {
             "anyOf": [
@@ -107,7 +132,10 @@
           "cod_fee",
           "total",
           "carrier",
-          "tracking_number"
+          "tracking_number",
+          "can_cancel",
+          "return_deadline",
+          "returns"
         ],
         "title": "AccountOrderOut",
         "type": "object"
@@ -1663,6 +1691,135 @@
         "title": "QuoteOut",
         "type": "object"
       },
+      "ReturnIn": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnItemIn"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReturnReason"
+          }
+        },
+        "required": [
+          "lines",
+          "reason"
+        ],
+        "title": "ReturnIn",
+        "type": "object"
+      },
+      "ReturnItemIn": {
+        "properties": {
+          "line_id": {
+            "title": "Line Id",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line_id",
+          "quantity"
+        ],
+        "title": "ReturnItemIn",
+        "type": "object"
+      },
+      "ReturnLineOut": {
+        "properties": {
+          "line_id": {
+            "title": "Line Id",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "title",
+          "quantity"
+        ],
+        "title": "ReturnLineOut",
+        "type": "object"
+      },
+      "ReturnReason": {
+        "enum": [
+          "wrong_size",
+          "changed_mind",
+          "defective",
+          "wrong_item",
+          "other"
+        ],
+        "title": "ReturnReason",
+        "type": "string"
+      },
+      "ReturnRequestOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReturnReason"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReturnStatus"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "note",
+          "requested_at",
+          "lines"
+        ],
+        "title": "ReturnRequestOut",
+        "type": "object"
+      },
+      "ReturnStatus": {
+        "enum": [
+          "requested",
+          "approved",
+          "rejected",
+          "received",
+          "refunded"
+        ],
+        "title": "ReturnStatus",
+        "type": "string"
+      },
       "SavedAddressIn": {
         "properties": {
           "full_name": {
@@ -1876,9 +2033,76 @@
         "title": "TrackingIn",
         "type": "object"
       },
+      "TrackingLineOut": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "line_total": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "returnable_quantity": {
+            "description": "Units that could be requested for return right now.",
+            "title": "Returnable Quantity",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "title",
+          "colour",
+          "size",
+          "quantity",
+          "unit_price",
+          "line_total",
+          "id",
+          "returnable_quantity"
+        ],
+        "title": "TrackingLineOut",
+        "type": "object"
+      },
       "TrackingOut": {
         "description": "What a Shopper may see: no phone, address or email.",
         "properties": {
+          "can_cancel": {
+            "description": "The Shopper may still cancel the Order.",
+            "title": "Can Cancel",
+            "type": "boolean"
+          },
           "carrier": {
             "anyOf": [
               {
@@ -1908,7 +2132,7 @@
           },
           "lines": {
             "items": {
-              "$ref": "#/components/schemas/PlacedLineOut"
+              "$ref": "#/components/schemas/TrackingLineOut"
             },
             "title": "Lines",
             "type": "array"
@@ -1928,6 +2152,26 @@
             "format": "date-time",
             "title": "Placed At",
             "type": "string"
+          },
+          "return_deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last moment to request a return; null when none is possible.",
+            "title": "Return Deadline"
+          },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnRequestOut"
+            },
+            "title": "Returns",
+            "type": "array"
           },
           "shipping_fee": {
             "examples": [
@@ -1973,7 +2217,10 @@
           "cod_fee",
           "total",
           "carrier",
-          "tracking_number"
+          "tracking_number",
+          "can_cancel",
+          "return_deadline",
+          "returns"
         ],
         "title": "TrackingOut",
         "type": "object"
@@ -2315,6 +2562,92 @@
           }
         ],
         "summary": "Get Order",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/orders/{number}/cancel": {
+      "post": {
+        "description": "Cancel one of my Orders while it is new or preparing.",
+        "operationId": "account_cancel_order",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Cancel My Order",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/orders/{number}/returns": {
+      "post": {
+        "description": "Ask to return lines of one of my delivered Orders.",
+        "operationId": "account_request_return",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Return My Order",
         "tags": [
           "account"
         ]
@@ -2880,6 +3213,92 @@
           }
         ],
         "summary": "Open Link",
+        "tags": [
+          "tracking"
+        ]
+      }
+    },
+    "/api/store/tracking/link/{token}/cancel": {
+      "post": {
+        "description": "Cancel the Order a signed link was issued for, while it is new or preparing.\n\n409 `illegal_transition` once it has shipped.",
+        "operationId": "tracking_cancel_order",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Cancel Via Link",
+        "tags": [
+          "tracking"
+        ]
+      }
+    },
+    "/api/store/tracking/link/{token}/returns": {
+      "post": {
+        "description": "Ask to return lines of a delivered Order (within 14 days, no hygiene lines).\n\n409 `return_not_available` or `return_window_closed`; 422 with `fields.lines`.",
+        "operationId": "tracking_request_return",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Return Via Link",
         "tags": [
           "tracking"
         ]

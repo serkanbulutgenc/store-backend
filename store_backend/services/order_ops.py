@@ -339,6 +339,23 @@ def cancel(actor: User, number: str, *, reason: str) -> Order:
     return order
 
 
+SHOPPER_CANCEL_REASON = "Müşteri iptal etti"
+
+
+@transaction.atomic
+def cancel_by_shopper(number: str) -> Order:
+    """The Shopper cancels their own Order before it ships; stock is released.
+
+    The caller has already checked that the Shopper may act on this Order. A paid
+    Order's money waits for a refund recorded by the Owner.
+    """
+    order = locked(number)
+    _guard(order, "cancel")
+    _cancel_order(None, order, reason=SHOPPER_CANCEL_REASON, summary="iptal (müşteri)")
+    outbox.notify_shopper(order, "order_cancelled", reason=SHOPPER_CANCEL_REASON)
+    return order
+
+
 @transaction.atomic
 def ship(actor: User, number: str, *, carrier: str, tracking_number: str) -> Order:
     """Hand the parcel to the carrier: consumes the reserved stock."""

@@ -131,6 +131,7 @@ def placed_summary(order) -> dict:
     cod_fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
     lines = [
         {
+            "id": line.pk,
             "sku": line.partner_sku or line.upc,
             "title": line.product.parent.title,
             "colour": line.product.variant_profile.colour.name,

@@ -433,3 +433,73 @@ class RateRow(models.Model):
 
     def __str__(self) -> str:
         return f"{self.carrier} / {self.zone}"
+
+
+class ReturnReason(models.TextChoices):
+    WRONG_SIZE = "wrong_size", "Beden uymadı"
+    CHANGED_MIND = "changed_mind", "Vazgeçtim"
+    DEFECTIVE = "defective", "Ürün kusurlu"
+    WRONG_ITEM = "wrong_item", "Yanlış ürün gönderildi"
+    OTHER = "other", "Diğer"
+
+
+class ReturnStatus(models.TextChoices):
+    REQUESTED = "requested", "Talep edildi"
+    APPROVED = "approved", "Onaylandı"
+    REJECTED = "rejected", "Reddedildi"
+    RECEIVED = "received", "Teslim alındı"
+    REFUNDED = "refunded", "İade edildi"
+
+
+class ReturnRequest(models.Model):
+    """A Shopper's request to send back some lines of a delivered Order.
+
+    Has its own status so a partial return never changes the Order's Fulfilment
+    status; the Order-level `return_requested` and `returned` belong to Staff's
+    whole-Order flow in `order_ops`.
+    """
+
+    order = models.ForeignKey(
+        "order.Order",
+        on_delete=models.PROTECT,
+        related_name="return_requests",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ReturnStatus.choices,
+        default=ReturnStatus.REQUESTED,
+    )
+    reason = models.CharField(max_length=20, choices=ReturnReason.choices)
+    note = models.CharField(max_length=500, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-requested_at", "-pk")
+
+    def __str__(self) -> str:
+        return f"Return request {self.pk} for order {self.order_id}"
+
+
+class ReturnLine(models.Model):
+    request = models.ForeignKey(
+        ReturnRequest,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    order_line = models.ForeignKey(
+        "order.Line",
+        on_delete=models.PROTECT,
+        related_name="return_lines",
+    )
+    quantity = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["request", "order_line"],
+                name="one_return_line_per_order_line",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.quantity} x line {self.order_line_id}"
