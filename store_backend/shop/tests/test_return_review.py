@@ -381,7 +381,7 @@ def test_home_counts_only_requests_waiting_for_a_decision(delivered, staff):
 def test_staff_cannot_mark_the_order_returned_while_a_request_is_open(delivered, staff):
     filed(delivered)
 
-    response = staff.post(f"{ORDERS}/{delivered['number']}/request_return", {})
+    response = staff.post(f"{ORDERS}/{delivered['number']}/request-return", {})
 
     assert response.status_code == HTTPStatus.CONFLICT
     assert response.json()["code"] == "open_return_request"
