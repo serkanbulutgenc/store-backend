@@ -8,16 +8,18 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Storefront**: The public site where shoppers browse and buy.
 
-**Dashboard**: The staff-facing site for managing the store. Separate from the Storefront.
+**Dashboard**: The site for Dashboard users to manage the store. Separate from the Storefront.
 
 **Shopper**: Anyone buying on the Storefront.
 - **Guest**: A Shopper who buys without an account.
 - **Customer**: A Shopper with an account (email and password).
 
-**Staff**: A person who works in the Dashboard. Holds the **Owner** or **Staff** role.
-- **Owner**: The Staff role that can also manage Settings, Staff users, the Colour list, cost prices and Supplier data, archiving, refunds, cancelling paid Orders and account deletion requests.
-- **Staff role**: The everyday role: Orders, Products, stock adjustments and marking Orders paid.
-- **Invitation**: An Owner's email invite through which a new Staff member sets a password. Staff are deactivated, never deleted.
+**Dashboard user**: A person who works in the Dashboard. Holds exactly one of two roles: **Owner** or **Staff**.
+- **Owner**: The role with unrestricted access to the financial and structural core of the business: Settings, Dashboard users, the Colour list, cost prices and Supplier data, archiving, refunds, cancelling paid Orders, account deletion requests, and all Revenue data.
+- **Staff**: The everyday role, limited to execution: processing Orders (including marking them paid), managing Products and stock. Sees each Order's own amounts, never Revenue data, and cannot take Owner-only actions.
+- **Revenue data**: Anything that aggregates money across Orders (sales totals, trends, exports such as the accountant CSV) and anything that reveals margin (cost prices, Supplier data). A single Order's amounts are not Revenue data, because executing that Order needs them (for example the cash to collect on delivery).
+- **Destructive action**: An action that sends money out or removes something for good: archiving a Product, recording a refund, cancelling a paid Order, handling an account deletion request. Owner-only. Mistakes that can be corrected by editing, such as a wrong stock count or price, are not destructive; the Audit log is their safety net. Marking an Order paid only records money that has arrived, so Staff may do it, though Staff cannot undo it.
+- **Invitation**: An Owner's email invite through which a new Dashboard user sets a password. Dashboard users are deactivated, never deleted.
 
 **Audit log**: Append-only record of sensitive Dashboard actions (who, when, what, before and after), shown on the Order and as an Owner-only list.
 
@@ -55,7 +57,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Return request**: A Shopper's request to send back chosen lines and quantities of a delivered Order, within 14 days of delivery and never for hygiene lines. Has its own status (requested, approved, rejected, received, refunded) and leaves the Order's Fulfilment status alone, so a partial return does not mark the whole Order returned.
 
-**Bank transfer**: Payment method where the Shopper sends money to the shop's bank account quoting the **Order number**; Staff marks the Order paid after seeing it arrive.
+**Bank transfer**: Payment method where the Shopper sends money to the shop's bank account quoting the **Order number**; a Dashboard user marks the Order paid after seeing it arrive.
 
 **Cash on delivery (COD)**: Payment method where the carrier collects cash on delivery; the Order becomes paid when delivered.
 
