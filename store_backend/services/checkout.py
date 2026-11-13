@@ -25,6 +25,7 @@ from store_backend.api.errors import BadRequestError
 from store_backend.api.errors import ConflictError
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import claiming
+from store_backend.services import legal_pages
 from store_backend.services import order_creation
 from store_backend.services import outbox
 from store_backend.services import pre_information
@@ -125,9 +126,8 @@ def _validated(form: CheckoutForm) -> CheckoutForm:
 def _check_legal_versions(form: CheckoutForm, store: StoreSettings) -> None:
     """The consent record must describe what the Shopper saw, not what is current."""
     seen = form.legal_versions or {}
-    stale = [
-        page for page, ver in seen.items() if store.legal_versions.get(page) != ver
-    ]
+    current = legal_pages.current_versions()
+    stale = [page for page, ver in seen.items() if current.get(page) != ver]
     if stale:
         raise ConflictError(
             "Yasal metinler güncellendi. Sayfayı yenileyip yeniden onaylayın.",
@@ -214,7 +214,7 @@ def place(
         contract_acknowledged=form.contract_acknowledged,
         cod_fee_consent=form.cod_fee_consent,
         marketing_consent_at=placed_at if form.marketing_consent else None,
-        legal_versions=store.legal_versions,
+        legal_versions=legal_pages.current_versions(),
         ip_address=caller.ip_address,
         user_agent=caller.user_agent,
     )

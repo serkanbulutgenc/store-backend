@@ -5,6 +5,7 @@ import pytest
 from oscar.apps.catalogue.models import ProductClass
 
 from store_backend.services import catalog
+from store_backend.services import legal_pages
 from store_backend.services import shop_settings
 from store_backend.shop.models import LEGAL_PAGES
 from store_backend.staff.models import AuditEntry
@@ -66,8 +67,6 @@ def test_an_unchanged_save_writes_no_audit_entry(owner, api_for):
         ({"bank_iban": "DE123"}, "bank_iban"),
         ({"notification_emails": ["nope"]}, "notification_emails"),
         ({"seller_email": "nope"}, "seller_email"),
-        ({"legal_versions": {"made_up": "1"}}, "legal_versions"),
-        ({"legal_versions": {"privacy_notice": " "}}, "legal_versions"),
     ],
 )
 def test_invalid_values_are_rejected(owner, api_for, payload, field):
@@ -77,16 +76,25 @@ def test_invalid_values_are_rejected(owner, api_for, payload, field):
     assert field in response.json()["fields"]
 
 
-def test_threshold_can_be_cleared_and_versions_merge(owner, api_for):
+def test_threshold_can_be_cleared(owner, api_for):
     api = api_for(owner, enrol=True)
     api.patch(ADMIN, {"free_shipping_threshold": "500"})
 
-    body = api.patch(
-        ADMIN,
-        {"free_shipping_threshold": None, "legal_versions": {"privacy_notice": "2"}},
-    ).json()
+    body = api.patch(ADMIN, {"free_shipping_threshold": None}).json()
 
     assert body["free_shipping_threshold"] is None
+
+
+def test_legal_versions_follow_the_published_pages_and_cannot_be_patched(
+    owner,
+    api_for,
+):
+    api = api_for(owner, enrol=True)
+    legal_pages.publish(owner, "privacy_notice", title="Gizlilik", body="Yeni metin")
+
+    api.patch(ADMIN, {"legal_versions": {"privacy_notice": "9"}})
+    body = api.get(ADMIN).json()
+
     assert body["legal_versions"]["privacy_notice"] == "2"
     assert body["legal_versions"]["distance_sales_contract"] == "1"
 

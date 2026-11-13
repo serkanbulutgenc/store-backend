@@ -846,6 +846,106 @@
         "title": "Input",
         "type": "object"
       },
+      "LegalPageOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "slug",
+          "title",
+          "version",
+          "body",
+          "created_at"
+        ],
+        "title": "LegalPageOut",
+        "type": "object"
+      },
+      "LegalPageRow": {
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "slug",
+          "title",
+          "version"
+        ],
+        "title": "LegalPageRow",
+        "type": "object"
+      },
+      "LegalSearchHit": {
+        "properties": {
+          "excerpt": {
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "slug",
+          "title",
+          "version",
+          "excerpt"
+        ],
+        "title": "LegalSearchHit",
+        "type": "object"
+      },
       "OrderAddressOut": {
         "properties": {
           "full_name": {
@@ -1928,6 +2028,17 @@
         "title": "SavedAddressOut",
         "type": "object"
       },
+      "SearchParams": {
+        "properties": {
+          "q": {
+            "default": "",
+            "title": "Q",
+            "type": "string"
+          }
+        },
+        "title": "SearchParams",
+        "type": "object"
+      },
       "SellerOut": {
         "properties": {
           "address": {
@@ -2920,6 +3031,145 @@
           }
         },
         "summary": "Get Csrf"
+      }
+    },
+    "/api/store/legal-pages": {
+      "get": {
+        "description": "The current version of every Legal page.",
+        "operationId": "legal_list_public",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LegalPageRow"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Pages",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/store/legal-pages/search": {
+      "get": {
+        "description": "Full-text search over the current Legal pages; matches are marked \u00ab \u00bb.",
+        "operationId": "legal_search",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LegalSearchHit"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Search Pages",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/store/legal-pages/{slug}": {
+      "get": {
+        "operationId": "legal_get_public",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Page",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/store/legal-pages/{slug}/versions/{version}": {
+      "get": {
+        "description": "An older text, so a Consent record can show what a Shopper accepted.",
+        "operationId": "legal_get_public_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Page Version",
+        "tags": [
+          "legal"
+        ]
       }
     },
     "/api/store/products": {

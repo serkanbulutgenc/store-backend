@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from django.utils import timezone
 
+from store_backend.services import legal_pages
 from store_backend.shop.models import OrderFeeSnapshot
 from store_backend.shop.models import PaymentMethod
 
@@ -115,7 +116,10 @@ def render(
             WITHDRAWAL,
             "",
             "YASAL METİN SÜRÜMLERİ",
-            *(f"{page}: {ver}" for page, ver in sorted(store.legal_versions.items())),
+            *(
+                f"{page}: {ver}"
+                for page, ver in sorted(legal_pages.current_versions().items())
+            ),
         ],
     )
     return "\n".join(out)

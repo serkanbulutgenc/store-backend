@@ -7,6 +7,7 @@ from ninja import Router
 from ninja import Schema
 
 from store_backend.api.money import Money
+from store_backend.services import legal_pages
 from store_backend.services import shop_settings
 
 router = Router(tags=["settings"])
@@ -70,5 +71,5 @@ def get_public_settings(request):
             "return_carrier": s.return_carrier,
             "complaint_contact": s.complaint_contact,
         },
-        "legal_versions": s.legal_versions,
+        "legal_versions": legal_pages.current_versions(),
     }

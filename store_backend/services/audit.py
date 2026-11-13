@@ -46,6 +46,7 @@ class Action(StrEnum):
     EXPORT_RUN = "export_run"
     CATALOGUE_IMPORT = "catalogue_import"
     ACCOUNT_DELETION = "account_deletion"
+    LEGAL_PAGE_PUBLISHED = "legal_page_published"
 
 
 def record(  # noqa: PLR0913

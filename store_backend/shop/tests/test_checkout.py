@@ -10,6 +10,7 @@ from oscar.apps.partner.models import StockRecord
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import catalog
+from store_backend.services import legal_pages
 from store_backend.services import shop_settings
 from store_backend.shop.models import ConsentRecord
 from store_backend.shop.models import OrderFeeSnapshot
@@ -59,6 +60,13 @@ def money(amount) -> str:
         groups.insert(0, whole[-3:])
         whole = whole[:-3]
     return ".".join([whole, *groups]) + f",{cents} TL"
+
+
+def bump_legal_page(owner, page, *, to):
+    """Publish new versions of `page` until its current version is `to`."""
+    while int(legal_pages.current_versions()[page]) < to:
+        n = int(legal_pages.current_versions()[page]) + 1
+        legal_pages.publish(owner, page, title="Başlık", body=f"Metin {n}")
 
 
 def set_fees(owner, **changes):
@@ -334,7 +342,7 @@ def test_placing_twice_does_not_create_a_second_order(guest):
 
 
 def test_the_consent_record_keeps_versions_time_ip_and_agent(guest, owner):
-    shop_settings.update(owner, legal_versions={"distance_sales_contract": "3"})
+    bump_legal_page(owner, "distance_sales_contract", to=3)
 
     body = guest.post(
         CHECKOUT,
@@ -538,7 +546,7 @@ def test_units_held_by_other_orders_are_not_available(guest, shop):
 
 
 def test_a_changed_legal_page_gives_409_so_the_shopper_reconfirms(guest, owner):
-    shop_settings.update(owner, legal_versions={"distance_sales_contract": "2"})
+    bump_legal_page(owner, "distance_sales_contract", to=2)
 
     response = guest.post(
         CHECKOUT,
@@ -552,7 +560,7 @@ def test_a_changed_legal_page_gives_409_so_the_shopper_reconfirms(guest, owner):
 
 
 def test_matching_legal_versions_are_accepted(guest, owner):
-    shop_settings.update(owner, legal_versions={"distance_sales_contract": "2"})
+    bump_legal_page(owner, "distance_sales_contract", to=2)
 
     response = guest.post(
         CHECKOUT,

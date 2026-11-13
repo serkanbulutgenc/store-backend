@@ -14,7 +14,6 @@ from django.db import transaction
 
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
-from store_backend.shop.models import LEGAL_PAGES
 from store_backend.shop.models import StoreSettings
 
 if TYPE_CHECKING:
@@ -45,7 +44,6 @@ EDITABLE = (
     "seller_phone",
     "return_carrier",
     "complaint_contact",
-    "legal_versions",
 )
 
 
@@ -113,11 +111,6 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
             except ValidationError:
                 raise _invalid(field, "Geçerli bir e-posta adresi girin.") from None
         return email
-    if field == "legal_versions":
-        unknown = set(value) - set(LEGAL_PAGES)
-        if unknown or any(not str(v).strip() for v in value.values()):
-            raise _invalid(field, "Geçersiz yasal sayfa sürümü.")
-        return {k: str(v).strip() for k, v in value.items()}
     text = str(value).strip()
     limit = StoreSettings._meta.get_field(field).max_length  # noqa: SLF001
     if limit and len(text) > limit:
@@ -136,16 +129,11 @@ def _snapshot(settings: StoreSettings, fields) -> dict[str, Any]:
 
 @transaction.atomic
 def update(actor: User, **changes: Any) -> StoreSettings:
-    """Apply a partial update and audit what changed. Versions merge page by page."""
+    """Apply a partial update and audit what changed."""
     unknown = set(changes) - set(EDITABLE)
     if unknown:
         raise _invalid(sorted(unknown)[0], "Bilinmeyen ayar.")
     settings = _row(lock=True)
-    if "legal_versions" in changes:
-        changes["legal_versions"] = {
-            **settings.legal_versions,
-            **changes["legal_versions"],
-        }
     cleaned = {f: _clean(f, v) for f, v in changes.items()}
     changed = [f for f, v in cleaned.items() if getattr(settings, f) != v]
     if not changed:

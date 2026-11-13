@@ -1,6 +1,101 @@
 {
   "components": {
     "schemas": {
+      "AdminLegalRow": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "page": {
+            "title": "Page",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "slug",
+          "title",
+          "version",
+          "created_at"
+        ],
+        "title": "AdminLegalRow",
+        "type": "object"
+      },
+      "AdminLegalVersion": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "page": {
+            "title": "Page",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "slug",
+          "title",
+          "version",
+          "created_at",
+          "body"
+        ],
+        "title": "AdminLegalVersion",
+        "type": "object"
+      },
       "AuditEntryDetail": {
         "properties": {
           "action": {
@@ -3184,6 +3279,24 @@
         "title": "ProvincePatch",
         "type": "object"
       },
+      "PublishIn": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "PublishIn",
+        "type": "object"
+      },
       "RateOut": {
         "properties": {
           "band_0_2": {
@@ -3800,20 +3913,6 @@
               }
             ],
             "title": "Free Shipping Threshold"
-          },
-          "legal_versions": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Legal Versions"
           },
           "low_stock_default": {
             "anyOf": [
@@ -5515,6 +5614,172 @@
         "summary": "Update Product Image",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/admin/legal-pages": {
+      "get": {
+        "description": "The current version of every page.",
+        "operationId": "legal_pages_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminLegalRow"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Pages",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/admin/legal-pages/{page}/versions": {
+      "get": {
+        "description": "Every saved version of one page, newest first.",
+        "operationId": "legal_pages_versions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminLegalRow"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Versions",
+        "tags": [
+          "legal"
+        ]
+      },
+      "post": {
+        "description": "Save the next version. It is live on the Storefront at once; 422 if unchanged.",
+        "operationId": "legal_pages_publish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLegalVersion"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Publish Version",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/admin/legal-pages/{page}/versions/{version}": {
+      "get": {
+        "operationId": "legal_pages_get_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLegalVersion"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Version",
+        "tags": [
+          "legal"
         ]
       }
     },

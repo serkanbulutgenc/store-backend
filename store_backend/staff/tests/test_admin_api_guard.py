@@ -49,6 +49,10 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "orders_refund": Perm.RECORD_REFUNDS,
     "orders_return_refund": Perm.RECORD_REFUNDS,
     "exports_accountant_csv": Perm.EXPORT_ACCOUNTANT_CSV,
+    "legal_pages_list": Perm.MANAGE_LEGAL_PAGES,
+    "legal_pages_versions": Perm.MANAGE_LEGAL_PAGES,
+    "legal_pages_get_version": Perm.MANAGE_LEGAL_PAGES,
+    "legal_pages_publish": Perm.MANAGE_LEGAL_PAGES,
 }
 
 # Owner-only permissions that no endpoint declares because a service checks them

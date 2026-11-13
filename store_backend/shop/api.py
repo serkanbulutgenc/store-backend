@@ -14,6 +14,7 @@ from store_backend.api.money import Money
 from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
 from store_backend.services import customers
+from store_backend.services import legal_pages
 from store_backend.services import shop_settings
 from store_backend.staff.permissions import Perm
 
@@ -43,6 +44,10 @@ class SettingsOut(Schema):
     legal_versions: dict[str, str]
 
     @staticmethod
+    def resolve_legal_versions(obj) -> dict[str, str]:
+        return legal_pages.current_versions()
+
+    @staticmethod
     def resolve_fee_kdv_rate(obj) -> str:
         return str(obj.fee_kdv_rate)
 
@@ -69,7 +74,6 @@ class SettingsPatch(Schema):
     seller_phone: str | None = None
     return_carrier: str | None = None
     complaint_contact: str | None = None
-    legal_versions: dict[str, str] | None = None
 
 
 @router.get(

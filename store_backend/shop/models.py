@@ -5,9 +5,9 @@ import unicodedata
 from django.conf import settings
 from django.db import models
 
-# The fixed Legal pages. The text lives in the frontend repo as versioned Markdown;
-# the backend only knows each page's current version identifier, so checkout can record
-# which versions a Shopper accepted.
+# The fixed Legal pages. Their text lives in `LegalPageVersion` rows (an edit adds the
+# next version, never changes one); `services.legal_pages` knows each page's current
+# version, so checkout can record which versions a Shopper accepted.
 LEGAL_PAGES: tuple[str, ...] = (
     "distance_sales_contract",
     "pre_information_form",
@@ -19,7 +19,23 @@ LEGAL_PAGES: tuple[str, ...] = (
 )
 
 
+# The public address (slug) and original title of each page. Slugs never change.
+LEGAL_PAGE_META: dict[str, tuple[str, str]] = {
+    "distance_sales_contract": (
+        "mesafeli-satis-sozlesmesi",
+        "Mesafeli Satış Sözleşmesi",
+    ),
+    "pre_information_form": ("on-bilgilendirme-formu", "Ön Bilgilendirme Formu"),
+    "returns_withdrawal": ("iade-ve-cayma-kosullari", "İade ve Cayma Koşulları"),
+    "privacy_notice": ("gizlilik-ve-kvkk", "Gizlilik ve KVKK Aydınlatma Metni"),
+    "delivery_shipping": ("teslimat-ve-kargo", "Teslimat ve Kargo"),
+    "payment_methods": ("odeme-yontemleri", "Ödeme Yöntemleri"),
+    "about_contact": ("hakkimizda-iletisim", "Hakkımızda / İletişim"),
+}
+
+
 def default_legal_versions() -> dict[str, str]:
+    """Kept for migration 0001, which refers to it by name."""
     return dict.fromkeys(LEGAL_PAGES, "1")
 
 
@@ -66,8 +82,6 @@ class StoreSettings(models.Model):
     return_carrier = models.CharField(max_length=100, blank=True)
     complaint_contact = models.CharField(max_length=300, blank=True)
 
-    legal_versions = models.JSONField(default=default_legal_versions)
-
     class Meta:
         verbose_name_plural = "store settings"
         constraints = [
@@ -82,6 +96,66 @@ class StoreSettings(models.Model):
 
 
 USER_AGENT_MAX = 500
+
+
+class ImmutableError(Exception):
+    """A saved Legal page version is never changed or removed."""
+
+
+class LegalPageVersionQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ImmutableError
+
+    def delete(self):
+        raise ImmutableError
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ImmutableError
+
+
+class LegalPageVersion(models.Model):
+    """One saved text of a Legal page. An edit inserts the next version.
+
+    A Consent record points at (page, version), so the text a Shopper accepted can
+    always be shown again. Immutable here (not a database trigger: the guard is the
+    model and queryset, and no endpoint changes or deletes one).
+    """
+
+    page = models.CharField(max_length=40, choices=[(p, p) for p in LEGAL_PAGES])
+    version = models.PositiveIntegerField()
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Empty for the text carried over from the first release.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LegalPageVersionQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page", "version"],
+                name="legal_page_version_unique",
+            ),
+        ]
+        ordering = ["page", "-version"]
+
+    def __str__(self) -> str:
+        return f"{self.page} v{self.version}"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ImmutableError
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ImmutableError
 
 
 class PaymentMethod(models.TextChoices):
