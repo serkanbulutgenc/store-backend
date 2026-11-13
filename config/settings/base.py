@@ -288,8 +288,11 @@ EMAIL_WEBHOOK_SECRET = env("EMAIL_WEBHOOK_SECRET", default="")
 
 # ADMIN
 # ------------------------------------------------------------------------------
-# Django Admin URL.
+# Django Admin URL. Whether it is mounted at all is `ADMIN_ENABLED`: the Dashboard API
+# is the only Dashboard user interface in production (the Django admin signs in without
+# Owner TOTP), so production turns it off unless it runs as the local dev stack.
 ADMIN_URL = "admin/"
+ADMIN_ENABLED = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = ['"Aura Tekstil" <serkanbulutgenc@gmail.com>']
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers

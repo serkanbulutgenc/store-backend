@@ -103,11 +103,6 @@ EMAIL_SUBJECT_PREFIX = env(
 )
 ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
 
-# ADMIN
-# ------------------------------------------------------------------------------
-# Django Admin URL regex.
-ADMIN_URL = env("DJANGO_ADMIN_URL")
-
 # Anymail
 # ------------------------------------------------------------------------------
 # https://anymail.readthedocs.io/en/stable/installation/#installing-anymail
@@ -138,6 +133,9 @@ if not DEV_STACK:
     if not (EMAIL_USE_SSL or EMAIL_USE_TLS):
         msg = "Plain-text SMTP (EMAIL_USE_TLS=False) needs DJANGO_DEV_STACK=True."
         raise ImproperlyConfigured(msg)
+
+# The Django admin signs in without Owner TOTP, so a real server never mounts it.
+ADMIN_ENABLED = DEV_STACK
 
 
 # LOGGING
