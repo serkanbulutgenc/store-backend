@@ -634,6 +634,20 @@ def create_category(request, data: CategoryIn):
     return 201, views.category_dict(catalog.create_category(data.name, parent=parent))
 
 
+# Declared before the `{category_id}` routes: that pattern would match "reorder".
+@router.post(
+    "/categories/reorder",
+    auth=requires(Perm.MANAGE_CATEGORIES),
+    operation_id="catalog_reorder_categories",
+    response=list[CategoryOut],
+)
+def reorder_categories(request, data: CategoryReorderIn):
+    """Save the order of one sibling group (the top level when parent_id is null)."""
+    parent = catalog.ref(Category, data.parent_id, "parent_id")
+    ordered = categories.reorder(parent, data.ids)
+    return [views.category_dict(c) for c in ordered]
+
+
 @router.patch(
     "/categories/{category_id}",
     auth=requires(Perm.MANAGE_CATEGORIES),
@@ -655,19 +669,6 @@ def update_category(request, category_id: int, data: CategoryPatch):
             raise UnprocessableError(msg, fields={"is_hidden": [msg]})
         categories.update(c, changes)
     return views.category_dict(Category.objects.get(pk=c.pk))
-
-
-@router.post(
-    "/categories/reorder",
-    auth=requires(Perm.MANAGE_CATEGORIES),
-    operation_id="catalog_reorder_categories",
-    response=list[CategoryOut],
-)
-def reorder_categories(request, data: CategoryReorderIn):
-    """Save the order of one sibling group (the top level when parent_id is null)."""
-    parent = catalog.ref(Category, data.parent_id, "parent_id")
-    ordered = categories.reorder(parent, data.ids)
-    return [views.category_dict(c) for c in ordered]
 
 
 @router.post(
