@@ -24,6 +24,7 @@ from oscar.apps.partner.models import Partner
 from oscar.apps.partner.models import StockRecord
 from oscar.apps.payment.models import SourceType
 
+from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
@@ -81,6 +82,8 @@ def _purge() -> None:
         model.objects.all().delete()
     Product.objects.filter(structure=Product.CHILD).delete()
     Product.objects.all().delete()
+    # The raw delete below skips cascades, so the Category profiles go first.
+    CategoryProfile.objects.all().delete()
     # Oscar's delete receiver needs sorl-thumbnail, which this project does not use.
     Category.objects.all()._raw_delete(Category.objects.db)  # noqa: SLF001
     Colour.objects.all().delete()
