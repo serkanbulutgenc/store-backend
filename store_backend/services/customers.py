@@ -227,6 +227,7 @@ def anonymise(user: User) -> None:
     user.save()
     EmailAddress.objects.filter(user=user).delete()
     user.saved_addresses.all().delete()
+    user.favorites.all().delete()
 
 
 @transaction.atomic

@@ -13,7 +13,7 @@ Phase 2 reduces manual work and tidies the Dashboard before and after launch. It
 
 Success means less daily manual work for the Owner and more completed orders. Going live is still gated by the launch checklist (PRD section 8); only the import is a pre-launch need.
 
-**Deferred, each returns as its own effort:** online card payments, SMS, the accountant integrator API, POS stock sync, marketing sends and analytics (IYS, cookie banner, data purge), wishlist, reorder, CAPTCHA, a live carrier API (labels, tracking pulls).
+**Deferred, each returns as its own effort:** online card payments, SMS, the accountant integrator API, POS stock sync, marketing sends and analytics (IYS, cookie banner, data purge), reorder, CAPTCHA, a live carrier API (labels, tracking pulls).
 
 ## 2. Bulk catalogue import
 

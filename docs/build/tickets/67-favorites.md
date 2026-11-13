@@ -3,7 +3,7 @@ title: Favorites: Shoppers heart Products
 repo: store-backend + store-frontend
 slice: 16
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: []
 ---
@@ -17,11 +17,11 @@ blocked-by: []
 
 ## Acceptance
 
-- [ ] Hearting twice is idempotent; unhearting removes it; the 201st is refused with a clear message.
-- [ ] Archived and draft Products do not appear in the list; a sold-out one appears greyed out.
-- [ ] A guest hearting is redirected to login and the heart is applied on return.
-- [ ] Account deletion removes the Shopper's Favorites.
-- [ ] Dashboard users (is_staff) still get 403 on the Store API.
+- [x] Hearting twice is idempotent; unhearting removes it; the 201st is refused with a clear message.
+- [x] Archived and draft Products do not appear in the list; a sold-out one appears greyed out.
+- [x] A guest hearting is redirected to login and the heart is applied on return.
+- [x] Account deletion removes the Shopper's Favorites.
+- [x] Dashboard users (is_staff) still get 403 on the Store API.
 
 ## Spec
 

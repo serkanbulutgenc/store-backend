@@ -2749,6 +2749,97 @@
         ]
       }
     },
+    "/api/store/account/favorites": {
+      "get": {
+        "description": "Hearted Products, newest first (at most 200). Draft and archived Products are\nleft out; sold-out ones come back with `sold_out` set so the UI can grey them.",
+        "operationId": "account_list_favorites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCardOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "List Favorites",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/store/account/favorites/{product_id}": {
+      "delete": {
+        "operationId": "account_remove_favorite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Remove Favorite",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Heart a Product; idempotent. 404 for unknown or unpublished Products, 409\n`favorites_limit` past 200.",
+        "operationId": "account_add_favorite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Add Favorite",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/store/account/orders": {
       "get": {
         "operationId": "account_list_orders",

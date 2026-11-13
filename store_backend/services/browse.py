@@ -124,7 +124,7 @@ def _category_ids(slug: str) -> list[int]:
     return categories.visible_ids_under(categories.get_visible(slug))
 
 
-def _published() -> QuerySet[ProductProfile]:
+def published() -> QuerySet[ProductProfile]:
     return ProductProfile.objects.filter(status=ProductStatus.PUBLISHED).annotate(
         price_from=_price_from(),
     )
@@ -140,7 +140,7 @@ def _pool(
     """Published Products meeting the Product filters, except the `skip` dimension
     (and the chosen attribute options of `skip_attribute`, or of all with
     `skip_attributes`)."""
-    qs = _published()
+    qs = published()
     if f.category:
         in_category = ProductCategory.objects.filter(
             product=OuterRef("product_id"),
@@ -311,7 +311,7 @@ def card_image(photos: list[ProductPhoto]) -> dict | None:
     }
 
 
-def _card(profile: ProductProfile, variants: list, photos: list) -> dict:
+def product_card(profile: ProductProfile, variants: list, photos: list) -> dict:
     in_stock = [v for v in variants if v["available"] > 0]
     shown = in_stock or variants
     seen: dict[int, Colour] = {}
@@ -393,7 +393,8 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
     photos = photos_by_product(ids)
     return {
         "items": [
-            _card(p, variants[p.product_id], photos[p.product_id]) for p in profiles
+            product_card(p, variants[p.product_id], photos[p.product_id])
+            for p in profiles
         ],
         "total": total,
         "page": page,
@@ -463,7 +464,7 @@ def category_page(slug: str) -> dict:
 def detail(slug: str) -> dict:
     """A published Product for its page; drafts and archived Products are not found."""
     profile = (
-        _published()
+        published()
         .select_related("product__product_class__profile", "brand")
         .filter(slug=slug)
         .first()
@@ -482,7 +483,7 @@ def detail(slug: str) -> dict:
     product = profile.product
     variants = variants_by_product([product.pk])[product.pk]
     photos = photos_by_product([product.pk])[product.pk]
-    card = _card(profile, variants, photos)
+    card = product_card(profile, variants, photos)
     category = categories.visible().filter(productcategory__product=product).first()
     crumbs = [*category.get_ancestors(), category] if category is not None else []
     threshold = profile.low_stock_threshold

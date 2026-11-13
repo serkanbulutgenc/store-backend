@@ -32,7 +32,7 @@ Source tickets: [map](../wayfinder/map.md) (Destination, Notes).
 
 **Accounts**
 - Sign-up, plus a "create account" offer on the confirmation page. Email and password only. Email verification mandatory before first login.
-- Order history and detail, profile, address book (up to 5, one default), change email (re-verified), change password, account-deletion request. No wishlist, reorder or saved payment details.
+- Order history and detail, profile, address book (up to 5, one default), change email (re-verified), change password, account-deletion request, and Favorites (a heart per Product, logged-in only, up to 200, no public count or notifications). No reorder or saved payment details.
 - Guest Orders attach to an account when its email is verified and matches.
 
 **Legal pages** (static, versioned Markdown, text supplied by the lawyer): distance sales contract, pre-information form, returns and withdrawal (with the hygiene exception), privacy/KVKK notice, delivery and shipping, payment methods, about and contact. In the footer; checkout links the contract, pre-information form and privacy notice. No analytics, no third-party scripts, no cookie banner in phase 1; the privacy notice lists the strictly necessary cookies.
@@ -89,4 +89,4 @@ Turkish only (`tr-TR`, `Europe/Istanbul`). Money is computed on the server from 
 
 ## 9. Out of scope
 
-Marketplace mode, online card payments, native mobile app, Oscar's own dashboard and templates, and the later-phase list on the map (carrier integration and weight or city rates, self-service returns, POS stock sync, marketing sends and analytics, bulk import, SMS, wishlist and reorder, CAPTCHA).
+Marketplace mode, online card payments, native mobile app, Oscar's own dashboard and templates, and the later-phase list on the map (carrier integration and weight or city rates, self-service returns, POS stock sync, marketing sends and analytics, bulk import, SMS, reorder, CAPTCHA).

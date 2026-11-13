@@ -75,6 +75,8 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Address book**: A Customer's saved delivery addresses (up to five, one default).
 
+**Favorite**: A logged-in Shopper's heart on a Product (not a Variant), up to 200. Private: no public count and no notifications. Draft and archived Products are hidden from the list; sold-out ones show greyed out.
+
 **Claiming**: Attaching a Guest's Orders to a Customer account once the account's email is verified and matches the Order's email.
 
 **Legal page**: A fixed public page carrying contract, policy or notice text supplied by the lawyer (distance sales contract, pre-information form, returns and withdrawal, privacy notice, delivery, payment methods, about and contact). The Owner edits it in the Dashboard in Markdown. Shoppers can search the Legal pages.

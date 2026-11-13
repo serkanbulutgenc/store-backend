@@ -592,3 +592,32 @@ class ReturnLine(models.Model):
 
     def __str__(self) -> str:
         return f"{self.quantity} x line {self.order_line_id}"
+
+
+class Favorite(models.Model):
+    """A Shopper's heart on a Product (not a Variant). Our own model, not Oscar's
+    wishlists (ADR 0003): no counts, no sharing, no notifications."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+    )
+    product = models.ForeignKey(
+        "catalogue.Product",
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "product"],
+                name="one_favorite_per_user_and_product",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} -> {self.product_id}"
