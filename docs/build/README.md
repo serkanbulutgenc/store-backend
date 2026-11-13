@@ -107,3 +107,9 @@ Scoped in [phase-2.md](../spec/phase-2.md) on 2026-11-12. Same conventions as ab
 - 57 [Frontend: Shopper cancel and return request pages](tickets/57-fe-returns.md) (store-frontend, AFK), blocked by 55
 - 58 [Frontend: Dashboard return requests](tickets/58-fe-admin-returns.md) (store-frontend, AFK), blocked by 56, 42
 - 59 [Return wording and return-carrier terms approved](tickets/59-ops-returns-legal.md) (store-infra, HITL), blocked by 55
+
+### Slice 15: Legal pages in the Dashboard
+
+- 60 [Backend: Legal pages as immutable versions, Owner edit API, search](tickets/60-be-legal-pages.md) (store-backend, AFK)
+- 61 [Frontend: Storefront Legal pages from the API, with search](tickets/61-fe-storefront-legal.md) (store-frontend, AFK), blocked by 60
+- 62 [Frontend: Dashboard Legal pages editor (Owner)](tickets/62-fe-admin-legal.md) (store-frontend, AFK), blocked by 60

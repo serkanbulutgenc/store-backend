@@ -10,7 +10,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Dashboard**: The site for Dashboard users to manage the store. Separate from the Storefront.
 
-**Shopper**: Anyone buying on the Storefront.
+**Shopper**: Anyone buying on the Storefront. A Dashboard user is never a Shopper: they have no Storefront account, so testing a purchase needs a separate Customer account.
 - **Guest**: A Shopper who buys without an account.
 - **Customer**: A Shopper with an account (email and password).
 
@@ -73,7 +73,8 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Claiming**: Attaching a Guest's Orders to a Customer account once the account's email is verified and matches the Order's email.
 
-**Legal page**: A fixed public page carrying contract, policy or notice text supplied by the lawyer (distance sales contract, pre-information form, returns and withdrawal, privacy notice, delivery, payment methods, about and contact). Each has a version.
+**Legal page**: A fixed public page carrying contract, policy or notice text supplied by the lawyer (distance sales contract, pre-information form, returns and withdrawal, privacy notice, delivery, payment methods, about and contact). The Owner edits it in the Dashboard in Markdown. Shoppers can search the Legal pages.
+- **Legal page version**: One saved text of a Legal page. Every save creates a new version; a version never changes afterwards, so a Consent record always points to the exact text a Shopper accepted.
 
 **Pre-information snapshot**: The frozen copy of what a Shopper was shown before ordering, with that Order's items, prices, shipping fee and COD fee. Kept with the Order as proof.
 
