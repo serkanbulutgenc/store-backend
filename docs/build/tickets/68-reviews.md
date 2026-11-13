@@ -3,7 +3,7 @@ title: Reviews: verified-buyer ratings, moderation queue, basic markdown and emo
 repo: store-backend + store-frontend
 slice: 16
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [67-favorites.md]
 ---
@@ -21,12 +21,12 @@ blocked-by: [67-favorites.md]
 
 ## Acceptance
 
-- [ ] A Shopper without a delivered line, or whose line was fully returned, cannot review; the API says why.
-- [ ] A star-only rating shows at once and moves the average; a text review is invisible until approved.
-- [ ] Editing the text of an approved review hides it again until re-approved.
-- [ ] `<script>`, links, images and headings never reach the page; bold, italic, strikethrough, lists and emoji render, including `:smile:` converted to 😄.
-- [ ] Staff and Owner can approve, reject and delete; the queue shows rendered text and source; all are audited.
-- [ ] Average and count on product page and cards match the published reviews.
+- [x] A Shopper without a delivered line, or whose line was fully returned, cannot review; the API says why.
+- [x] A star-only rating shows at once and moves the average; a text review is invisible until approved.
+- [x] Editing the text of an approved review hides it again until re-approved.
+- [x] `<script>`, links, images and headings never reach the page; bold, italic, strikethrough, lists and emoji render, including `:smile:` converted to 😄.
+- [x] Staff and Owner can approve, reject and delete; the queue shows rendered text and source; all are audited.
+- [x] Average and count on product page and cards match the published reviews.
 
 ## Spec
 

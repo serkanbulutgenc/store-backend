@@ -32,7 +32,7 @@ Source tickets: [map](../wayfinder/map.md) (Destination, Notes).
 
 **Accounts**
 - Sign-up, plus a "create account" offer on the confirmation page. Email and password only. Email verification mandatory before first login.
-- Order history and detail, profile, address book (up to 5, one default), change email (re-verified), change password, account-deletion request, and Favorites (a heart per Product, logged-in only, up to 200, no public count or notifications). No reorder or saved payment details.
+- Order history and detail, profile, address book (up to 5, one default), change email (re-verified), change password, account-deletion request, and Favorites (a heart per Product, logged-in only, up to 200, no public count or notifications). Verified buyers can rate a Product from 1 to 5 stars and add moderated text (see Reviews in CONTEXT.md). No reorder or saved payment details.
 - Guest Orders attach to an account when its email is verified and matches.
 
 **Legal pages** (static, versioned Markdown, text supplied by the lawyer): distance sales contract, pre-information form, returns and withdrawal (with the hygiene exception), privacy/KVKK notice, delivery and shipping, payment methods, about and contact. In the footer; checkout links the contract, pre-information form and privacy notice. No analytics, no third-party scripts, no cookie banner in phase 1; the privacy notice lists the strictly necessary cookies.

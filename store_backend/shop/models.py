@@ -621,3 +621,62 @@ class Favorite(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} -> {self.product_id}"
+
+
+class ReviewStatus(models.TextChoices):
+    PENDING = "pending", "Onay bekliyor"
+    PUBLISHED = "published", "Yayında"
+    REJECTED = "rejected", "Reddedildi"
+
+
+class Review(models.Model):
+    """A verified buyer's star rating, with optional moderated text (ADR 0004).
+
+    Our own model, not Oscar's reviews (ADR 0003). `body` is the raw markdown
+    source the Shopper typed; the Storefront renders it without HTML.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="store_reviews",
+    )
+    product = models.ForeignKey(
+        "catalogue.Product",
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    stars = models.PositiveSmallIntegerField()
+    body = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.PUBLISHED,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "product"],
+                name="one_review_per_user_and_product",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(stars__gte=1, stars__lte=5),
+                name="review_stars_1_to_5",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.stars}★ by {self.user_id} on {self.product_id}"

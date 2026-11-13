@@ -47,6 +47,9 @@ class Action(StrEnum):
     CATALOGUE_IMPORT = "catalogue_import"
     ACCOUNT_DELETION = "account_deletion"
     LEGAL_PAGE_PUBLISHED = "legal_page_published"
+    REVIEW_APPROVED = "review_approved"
+    REVIEW_REJECTED = "review_rejected"
+    REVIEW_DELETED = "review_deleted"
 
 
 def record(  # noqa: PLR0913

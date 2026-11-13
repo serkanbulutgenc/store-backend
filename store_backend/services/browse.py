@@ -40,6 +40,7 @@ from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import attributes
 from store_backend.services import categories
+from store_backend.services import reviews
 from store_backend.services import search
 from store_backend.services import stock
 
@@ -311,7 +312,12 @@ def card_image(photos: list[ProductPhoto]) -> dict | None:
     }
 
 
-def product_card(profile: ProductProfile, variants: list, photos: list) -> dict:
+def product_card(
+    profile: ProductProfile,
+    variants: list,
+    photos: list,
+    rating: tuple[float | None, int] = (None, 0),
+) -> dict:
     in_stock = [v for v in variants if v["available"] > 0]
     shown = in_stock or variants
     seen: dict[int, Colour] = {}
@@ -329,6 +335,8 @@ def product_card(profile: ProductProfile, variants: list, photos: list) -> dict:
         "old_price": profile.old_price if price == profile.shelf_price else None,
         "sold_out": not in_stock,
         "image": card_image(photos),
+        "rating_average": rating[0],
+        "rating_count": rating[1],
         "colours": [
             {"id": c.pk, "name": c.name, "hex_code": c.hex_code}
             for c in sorted(seen.values(), key=lambda c: c.name)
@@ -391,9 +399,15 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
     ids = [p.product_id for p in profiles]
     variants = variants_by_product(ids)
     photos = photos_by_product(ids)
+    ratings = reviews.ratings_for(ids)
     return {
         "items": [
-            product_card(p, variants[p.product_id], photos[p.product_id])
+            product_card(
+                p,
+                variants[p.product_id],
+                photos[p.product_id],
+                ratings[p.product_id],
+            )
             for p in profiles
         ],
         "total": total,
@@ -483,7 +497,12 @@ def detail(slug: str) -> dict:
     product = profile.product
     variants = variants_by_product([product.pk])[product.pk]
     photos = photos_by_product([product.pk])[product.pk]
-    card = product_card(profile, variants, photos)
+    card = product_card(
+        profile,
+        variants,
+        photos,
+        reviews.ratings_for([product.pk])[product.pk],
+    )
     category = categories.visible().filter(productcategory__product=product).first()
     crumbs = [*category.get_ancestors(), category] if category is not None else []
     threshold = profile.low_stock_threshold

@@ -11,6 +11,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
+from store_backend.services import reviews
 from store_backend.shop.models import Favorite
 from store_backend.users.models import User
 
@@ -63,8 +64,9 @@ def cards(user: User) -> list[dict]:
     }
     variants = browse.variants_by_product(ids)
     photos = browse.photos_by_product(ids)
+    ratings = reviews.ratings_for(ids)
     return [
-        browse.product_card(profiles[pk], variants[pk], photos[pk])
+        browse.product_card(profiles[pk], variants[pk], photos[pk], ratings[pk])
         for pk in ids
         if pk in profiles
     ]

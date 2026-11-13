@@ -1066,6 +1066,82 @@
         "title": "LegalSearchHit",
         "type": "object"
       },
+      "MyReviewOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "stars": {
+            "title": "Stars",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "stars",
+          "body",
+          "status"
+        ],
+        "title": "MyReviewOut",
+        "type": "object"
+      },
+      "MyReviewStateOut": {
+        "properties": {
+          "can_review": {
+            "title": "Can Review",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyReviewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "can_review",
+          "reason",
+          "message",
+          "review"
+        ],
+        "title": "MyReviewStateOut",
+        "type": "object"
+      },
       "OptionFacet": {
         "properties": {
           "count": {
@@ -1275,6 +1351,18 @@
           "sizes"
         ],
         "title": "PagePhotoOut",
+        "type": "object"
+      },
+      "PageQuery": {
+        "properties": {
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "title": "PageQuery",
         "type": "object"
       },
       "PageVariantOut": {
@@ -1511,6 +1599,21 @@
             "title": "Price",
             "type": "string"
           },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_count": {
+            "title": "Rating Count",
+            "type": "integer"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1532,7 +1635,9 @@
           "old_price",
           "sold_out",
           "image",
-          "colours"
+          "colours",
+          "rating_average",
+          "rating_count"
         ],
         "title": "ProductCardOut",
         "type": "object"
@@ -1622,6 +1727,21 @@
             "title": "Price",
             "type": "string"
           },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_count": {
+            "title": "Rating Count",
+            "type": "integer"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1651,6 +1771,8 @@
           "sold_out",
           "image",
           "colours",
+          "rating_average",
+          "rating_count",
           "description",
           "brand",
           "breadcrumbs",
@@ -2078,6 +2200,103 @@
         ],
         "title": "ReturnStatus",
         "type": "string"
+      },
+      "ReviewIn": {
+        "properties": {
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "stars": {
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Stars",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stars"
+        ],
+        "title": "ReviewIn",
+        "type": "object"
+      },
+      "ReviewOut": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "stars": {
+            "title": "Stars",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "stars",
+          "body",
+          "author",
+          "created_at"
+        ],
+        "title": "ReviewOut",
+        "type": "object"
+      },
+      "ReviewPageOut": {
+        "properties": {
+          "average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "average",
+          "count",
+          "page",
+          "page_size",
+          "items"
+        ],
+        "title": "ReviewPageOut",
+        "type": "object"
       },
       "SavedAddressIn": {
         "properties": {
@@ -3014,6 +3233,82 @@
         ]
       }
     },
+    "/api/store/account/reviews/{product_id}": {
+      "delete": {
+        "operationId": "reviews_delete_mine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Delete Review",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "put": {
+        "description": "Create or edit my review. 403 `review_not_delivered` or `review_fully_returned`\nwhen not eligible; 422 for HTML or text over 2000 characters. Stars alone publish\nat once; new or changed text waits for a moderator.",
+        "operationId": "reviews_save_mine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyReviewOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "Save Review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/store/basket": {
       "get": {
         "operationId": "basket_get",
@@ -3663,6 +3958,88 @@
         "summary": "Get Product",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/store/products/{slug}/my-review": {
+      "get": {
+        "description": "Whether the signed-in Shopper may review this Product (and why not), plus\ntheir review if they wrote one.",
+        "operationId": "reviews_get_mine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyReviewStateOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "CustomerAuth": []
+          }
+        ],
+        "summary": "My Review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/store/products/{slug}/reviews": {
+      "get": {
+        "description": "Published reviews, newest first, with the average and count (10 per page).",
+        "operationId": "reviews_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Reviews",
+        "tags": [
+          "reviews"
         ]
       }
     },

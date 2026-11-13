@@ -43,6 +43,8 @@ class ProductCardOut(Schema):
     sold_out: bool
     image: CardImageOut | None
     colours: list[SwatchOut]
+    rating_average: float | None
+    rating_count: int
 
 
 class ColourFacet(Schema):

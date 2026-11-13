@@ -77,6 +77,8 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Favorite**: A logged-in Shopper's heart on a Product (not a Variant), up to 200. Private: no public count and no notifications. Draft and archived Products are hidden from the list; sold-out ones show greyed out.
 
+**Review**: A verified buyer's 1-5 star rating of a Product with optional text, shown as "Ayşe K.". Only a Shopper with a delivered, not fully returned Order line for the Product may write one; one per Shopper and Product. Stars alone publish at once; any text (even emoji only) waits in the moderation queue until Owner or Staff approve it, and editing the text sends it back. Text is basic markdown without HTML, headings, images or clickable links.
+
 **Claiming**: Attaching a Guest's Orders to a Customer account once the account's email is verified and matches the Order's email.
 
 **Legal page**: A fixed public page carrying contract, policy or notice text supplied by the lawyer (distance sales contract, pre-information form, returns and withdrawal, privacy notice, delivery, payment methods, about and contact). The Owner edits it in the Dashboard in Markdown. Shoppers can search the Legal pages.
