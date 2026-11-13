@@ -3,7 +3,7 @@ title: Variant matrix generator and bulk stock grid
 repo: store-backend + store-frontend
 slice: 16
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: []
 ---
@@ -18,10 +18,10 @@ blocked-by: []
 
 ## Acceptance
 
-- [ ] Choosing 3 colours × 4 sizes creates 12 Variants; running it again creates none and says all were skipped.
-- [ ] A size outside the class scheme or an inactive colour is refused.
-- [ ] Editing three cells in the grid writes exactly three audited stock adjustments.
-- [ ] A Staff user can use both; stock cannot go negative.
+- [x] Choosing 3 colours × 4 sizes creates 12 Variants; running it again creates none and says all were skipped.
+- [x] A size outside the class scheme or an inactive colour is refused.
+- [x] Editing three cells in the grid writes exactly three audited stock adjustments.
+- [x] A Staff user can use both; stock cannot go negative.
 
 ## Spec
 
