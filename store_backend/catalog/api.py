@@ -247,6 +247,33 @@ class StockAdjustmentIn(Schema):
     reason: str = Field(..., max_length=200)
 
 
+class VariantGenerateIn(Schema):
+    colour_ids: list[int] = Field(..., max_length=50)
+    sizes: list[str] = Field(..., max_length=50)
+    stock: int = Field(0, ge=0, le=100000)
+    price_override: Money | None = None
+
+
+class SkippedCombinationOut(Schema):
+    colour: ColourOut
+    size: str
+
+
+class VariantGenerateOut(Schema):
+    created: list[VariantOut]
+    skipped: list[SkippedCombinationOut]
+
+
+class StockGridCellIn(Schema):
+    variant_id: int
+    delta: int = Field(..., ge=-100000, le=100000)
+
+
+class StockGridIn(Schema):
+    reason: str = Field(..., max_length=200)
+    cells: list[StockGridCellIn] = Field(..., max_length=500)
+
+
 class StockOut(Schema):
     on_hand: int
     allocated: int
@@ -741,6 +768,29 @@ def create_variant(request, product_id: int, data: VariantIn):
     return 201, views.variant_dict(catalog.get_variant(variant.pk))
 
 
+@router.post(
+    "/products/{product_id}/variants/generate",
+    auth=requires(Perm.MANAGE_PRODUCTS),
+    operation_id="catalog_generate_variants",
+    response={201: VariantGenerateOut},
+)
+def generate_variants(request, product_id: int, data: VariantGenerateIn):
+    """Create every missing colour x size Variant; existing ones are reported as
+    skipped."""
+    product = catalog.get_product(product_id)
+    created, skipped = catalog.generate_variants(
+        product,
+        colour_ids=data.colour_ids,
+        sizes=data.sizes,
+        stock=data.stock,
+        price_override=data.price_override,
+    )
+    return 201, {
+        "created": [views.variant_dict(catalog.get_variant(v.pk)) for v in created],
+        "skipped": [{"colour": views.colour_dict(c), "size": s} for c, s in skipped],
+    }
+
+
 @router.patch(
     "/variants/{variant_id}",
     auth=requires(Perm.MANAGE_PRODUCTS),
@@ -769,6 +819,27 @@ def adjust_stock(request, variant_id: int, data: StockAdjustmentIn):
     variant = catalog.get_variant(variant_id)
     stock.adjust(request.auth, variant, delta=data.delta, reason=data.reason)
     return views.variant_dict(catalog.get_variant(variant_id))
+
+
+@router.post(
+    "/products/{product_id}/stock-grid",
+    auth=requires(Perm.ADJUST_STOCK),
+    operation_id="catalog_save_stock_grid",
+    response=list[VariantOut],
+)
+def save_stock_grid(request, product_id: int, data: StockGridIn):
+    """Apply the changed cells of the stock grid as audited adjustments, all or
+    nothing. Returns every Variant of the Product with its new stock."""
+    product = catalog.get_product(product_id)
+    changes: dict[int, int] = {}
+    for cell in data.cells:
+        changes[cell.variant_id] = changes.get(cell.variant_id, 0) + cell.delta
+    stock.adjust_many(request.auth, product, changes=changes, reason=data.reason)
+    variants = product.children.select_related(
+        "variant_profile__colour",
+        "parent__profile",
+    ).prefetch_related("stockrecords")
+    return [views.variant_dict(v) for v in variants.order_by("pk")]
 
 
 @router.get(

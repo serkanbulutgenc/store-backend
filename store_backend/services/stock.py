@@ -187,6 +187,38 @@ def adjust(actor: User, variant: Product, *, delta: int, reason: str) -> StockRe
     return record
 
 
+@transaction.atomic
+def adjust_many(
+    actor: User,
+    product: Product,
+    *,
+    changes: dict[int, int],
+    reason: str,
+) -> list[StockRecord]:
+    """Apply `{variant id: delta}` to the Variants of one Product, all or nothing.
+
+    Zero deltas write nothing; every other change goes through `adjust`, so each
+    one is audited with the reason. Variants of other Products are refused.
+    """
+    reason = reason.strip()
+    if len(reason) < MIN_REASON_LENGTH:
+        raise _invalid("reason", "Bir neden yazın.")
+    variants = {
+        v.pk: v
+        for v in Product.objects.select_related("variant_profile").filter(
+            parent=product,
+            pk__in=list(changes),
+        )
+    }
+    if set(changes) - set(variants):
+        raise _invalid("cells", "Varyant bu ürüne ait değil.")
+    return [
+        adjust(actor, variants[pk], delta=delta, reason=reason)
+        for pk, delta in sorted(changes.items())
+        if delta != 0
+    ]
+
+
 def low_stock_variants() -> QuerySet[Product]:
     """Variants of non-archived Products at or below their Product's threshold."""
     return (

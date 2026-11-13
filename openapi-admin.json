@@ -4527,6 +4527,23 @@
         "title": "ShippingOut",
         "type": "object"
       },
+      "SkippedCombinationOut": {
+        "properties": {
+          "colour": {
+            "$ref": "#/components/schemas/ColourOut"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          }
+        },
+        "required": [
+          "colour",
+          "size"
+        ],
+        "title": "SkippedCombinationOut",
+        "type": "object"
+      },
       "StaffUserOut": {
         "properties": {
           "email": {
@@ -4613,6 +4630,49 @@
           "reason"
         ],
         "title": "StockAdjustmentIn",
+        "type": "object"
+      },
+      "StockGridCellIn": {
+        "properties": {
+          "delta": {
+            "maximum": 100000,
+            "minimum": -100000,
+            "title": "Delta",
+            "type": "integer"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "variant_id",
+          "delta"
+        ],
+        "title": "StockGridCellIn",
+        "type": "object"
+      },
+      "StockGridIn": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/StockGridCellIn"
+            },
+            "maxItems": 500,
+            "title": "Cells",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 200,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "cells"
+        ],
+        "title": "StockGridIn",
         "type": "object"
       },
       "StockOut": {
@@ -4718,6 +4778,78 @@
           "title"
         ],
         "title": "UnphotographedRow",
+        "type": "object"
+      },
+      "VariantGenerateIn": {
+        "properties": {
+          "colour_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Colour Ids",
+            "type": "array"
+          },
+          "price_override": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Override"
+          },
+          "sizes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Sizes",
+            "type": "array"
+          },
+          "stock": {
+            "default": 0,
+            "maximum": 100000,
+            "minimum": 0,
+            "title": "Stock",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "colour_ids",
+          "sizes"
+        ],
+        "title": "VariantGenerateIn",
+        "type": "object"
+      },
+      "VariantGenerateOut": {
+        "properties": {
+          "created": {
+            "items": {
+              "$ref": "#/components/schemas/VariantOut"
+            },
+            "title": "Created",
+            "type": "array"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedCombinationOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "created",
+          "skipped"
+        ],
+        "title": "VariantGenerateOut",
         "type": "object"
       },
       "VariantIn": {
@@ -8044,6 +8176,58 @@
         ]
       }
     },
+    "/api/admin/products/{product_id}/stock-grid": {
+      "post": {
+        "description": "Apply the changed cells of the stock grid as audited adjustments, all or\nnothing. Returns every Variant of the Product with its new stock.",
+        "operationId": "catalog_save_stock_grid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockGridIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VariantOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Save Stock Grid",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/admin/products/{product_id}/variants": {
       "post": {
         "operationId": "catalog_create_variant",
@@ -8086,6 +8270,54 @@
           }
         ],
         "summary": "Create Variant",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/products/{product_id}/variants/generate": {
+      "post": {
+        "description": "Create every missing colour x size Variant; existing ones are reported as\nskipped.",
+        "operationId": "catalog_generate_variants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariantGenerateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariantGenerateOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Generate Variants",
         "tags": [
           "catalog"
         ]

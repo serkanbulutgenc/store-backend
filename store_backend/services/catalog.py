@@ -426,6 +426,58 @@ def create_variant(  # noqa: PLR0913
     return variant
 
 
+@transaction.atomic
+def generate_variants(
+    product: Product,
+    *,
+    colour_ids: list[int],
+    sizes: list[str],
+    stock: int = 0,
+    price_override: object | None = None,
+) -> tuple[list[Product], list[tuple[Colour, str]]]:
+    """Create every missing colour x size Variant of `product` in one transaction.
+
+    Returns (created, skipped); existing combinations are skipped, not errors. The
+    whole request is refused if any colour is unknown or inactive or any size is
+    outside the class's scheme, before anything is created.
+    """
+    colour_ids = list(dict.fromkeys(colour_ids))
+    sizes = list(dict.fromkeys(sizes))
+    if not colour_ids:
+        raise _invalid("colour_ids", "En az bir renk seçin.")
+    if not sizes:
+        raise _invalid("sizes", "En az bir beden seçin.")
+    colours = {c.pk: c for c in Colour.objects.filter(pk__in=colour_ids)}
+    if len(colours) != len(colour_ids):
+        raise _invalid("colour_ids", "Kayıt bulunamadı.")
+    if any(not c.is_active for c in colours.values()):
+        raise _invalid("colour_ids", "Pasif renk seçilemez.")
+    allowed = sizes_for(product.product_class.profile.size_scheme)
+    if any(size not in allowed for size in sizes):
+        raise _invalid("sizes", "Bu ürün sınıfı için geçersiz beden.")
+    existing = set(
+        VariantProfile.objects.filter(parent=product).values_list("colour_id", "size"),
+    )
+    created: list[Product] = []
+    skipped: list[tuple[Colour, str]] = []
+    for colour_id in colour_ids:
+        for size in sizes:
+            colour = colours[colour_id]
+            if (colour_id, size) in existing:
+                skipped.append((colour, size))
+                continue
+            created.append(
+                create_variant(
+                    product,
+                    colour=colour,
+                    size=size,
+                    stock=stock,
+                    price_override=price_override,
+                ),
+            )
+    return created, skipped
+
+
 # --- updates ---------------------------------------------------------------
 
 PRODUCT_FIELDS = frozenset(
