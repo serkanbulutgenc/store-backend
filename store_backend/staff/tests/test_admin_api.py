@@ -182,3 +182,35 @@ def test_groups_are_not_assignable_through_the_api(owner, api_for):
         HTTPStatus.NOT_FOUND,
         HTTPStatus.METHOD_NOT_ALLOWED,
     }
+
+
+def test_a_demoted_owner_loses_owner_access_on_the_open_session(owner, api_for):
+    api = api_for(owner, enrol=True)
+    assert api.get(OWNER_ONLY_URL).status_code == HTTPStatus.OK
+
+    owner.groups.set([Group.objects.get(name="Staff")])
+
+    assert api.get(OWNER_ONLY_URL).status_code == HTTPStatus.FORBIDDEN
+
+
+def test_a_deactivated_user_is_refused_on_the_open_session(staff_user, api_for):
+    api = api_for(staff_user)
+    assert api.get("/api/admin/me").status_code == HTTPStatus.OK
+
+    staff_user.is_active = False
+    staff_user.save(update_fields=["is_active"])
+
+    assert api.get("/api/admin/me").status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_a_user_whose_dashboard_access_is_removed_is_refused_on_the_open_session(
+    staff_user,
+    api_for,
+):
+    api = api_for(staff_user)
+    assert api.get("/api/admin/me").status_code == HTTPStatus.OK
+
+    staff_user.is_staff = False
+    staff_user.save(update_fields=["is_staff"])
+
+    assert api.get("/api/admin/me").status_code == HTTPStatus.FORBIDDEN
