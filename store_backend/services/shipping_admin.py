@@ -8,11 +8,9 @@ from decimal import InvalidOperation
 from typing import TYPE_CHECKING
 
 from django.db import transaction
-from oscar.apps.catalogue.models import ProductClass
 
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
-from store_backend.catalog.models import ProductClassProfile
 from store_backend.services import audit
 from store_backend.shop.models import ProvinceZone
 from store_backend.shop.models import RateRow
@@ -148,29 +146,3 @@ def validate_desi(value: object, field: str = "desi") -> int:
     if not 1 <= value <= MAX_DESI:
         raise _invalid(field, f"Desi 1 ile {MAX_DESI} arasında olmalı.")
     return value
-
-
-@transaction.atomic
-def set_class_desi(actor: User, class_id: int, desi: object) -> ProductClass:
-    value = validate_desi(desi, "default_desi")
-    profile = (
-        ProductClassProfile.objects.select_for_update()
-        .select_related("product_class")
-        .filter(product_class_id=class_id)
-        .first()
-    )
-    if profile is None:
-        raise NotFoundError("Ürün sınıfı bulunamadı.")
-    if profile.default_desi != value:
-        before = {"default_desi": profile.default_desi}
-        profile.default_desi = value
-        profile.save(update_fields=["default_desi"])
-        audit.record(
-            actor,
-            audit.Action.SETTINGS_CHANGE,
-            target=profile,
-            summary=f"Varsayılan desi: {profile.product_class.name}",
-            before=before,
-            after={"default_desi": value},
-        )
-    return ProductClass.objects.select_related("profile").get(pk=class_id)

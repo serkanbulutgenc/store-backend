@@ -2535,6 +2535,46 @@
         "title": "PaymentMethod",
         "type": "string"
       },
+      "ProductClassIn": {
+        "properties": {
+          "default_desi": {
+            "default": 1,
+            "title": "Default Desi",
+            "type": "integer"
+          },
+          "default_kdv_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Default Kdv Rate"
+          },
+          "is_hygiene": {
+            "default": false,
+            "title": "Is Hygiene",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_scheme": {
+            "title": "Size Scheme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "size_scheme",
+          "default_kdv_rate"
+        ],
+        "title": "ProductClassIn",
+        "type": "object"
+      },
       "ProductClassOut": {
         "properties": {
           "default_desi": {
@@ -2560,6 +2600,17 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "product_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Count"
           },
           "size_scheme": {
             "title": "Size Scheme",
@@ -2588,13 +2639,64 @@
       "ProductClassPatch": {
         "properties": {
           "default_desi": {
-            "title": "Default Desi",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Desi"
+          },
+          "default_kdv_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Kdv Rate"
+          },
+          "is_hygiene": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Hygiene"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "size_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Scheme"
           }
         },
-        "required": [
-          "default_desi"
-        ],
         "title": "ProductClassPatch",
         "type": "object"
       },
@@ -6790,9 +6892,72 @@
         "tags": [
           "catalog"
         ]
+      },
+      "post": {
+        "operationId": "catalog_create_product_class",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductClassIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductClassOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Create Product Class",
+        "tags": [
+          "catalog"
+        ]
       }
     },
     "/api/admin/product-classes/{class_id}": {
+      "delete": {
+        "operationId": "catalog_delete_product_class",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "title": "Class Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Product Class",
+        "tags": [
+          "catalog"
+        ]
+      },
       "patch": {
         "operationId": "catalog_update_product_class",
         "parameters": [

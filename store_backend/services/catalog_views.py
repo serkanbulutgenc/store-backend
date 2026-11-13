@@ -45,7 +45,7 @@ def category_dict(c: Category) -> dict:
     }
 
 
-def product_class_dict(pc: ProductClass) -> dict:
+def product_class_dict(pc: ProductClass, product_count: int | None = None) -> dict:
     return {
         "id": pc.pk,
         "name": pc.name,
@@ -54,6 +54,7 @@ def product_class_dict(pc: ProductClass) -> dict:
         "default_kdv_rate": pc.profile.default_kdv_rate,
         "is_hygiene": pc.profile.is_hygiene,
         "default_desi": pc.profile.default_desi,
+        "product_count": product_count,
     }
 
 

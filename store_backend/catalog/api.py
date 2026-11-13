@@ -11,6 +11,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from django.db.models import Count
 from django.db.models import F
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -39,7 +40,7 @@ from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import catalog_views as views
 from store_backend.services import media
-from store_backend.services import shipping_admin
+from store_backend.services import product_classes
 from store_backend.services import stock
 from store_backend.staff.permissions import Perm
 
@@ -119,10 +120,23 @@ class ProductClassOut(Schema):
     default_kdv_rate: Money
     is_hygiene: bool
     default_desi: int
+    product_count: int | None = None
+
+
+class ProductClassIn(Schema):
+    name: str
+    size_scheme: str
+    default_kdv_rate: Decimal
+    is_hygiene: bool = False
+    default_desi: int = 1
 
 
 class ProductClassPatch(Schema):
-    default_desi: int
+    name: str | None = None
+    size_scheme: str | None = None
+    default_kdv_rate: Decimal | None = None
+    is_hygiene: bool | None = None
+    default_desi: int | None = None
 
 
 class ProductIn(Schema):
@@ -252,18 +266,46 @@ class LowStockOut(Schema):
 )
 def list_product_classes(request):
     classes = ProductClass.objects.select_related("profile").order_by("pk")
-    return [views.product_class_dict(pc) for pc in classes]
+    counts = dict(
+        Product.objects.values_list("product_class_id")
+        .annotate(n=Count("pk"))
+        .values_list("product_class_id", "n"),
+    )
+    return [views.product_class_dict(pc, counts.get(pc.pk, 0)) for pc in classes]
+
+
+@router.post(
+    "/product-classes",
+    auth=requires(Perm.MANAGE_PRODUCT_CLASSES),
+    operation_id="catalog_create_product_class",
+    response={201: ProductClassOut},
+)
+def create_product_class(request, data: ProductClassIn):
+    pc = product_classes.create(request.auth, **data.dict())
+    return 201, views.product_class_dict(pc, 0)
 
 
 @router.patch(
     "/product-classes/{class_id}",
-    auth=requires(Perm.MANAGE_SETTINGS),
+    auth=requires(Perm.MANAGE_PRODUCT_CLASSES),
     operation_id="catalog_update_product_class",
     response=ProductClassOut,
 )
 def update_product_class(request, class_id: int, data: ProductClassPatch):
-    pc = shipping_admin.set_class_desi(request.auth, class_id, data.default_desi)
-    return views.product_class_dict(pc)
+    changes = {k: v for k, v in data.dict(exclude_unset=True).items() if v is not None}
+    pc = product_classes.update(request.auth, class_id, changes)
+    return views.product_class_dict(pc, product_classes.product_count(pc.pk))
+
+
+@router.delete(
+    "/product-classes/{class_id}",
+    auth=requires(Perm.MANAGE_PRODUCT_CLASSES),
+    operation_id="catalog_delete_product_class",
+    response={204: None},
+)
+def delete_product_class(request, class_id: int):
+    product_classes.delete(request.auth, class_id)
+    return 204, None
 
 
 @router.get(

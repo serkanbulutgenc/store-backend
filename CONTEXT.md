@@ -27,7 +27,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Variant**: One purchasable colour/size combination of a Product, with its own stock, **SKU** and optional barcode.
 
-**Product class**: A kind of Product (clothing, footwear, underwear, accessory) that fixes its size scheme and default KDV rate.
+**Product class**: A kind of Product (clothing, footwear, underwear, accessory) that fixes its size scheme, default KDV rate, hygiene flag and default desi. The Owner creates, edits and deletes classes; a class with Products cannot be deleted and its size scheme is locked. A changed default KDV rate applies to Products created afterwards only.
 
 **Size scheme**: The fixed list of sizes allowed for a Product class (letters, numbers, shoe sizes, bra sizes, one-size).
 
