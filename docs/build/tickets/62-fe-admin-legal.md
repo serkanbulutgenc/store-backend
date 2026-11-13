@@ -10,7 +10,7 @@ blocked-by: [60-be-legal-pages.md]
 
 ## Scope
 
-- Owner-only "Yasal sayfalar" screen (nav entry gated on `manage_legal_pages`): list the seven pages with current version and last edit; open one to edit title and Markdown body with a live preview from the preview endpoint.
+- Owner-only "Yasal sayfalar" screen (nav entry gated on `manage_legal_pages`): list the seven pages with current version and last edit; open one to edit title and Markdown body with a live preview rendered in the browser with the Storefront's Markdown renderer (there is no preview endpoint).
 - Saving creates the next version after an explicit confirmation that says it publishes immediately and what the version number will be; version history list per page, each version viewable read-only.
 - Staff never see the entry and the route refuses them.
 
