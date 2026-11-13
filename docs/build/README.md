@@ -113,3 +113,14 @@ Scoped in [phase-2.md](../spec/phase-2.md) on 2026-11-12. Same conventions as ab
 - 60 [Backend: Legal pages as immutable versions, Owner edit API, search](tickets/60-be-legal-pages.md) (store-backend, AFK)
 - 61 [Frontend: Storefront Legal pages from the API, with search](tickets/61-fe-storefront-legal.md) (store-frontend, AFK), blocked by 60
 - 62 [Frontend: Dashboard Legal pages editor (Owner)](tickets/62-fe-admin-legal.md) (store-frontend, AFK), blocked by 60
+
+### Slice 16: Admin features
+
+- 63 [Product classes: Owner creates and deletes them](tickets/63-product-classes.md) (both repos, AFK)
+- 64 [Attributes: per-class definitions, values, product-page block, search and facets](tickets/64-attributes.md) (both repos, AFK), blocked by 63
+- 65 [Variant matrix generator and bulk stock grid](tickets/65-variant-tools.md) (both repos, AFK)
+- 66 [Category properties: description, image, SEO, order, hidden](tickets/66-category-properties.md) (both repos, AFK)
+- 67 [Favorites: Shoppers heart Products](tickets/67-favorites.md) (both repos, AFK)
+- 68 [Reviews: verified-buyer ratings, moderation queue, basic markdown and emoji](tickets/68-reviews.md) (both repos, AFK), blocked by 67
+
+Build in this order, one at a time. Deploy 60-62 on their own first (DB backup, new `api` image, manual `migrate`, new `web` image); batch 63-68 into one or two later releases.
