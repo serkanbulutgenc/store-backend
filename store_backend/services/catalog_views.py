@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from store_backend.catalog.sizes import sizes_for
+from store_backend.services import attributes
 from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import media
@@ -101,6 +102,7 @@ def product_dict(user: Any, product: Product) -> dict:
         "low_stock_threshold": profile.low_stock_threshold,
         "desi": profile.desi,
         "variants": [variant_dict(v) for v in variants],
+        "attribute_values": attributes.values_for(product),
         "cost_price": profile.cost_price,
         "supplier": None
         if supplier is None

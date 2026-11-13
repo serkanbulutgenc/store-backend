@@ -1,10 +1,10 @@
 """Storefront text search: the single swap point if Meilisearch replaces Postgres.
 
 Each ProductProfile carries a folded `search_text` (name, brand, category names,
-colours and SKUs) and a Turkish `search_vector` built from it. Folding maps dotted and
-dotless i and the Turkish letters to plain ASCII on both the document and the query
-side, so "ışık", "ISIK" and "isik" are the same word. Typos are caught by trigram word
-similarity on the folded text.
+colours, SKUs and attribute values) and a Turkish `search_vector` built from it.
+Folding maps dotted and dotless i and the Turkish letters to plain ASCII on both the
+document and the query side, so "ışık", "ISIK" and "isik" are the same word. Typos are
+caught by trigram word similarity on the folded text.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from django.db.models import Value
 from django.db.models.functions import Greatest
 from oscar.apps.catalogue.models import ProductCategory
 
+from store_backend.catalog.models import AttributeValue
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import VariantProfile
 
@@ -60,6 +61,13 @@ def document_for(profile: ProductProfile) -> str:
         "colour",
     ):
         parts.extend([variant.colour.name, variant.sku])
+    # Attribute values: free text and the labels of chosen options.
+    parts.extend(
+        row.text or row.option.label
+        for row in AttributeValue.objects.filter(product=product).select_related(
+            "option",
+        )
+    )
     return fold(" ".join(parts))
 
 

@@ -36,6 +36,7 @@ from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import Supplier
+from store_backend.services import attributes
 from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import catalog_views as views
@@ -139,6 +140,56 @@ class ProductClassPatch(Schema):
     default_desi: int | None = None
 
 
+class AttributeOptionOut(Schema):
+    id: int
+    label: str
+
+
+class AttributeOut(Schema):
+    id: int
+    product_class_id: int
+    name: str
+    kind: str
+    is_multiple: bool
+    is_filterable: bool
+    sort_order: int
+    options: list[AttributeOptionOut]
+    product_count: int
+
+
+class AttributeIn(Schema):
+    name: str
+    kind: str
+    is_multiple: bool = False
+    is_filterable: bool = False
+    options: list[str] = Field(default_factory=list)
+
+
+class AttributePatch(Schema):
+    name: str | None = None
+    is_filterable: bool | None = None
+    sort_order: int | None = None
+
+
+class AttributeOptionIn(Schema):
+    label: str
+
+
+class AttributeOptionPatch(Schema):
+    label: str | None = None
+    sort_order: int | None = None
+
+
+class AttributeValueIO(Schema):
+    attribute_id: int
+    text: str | None = None
+    option_ids: list[int] = Field(default_factory=list)
+
+
+class AttributeValuesIn(Schema):
+    values: list[AttributeValueIO]
+
+
 class ProductIn(Schema):
     title: str
     product_class_id: int
@@ -238,6 +289,7 @@ class ProductOut(Schema):
     low_stock_threshold: int
     desi: int | None
     variants: list[VariantOut]
+    attribute_values: list[AttributeValueIO]
     # Owner only; left out of the response for everyone else.
     cost_price: Money | None = None
     supplier: SupplierOut | None = None
@@ -306,6 +358,104 @@ def update_product_class(request, class_id: int, data: ProductClassPatch):
 def delete_product_class(request, class_id: int):
     product_classes.delete(request.auth, class_id)
     return 204, None
+
+
+@router.get(
+    "/product-classes/{class_id}/attributes",
+    auth=requires(Perm.VIEW_PRODUCTS),
+    operation_id="catalog_list_attributes",
+    response=list[AttributeOut],
+)
+def list_attributes(request, class_id: int):
+    return attributes.list_for_class(class_id)
+
+
+@router.post(
+    "/product-classes/{class_id}/attributes",
+    auth=requires(Perm.MANAGE_ATTRIBUTES),
+    operation_id="catalog_create_attribute",
+    response={201: AttributeOut},
+)
+def create_attribute(request, class_id: int, data: AttributeIn):
+    return 201, attributes.create(request.auth, class_id, **data.dict())
+
+
+@router.patch(
+    "/attributes/{attribute_id}",
+    auth=requires(Perm.MANAGE_ATTRIBUTES),
+    operation_id="catalog_update_attribute",
+    response=AttributeOut,
+)
+def update_attribute(request, attribute_id: int, data: AttributePatch):
+    return attributes.update(
+        request.auth,
+        attribute_id,
+        data.dict(exclude_unset=True),
+    )
+
+
+@router.delete(
+    "/attributes/{attribute_id}",
+    auth=requires(Perm.MANAGE_ATTRIBUTES),
+    operation_id="catalog_delete_attribute",
+    response={204: None},
+)
+def delete_attribute(request, attribute_id: int, confirm: bool = False):  # noqa: FBT001, FBT002
+    attributes.delete(request.auth, attribute_id, confirm=confirm)
+    return 204, None
+
+
+@router.post(
+    "/attributes/{attribute_id}/options",
+    auth=requires(Perm.MANAGE_ATTRIBUTES),
+    operation_id="catalog_add_attribute_option",
+    response={201: AttributeOptionOut},
+)
+def add_attribute_option(request, attribute_id: int, data: AttributeOptionIn):
+    return 201, attributes.add_option(request.auth, attribute_id, data.label)
+
+
+@router.patch(
+    "/attribute-options/{option_id}",
+    auth=requires(Perm.MANAGE_ATTRIBUTES),
+    operation_id="catalog_update_attribute_option",
+    response=AttributeOptionOut,
+)
+def update_attribute_option(request, option_id: int, data: AttributeOptionPatch):
+    return attributes.update_option(
+        request.auth,
+        option_id,
+        data.dict(exclude_unset=True),
+    )
+
+
+@router.delete(
+    "/attribute-options/{option_id}",
+    auth=requires(Perm.MANAGE_ATTRIBUTES),
+    operation_id="catalog_delete_attribute_option",
+    response={204: None},
+)
+def delete_attribute_option(request, option_id: int, confirm: bool = False):  # noqa: FBT001, FBT002
+    attributes.delete_option(request.auth, option_id, confirm=confirm)
+    return 204, None
+
+
+@router.put(
+    "/products/{product_id}/attributes",
+    auth=requires(Perm.MANAGE_PRODUCTS),
+    operation_id="catalog_set_product_attributes",
+    response=list[AttributeValueIO],
+)
+def set_product_attributes(request, product_id: int, data: AttributeValuesIn):
+    """Replace the values of the attributes named in the body; others stay."""
+    product = catalog.get_product(product_id)
+    return attributes.set_values(
+        product,
+        [
+            attributes.ValueInput(v.attribute_id, v.text, tuple(v.option_ids))
+            for v in data.values
+        ],
+    )
 
 
 @router.get(

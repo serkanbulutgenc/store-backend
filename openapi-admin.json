@@ -96,6 +96,242 @@
         "title": "AdminLegalVersion",
         "type": "object"
       },
+      "AttributeIn": {
+        "properties": {
+          "is_filterable": {
+            "default": false,
+            "title": "Is Filterable",
+            "type": "boolean"
+          },
+          "is_multiple": {
+            "default": false,
+            "title": "Is Multiple",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "AttributeIn",
+        "type": "object"
+      },
+      "AttributeOptionIn": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "AttributeOptionIn",
+        "type": "object"
+      },
+      "AttributeOptionOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "AttributeOptionOut",
+        "type": "object"
+      },
+      "AttributeOptionPatch": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "AttributeOptionPatch",
+        "type": "object"
+      },
+      "AttributeOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_filterable": {
+            "title": "Is Filterable",
+            "type": "boolean"
+          },
+          "is_multiple": {
+            "title": "Is Multiple",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeOptionOut"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "product_class_id": {
+            "title": "Product Class Id",
+            "type": "integer"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "product_class_id",
+          "name",
+          "kind",
+          "is_multiple",
+          "is_filterable",
+          "sort_order",
+          "options",
+          "product_count"
+        ],
+        "title": "AttributeOut",
+        "type": "object"
+      },
+      "AttributePatch": {
+        "properties": {
+          "is_filterable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Filterable"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "AttributePatch",
+        "type": "object"
+      },
+      "AttributeValueIO": {
+        "properties": {
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "option_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Option Ids",
+            "type": "array"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "attribute_id"
+        ],
+        "title": "AttributeValueIO",
+        "type": "object"
+      },
+      "AttributeValuesIn": {
+        "properties": {
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeValueIO"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "AttributeValuesIn",
+        "type": "object"
+      },
       "AuditEntryDetail": {
         "properties": {
           "action": {
@@ -3016,6 +3252,13 @@
       },
       "ProductOut": {
         "properties": {
+          "attribute_values": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeValueIO"
+            },
+            "title": "Attribute Values",
+            "type": "array"
+          },
           "brand": {
             "anyOf": [
               {
@@ -3157,7 +3400,8 @@
           "kdv_rate",
           "low_stock_threshold",
           "desi",
-          "variants"
+          "variants",
+          "attribute_values"
         ],
         "title": "ProductOut",
         "type": "object"
@@ -4825,6 +5069,223 @@
         "summary": "Decline Deletion",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/admin/attribute-options/{option_id}": {
+      "delete": {
+        "operationId": "catalog_delete_attribute_option",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "option_id",
+            "required": true,
+            "schema": {
+              "title": "Option Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Confirm",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Attribute Option",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "catalog_update_attribute_option",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "option_id",
+            "required": true,
+            "schema": {
+              "title": "Option Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeOptionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeOptionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Attribute Option",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/attributes/{attribute_id}": {
+      "delete": {
+        "operationId": "catalog_delete_attribute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Confirm",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Attribute",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "catalog_update_attribute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Attribute",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/attributes/{attribute_id}/options": {
+      "post": {
+        "operationId": "catalog_add_attribute_option",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeOptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeOptionOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Add Attribute Option",
+        "tags": [
+          "catalog"
         ]
       }
     },
@@ -7004,6 +7465,92 @@
         ]
       }
     },
+    "/api/admin/product-classes/{class_id}/attributes": {
+      "get": {
+        "operationId": "catalog_list_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "title": "Class Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttributeOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Attributes",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "post": {
+        "operationId": "catalog_create_attribute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "title": "Class Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Create Attribute",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/admin/products": {
       "get": {
         "description": "Search by title, slug, or an exact SKU or barcode of any Variant.",
@@ -7232,6 +7779,58 @@
           }
         ],
         "summary": "Update Product",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/products/{product_id}/attributes": {
+      "put": {
+        "description": "Replace the values of the attributes named in the body; others stay.",
+        "operationId": "catalog_set_product_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeValuesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttributeValueIO"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Set Product Attributes",
         "tags": [
           "catalog"
         ]

@@ -68,11 +68,25 @@ class PriceFacet(Schema):
     max: Money | None
 
 
+class OptionFacet(Schema):
+    id: int
+    label: str
+    count: int
+
+
+class AttributeFacet(Schema):
+    id: int
+    name: str
+    product_class: str
+    options: list[OptionFacet]
+
+
 class FacetsOut(Schema):
     colours: list[ColourFacet]
     sizes: list[SizeFacet]
     brands: list[BrandFacet]
     price: PriceFacet
+    attributes: list[AttributeFacet]
 
 
 class ProductPageOut(Schema):
@@ -89,6 +103,10 @@ class ProductListQuery(Schema):
     colour: list[int] = Field(default_factory=list)
     size: list[str] = Field(default_factory=list)
     brand: list[int] = Field(default_factory=list)
+    option: list[int] = Field(
+        default_factory=list,
+        description="Attribute option ids: any of one attribute's, all attributes.",
+    )
     price_min: Decimal | None = Field(None, ge=0)
     price_max: Decimal | None = Field(None, ge=0)
     in_stock: bool = True
@@ -109,6 +127,7 @@ def list_products(request, params: Query[ProductListQuery]):
         colours=params.colour,
         sizes=params.size,
         brands=params.brand,
+        options=params.option,
         price_min=params.price_min,
         price_max=params.price_max,
         in_stock=params.in_stock,
@@ -166,11 +185,17 @@ class PageVariantOut(Schema):
     remaining: int | None
 
 
+class AttributeBlockOut(Schema):
+    name: str
+    values: list[str]
+
+
 class ProductDetailOut(ProductCardOut):
     description: str
     brand: BrandOut | None
     breadcrumbs: list[CrumbOut]
     is_hygiene: bool
+    attributes: list[AttributeBlockOut]
     variants: list[PageVariantOut]
     photos: list[PagePhotoOut]
 

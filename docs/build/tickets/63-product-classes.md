@@ -3,7 +3,7 @@ title: Product classes: Owner creates and deletes them
 repo: store-backend + store-frontend
 slice: 16
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: []
 ---
@@ -19,11 +19,11 @@ blocked-by: []
 
 ## Acceptance
 
-- [ ] The Owner creates a class, sees it in the product editor's class picker and in the import's known classes.
-- [ ] Deleting a class that has a Product is refused with a clear message; an unused class deletes.
-- [ ] Changing the size scheme of a class with Products is refused; a class with none can change it.
-- [ ] A KDV rate change leaves existing Products and order snapshots untouched.
-- [ ] Staff get 403 on create, edit and delete; the guard test lists them.
+- [x] The Owner creates a class, sees it in the product editor's class picker and in the import's known classes.
+- [x] Deleting a class that has a Product is refused with a clear message; an unused class deletes.
+- [x] Changing the size scheme of a class with Products is refused; a class with none can change it.
+- [x] A KDV rate change leaves existing Products and order snapshots untouched.
+- [x] Staff get 403 on create, edit and delete; the guard test lists them.
 
 ## Spec
 

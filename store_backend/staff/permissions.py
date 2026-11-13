@@ -47,6 +47,7 @@ class Perm(StrEnum):
     IMPORT_CATALOGUE = "import_catalogue"
     MANAGE_LEGAL_PAGES = "manage_legal_pages"
     MANAGE_PRODUCT_CLASSES = "manage_product_classes"
+    MANAGE_ATTRIBUTES = "manage_attributes"
 
     @property
     def label(self) -> str:
@@ -74,6 +75,7 @@ OWNER_ONLY: frozenset[Perm] = frozenset(
         Perm.IMPORT_CATALOGUE,
         Perm.MANAGE_LEGAL_PAGES,
         Perm.MANAGE_PRODUCT_CLASSES,
+        Perm.MANAGE_ATTRIBUTES,
     },
 )
 

@@ -69,6 +69,9 @@ class Api:
             **kwargs,
         )
 
+    def delete(self, path, **kwargs):
+        return self.client.delete(path, headers=self.headers, **kwargs)
+
 
 @pytest.fixture
 def api_for(log_in):

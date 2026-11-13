@@ -41,6 +41,8 @@ def test_owner_only_permissions_match_the_prd(db):
         "VIEW_AUDIT_LOG",
         "IMPORT_CATALOGUE",
         "MANAGE_LEGAL_PAGES",
+        "MANAGE_PRODUCT_CLASSES",
+        "MANAGE_ATTRIBUTES",
     }
 
 

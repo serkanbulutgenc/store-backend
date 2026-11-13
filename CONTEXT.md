@@ -31,6 +31,10 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Size scheme**: The fixed list of sizes allowed for a Product class (letters, numbers, shoe sizes, bra sizes, one-size).
 
+**Attribute**: A descriptive property of a Product class (for example Kumaş or Sezon), defined by the Owner. It is a text field or an option list; an option list holds one value or several, fixed when the attribute is created, and may be marked filterable for the Storefront. Options belong to one attribute and are never shared. Attributes are optional: adding one backfills nothing and an empty value is not shown.
+
+**Attribute value**: What a Product holds for one Attribute: a text, or the chosen option or options. Staff fill them in on the Product. Deleting an Attribute or an option that Products use removes those values, which is a Destructive action: the Dashboard says how many Products are affected and the API requires confirmation.
+
 **Colour**: An entry in the Owner-managed shared colour list, with a swatch.
 
 **Category**: A node in a two-level tree (e.g. Giyim > Elbise). A Product has one primary Category.

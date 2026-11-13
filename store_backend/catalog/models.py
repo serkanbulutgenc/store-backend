@@ -16,6 +16,7 @@ from django.core.validators import MaxValueValidator
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from oscar.apps.catalogue.models import Product
 
 from store_backend.catalog.sizes import SizeScheme
@@ -318,3 +319,123 @@ class PendingFileRemoval(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class AttributeKind(models.TextChoices):
+    TEXT = "text", "Metin"
+    OPTION = "option", "Seçenek listesi"
+
+
+class Attribute(models.Model):
+    """A descriptive property of a Product class, such as Kumaş or Sezon.
+
+    The Owner defines it; Staff fill in its values on each Product. Our own model, not
+    Oscar's `ProductAttribute` (ADR 0003). `kind` and `is_multiple` are fixed when the
+    attribute is created, because changing them would orphan the stored values.
+    """
+
+    product_class = models.ForeignKey(
+        "catalogue.ProductClass",
+        on_delete=models.CASCADE,
+        related_name="spec_attributes",
+    )
+    name = models.CharField(max_length=64)
+    kind = models.CharField(max_length=8, choices=AttributeKind.choices)
+    is_multiple = models.BooleanField(
+        default=False,
+        help_text="A Product may pick several options (option lists only).",
+    )
+    is_filterable = models.BooleanField(
+        default=False,
+        help_text="Shown as a filter on category and search pages (option lists only).",
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                "product_class",
+                Lower("name"),
+                name="catalog_attribute_name_per_class",
+            ),
+            models.CheckConstraint(
+                condition=Q(kind="option") | Q(is_multiple=False, is_filterable=False),
+                name="catalog_attribute_text_is_plain",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_class}: {self.name}"
+
+
+class AttributeOption(models.Model):
+    """One choice of an option-list Attribute. Never shared between attributes."""
+
+    attribute = models.ForeignKey(
+        Attribute,
+        on_delete=models.CASCADE,
+        related_name="options",
+    )
+    label = models.CharField(max_length=64)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                "attribute",
+                Lower("label"),
+                name="catalog_option_label_per_attribute",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class AttributeValue(models.Model):
+    """A Product's value for one Attribute: free text, or one row per chosen option."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="spec_values",
+    )
+    attribute = models.ForeignKey(
+        Attribute,
+        on_delete=models.CASCADE,
+        related_name="values",
+    )
+    option = models.ForeignKey(
+        AttributeOption,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="values",
+    )
+    text = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                "product",
+                "attribute",
+                condition=Q(option__isnull=True),
+                name="catalog_value_one_text_per_attribute",
+            ),
+            models.UniqueConstraint(
+                "product",
+                "attribute",
+                "option",
+                condition=Q(option__isnull=False),
+                name="catalog_value_one_row_per_option",
+            ),
+            models.CheckConstraint(
+                condition=Q(option__isnull=True) | Q(text=""),
+                name="catalog_value_option_has_no_text",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id} {self.attribute_id}"

@@ -321,6 +321,58 @@
         "title": "AddressIn",
         "type": "object"
       },
+      "AttributeBlockOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "values"
+        ],
+        "title": "AttributeBlockOut",
+        "type": "object"
+      },
+      "AttributeFacet": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionFacet"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "product_class": {
+            "title": "Product Class",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "product_class",
+          "options"
+        ],
+        "title": "AttributeFacet",
+        "type": "object"
+      },
       "BankOut": {
         "properties": {
           "account_holder": {
@@ -775,6 +827,13 @@
       },
       "FacetsOut": {
         "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeFacet"
+            },
+            "title": "Attributes",
+            "type": "array"
+          },
           "brands": {
             "items": {
               "$ref": "#/components/schemas/BrandFacet"
@@ -804,7 +863,8 @@
           "colours",
           "sizes",
           "brands",
-          "price"
+          "price",
+          "attributes"
         ],
         "title": "FacetsOut",
         "type": "object"
@@ -944,6 +1004,29 @@
           "excerpt"
         ],
         "title": "LegalSearchHit",
+        "type": "object"
+      },
+      "OptionFacet": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "count"
+        ],
+        "title": "OptionFacet",
         "type": "object"
       },
       "OrderAddressOut": {
@@ -1396,6 +1479,13 @@
       },
       "ProductDetailOut": {
         "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeBlockOut"
+            },
+            "title": "Attributes",
+            "type": "array"
+          },
           "brand": {
             "anyOf": [
               {
@@ -1505,6 +1595,7 @@
           "brand",
           "breadcrumbs",
           "is_hygiene",
+          "attributes",
           "variants",
           "photos"
         ],
@@ -1543,6 +1634,14 @@
             "default": true,
             "title": "In Stock",
             "type": "boolean"
+          },
+          "option": {
+            "description": "Attribute option ids: any of one attribute's, all attributes.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Option",
+            "type": "array"
           },
           "page": {
             "default": 1,
@@ -3238,6 +3337,20 @@
                 "type": "integer"
               },
               "title": "Brand",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Attribute option ids: any of one attribute's, all attributes.",
+            "in": "query",
+            "name": "option",
+            "required": false,
+            "schema": {
+              "description": "Attribute option ids: any of one attribute's, all attributes.",
+              "items": {
+                "type": "integer"
+              },
+              "title": "Option",
               "type": "array"
             }
           },

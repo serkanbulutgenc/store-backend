@@ -3,7 +3,7 @@ title: Attributes: per-class definitions, values, product-page block, search and
 repo: store-backend + store-frontend
 slice: 16
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [63-product-classes.md]
 ---
@@ -21,11 +21,11 @@ blocked-by: [63-product-classes.md]
 
 ## Acceptance
 
-- [ ] The Owner defines "Kumaş" (option list, single) and "Sezon" (multi) on Giyim; Staff set values on a Product; the product page shows them.
-- [ ] Searching an option label finds the Product.
-- [ ] A filterable attribute shows as a facet with correct counts and combines with colour and size filters.
-- [ ] Deleting an option in use asks for confirmation with the affected count and removes the values.
-- [ ] Staff get 403 on definition endpoints; the guard test lists them. Existing Products render unchanged.
+- [x] The Owner defines "Kumaş" (option list, single) and "Sezon" (multi) on Giyim; Staff set values on a Product; the product page shows them.
+- [x] Searching an option label finds the Product.
+- [x] A filterable attribute shows as a facet with correct counts and combines with colour and size filters.
+- [x] Deleting an option in use asks for confirmation with the affected count and removes the values.
+- [x] Staff get 403 on definition endpoints; the guard test lists them. Existing Products render unchanged.
 
 ## Spec
 

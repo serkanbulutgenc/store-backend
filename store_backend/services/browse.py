@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from django.db.models import Count
@@ -25,6 +26,9 @@ from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import ProductCategory
 
 from store_backend.api.errors import NotFoundError
+from store_backend.catalog.models import Attribute
+from store_backend.catalog.models import AttributeOption
+from store_backend.catalog.models import AttributeValue
 from store_backend.catalog.models import Brand
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductPhoto
@@ -33,6 +37,7 @@ from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import SlugRedirect
 from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
+from store_backend.services import attributes
 from store_backend.services import search
 from store_backend.services import stock
 
@@ -58,6 +63,24 @@ class Filters:
     price_min: Decimal | None = None
     price_max: Decimal | None = None
     in_stock: bool = True
+    options: list[int] = field(default_factory=list)
+    # Selected option ids grouped by attribute; filled in by `resolve`.
+    groups: dict[int, list[int]] = field(default_factory=dict)
+
+
+def resolve(f: Filters) -> Filters:
+    """Group the chosen option ids by attribute: any of one attribute's options, and
+    every attribute that has a choice. Unknown option ids are ignored."""
+    if not f.options or f.groups:
+        return f
+    groups: dict[int, list[int]] = {}
+    pairs = AttributeOption.objects.filter(pk__in=f.options).values_list(
+        "attribute_id",
+        "pk",
+    )
+    for attribute_id, option_id in pairs:
+        groups.setdefault(attribute_id, []).append(option_id)
+    return replace(f, groups=groups)
 
 
 # --- query building ------------------------------------------------------------
@@ -107,8 +130,16 @@ def _published() -> QuerySet[ProductProfile]:
     )
 
 
-def _pool(f: Filters, *, skip: str | None = None) -> QuerySet[ProductProfile]:
-    """Published Products meeting the Product filters, except the `skip` dimension."""
+def _pool(
+    f: Filters,
+    *,
+    skip: str | None = None,
+    skip_attribute: int | None = None,
+    skip_attributes: bool = False,
+) -> QuerySet[ProductProfile]:
+    """Published Products meeting the Product filters, except the `skip` dimension
+    (and the chosen attribute options of `skip_attribute`, or of all with
+    `skip_attributes`)."""
     qs = _published()
     if f.category:
         in_category = ProductCategory.objects.filter(
@@ -125,6 +156,15 @@ def _pool(f: Filters, *, skip: str | None = None) -> QuerySet[ProductProfile]:
             qs = qs.filter(price_from__gte=f.price_min)
         if f.price_max is not None:
             qs = qs.filter(price_from__lte=f.price_max)
+    if not skip_attributes:
+        for attribute_id, option_ids in f.groups.items():
+            if attribute_id == skip_attribute:
+                continue
+            has_option = AttributeValue.objects.filter(
+                product=OuterRef("product_id"),
+                option_id__in=option_ids,
+            )
+            qs = qs.filter(Exists(has_option))
     return qs
 
 
@@ -144,6 +184,7 @@ def _with_matching_variant(
 
 
 def matching(f: Filters) -> QuerySet[ProductProfile]:
+    f = resolve(f)
     return _with_matching_variant(_pool(f), f)
 
 
@@ -198,6 +239,56 @@ def _brand_facet(f: Filters) -> list[dict]:
         ),
         key=lambda b: b["name"],
     )
+
+
+def _attribute_facets(f: Filters) -> list[dict]:
+    """One facet per filterable option-list Attribute that the matching Products have.
+
+    Like the other facets, an attribute's counts ignore its own choice but respect every
+    other filter, so a Shopper sees what widening that choice would add.
+    """
+    everyone = _with_matching_variant(_pool(f, skip_attributes=True), f)
+    present = (
+        AttributeValue.objects.filter(
+            product_id__in=everyone.values("product_id"),
+            attribute__is_filterable=True,
+            option__isnull=False,
+        )
+        .values_list("attribute_id", flat=True)
+        .distinct()
+    )
+    facets = []
+    for attribute in (
+        Attribute.objects.filter(pk__in=present)
+        .select_related("product_class")
+        .prefetch_related("options")
+        .order_by("product_class_id", "sort_order", "pk")
+    ):
+        pool = _with_matching_variant(_pool(f, skip_attribute=attribute.pk), f)
+        counts = dict(
+            AttributeValue.objects.filter(
+                attribute=attribute,
+                product_id__in=pool.values("product_id"),
+            )
+            .values_list("option_id")
+            .annotate(n=Count("product", distinct=True))
+            .values_list("option_id", "n"),
+        )
+        options = [
+            {"id": o.pk, "label": o.label, "count": counts[o.pk]}
+            for o in attribute.options.all()
+            if o.pk in counts
+        ]
+        if options:
+            facets.append(
+                {
+                    "id": attribute.pk,
+                    "name": attribute.name,
+                    "product_class": attribute.product_class.name,
+                    "options": options,
+                },
+            )
+    return facets
 
 
 def _price_range(f: Filters) -> dict:
@@ -292,6 +383,7 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:
 
 
 def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
+    f = resolve(f)
     qs = _order(matching(f).select_related("product"), sort, f)
     total = qs.count()
     offset = (page - 1) * PAGE_SIZE
@@ -311,6 +403,7 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
             "sizes": _size_facet(f),
             "brands": _brand_facet(f),
             "price": _price_range(f),
+            "attributes": _attribute_facets(f),
         },
     }
 
@@ -366,6 +459,7 @@ def detail(slug: str) -> dict:
         ),
         "breadcrumbs": [{"name": c.name, "slug": c.slug} for c in crumbs],
         "is_hygiene": product.product_class.profile.is_hygiene,
+        "attributes": attributes.blocks_for(product),
         "variants": [
             {
                 "id": v["id"],
