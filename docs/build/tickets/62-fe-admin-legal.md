@@ -3,7 +3,7 @@ title: Frontend: Dashboard Legal pages editor (Owner)
 repo: store-frontend
 slice: 15
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [60-be-legal-pages.md]
 ---
@@ -16,9 +16,9 @@ blocked-by: [60-be-legal-pages.md]
 
 ## Acceptance
 
-- [ ] The Owner edits a page, previews it, saves, and the Storefront shows the new version.
-- [ ] Older versions are listed and readable, never editable.
-- [ ] A Staff user cannot open the screen or its route.
+- [x] The Owner edits a page, previews it, saves, and the Storefront shows the new version.
+- [x] Older versions are listed and readable, never editable.
+- [x] A Staff user cannot open the screen or its route.
 
 ## Spec
 

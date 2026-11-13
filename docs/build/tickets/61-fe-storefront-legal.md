@@ -3,7 +3,7 @@ title: Frontend: Storefront Legal pages from the API, with search
 repo: store-frontend
 slice: 15
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [60-be-legal-pages.md]
 ---
@@ -17,10 +17,10 @@ blocked-by: [60-be-legal-pages.md]
 
 ## Acceptance
 
-- [ ] Every Legal page renders the API's current text and version; an unknown slug is a 404.
-- [ ] Searching a word returns the matching pages with excerpts, none for older versions.
-- [ ] Checkout still records the versions shown; a version bump between page load and submit shows the existing "page changed, reload" path.
-- [ ] No Markdown content or version number is left hard-coded in the repo.
+- [x] Every Legal page renders the API's current text and version; an unknown slug is a 404.
+- [x] Searching a word returns the matching pages with excerpts, none for older versions.
+- [x] Checkout still records the versions shown; a version bump between page load and submit shows the existing "page changed, reload" path.
+- [x] No Markdown content or version number is left hard-coded in the repo.
 
 ## Spec
 
