@@ -2,6 +2,8 @@
 
 - `CustomerAuth`: a signed-in customer, identified by `X-Session-Token`. No CSRF check,
   because the token is a header the browser never attaches on its own.
+- A Dashboard user (`is_staff`) is never a Shopper: both classes refuse them with 403
+  `dashboard_user`, so the Storefront cannot be used with an Owner or Staff login.
 - `GuestAuth`: basket and checkout, open to guests and customers. Guests rely on
   Oscar's signed basket cookie, which a browser sends automatically, so they must pass
   an explicit CSRF check (token from `GET /api/store/csrf`).
@@ -32,13 +34,21 @@ def _token_user(request: HttpRequest):
     return None
 
 
+def _shopper_user(request: HttpRequest):
+    user = _token_user(request)
+    if user is not None and user.is_staff:
+        msg = "Panel kullanıcıları mağaza hesabı kullanamaz."
+        raise ForbiddenError(msg, code="dashboard_user")
+    return user
+
+
 class CustomerAuth(AuthBase):
     openapi_type = "apiKey"
     openapi_in = "header"
     openapi_name = TOKEN_HEADER
 
     def __call__(self, request: HttpRequest):
-        return _token_user(request)
+        return _shopper_user(request)
 
 
 class GuestAuth(AuthBase):
@@ -47,7 +57,7 @@ class GuestAuth(AuthBase):
     openapi_name = TOKEN_HEADER
 
     def __call__(self, request: HttpRequest):
-        user = _token_user(request)
+        user = _shopper_user(request)
         if user is not None:
             return user
         if check_csrf(request) is not None:

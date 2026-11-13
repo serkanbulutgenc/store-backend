@@ -9,6 +9,7 @@ from django.test import Client
 
 from store_backend.conftest import LOGIN_URL
 from store_backend.conftest import PASSWORD
+from store_backend.conftest import make_verified_user
 from store_backend.services import outbox
 from store_backend.users.tests.factories import UserFactory
 
@@ -215,3 +216,21 @@ def test_a_bogus_token_with_a_session_cookie_is_not_a_customer(csrf_client, cust
     response = csrf_client.post("/t/api/customer", headers={"X-Session-Token": "bogus"})
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+# --- Dashboard users are never Shoppers --------------------------------------------
+
+
+@pytest.mark.parametrize("path", ["/t/api/customer", "/t/api/guest"])
+def test_a_dashboard_user_is_refused_on_the_store_api(
+    csrf_client,
+    log_in,
+    path,
+):
+    staff = make_verified_user(is_staff=True)
+    token = log_in(csrf_client, staff)
+
+    response = csrf_client.post(path, headers={"X-Session-Token": token})
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json()["code"] == "dashboard_user"
