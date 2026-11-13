@@ -110,7 +110,20 @@ def reindex_on_category(sender, instance: Category, **kwargs) -> None:
 
 @receiver(post_save, sender=Category)
 def create_category_profile(sender, instance: Category, created, **kwargs) -> None:
+    """A new Category goes last among its siblings, so the menu keeps creation order
+    until someone reorders it."""
+    from django.db.models import Max  # noqa: PLC0415
+
     from store_backend.catalog.models import CategoryProfile  # noqa: PLC0415
 
-    if created and not kwargs.get("raw"):
-        CategoryProfile.objects.get_or_create(category=instance)
+    if not created or kwargs.get("raw"):
+        return
+    siblings = CategoryProfile.objects.filter(
+        category__depth=instance.depth,
+        category__path__startswith=instance.path[: -Category.steplen],
+    ).exclude(category=instance)
+    top = siblings.aggregate(top=Max("sort_order"))["top"] or 0
+    CategoryProfile.objects.get_or_create(
+        category=instance,
+        defaults={"sort_order": top + 1},
+    )

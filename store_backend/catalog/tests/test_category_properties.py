@@ -105,13 +105,13 @@ def test_property_limits_are_enforced(staff_api, tree):
 
 
 def test_reordering_siblings_changes_the_menu_without_a_deploy(staff_api, tree):
-    assert [n["name"] for n in menu()] == ["Ayakkabı", "Giyim"]  # by name
+    assert [n["name"] for n in menu()] == ["Giyim", "Ayakkabı"]  # creation order
     response = staff_api.post(
         f"{ADMIN}/categories/reorder",
-        {"parent_id": None, "ids": [tree["giyim"].pk, tree["ayakkabi"].pk]},
+        {"parent_id": None, "ids": [tree["ayakkabi"].pk, tree["giyim"].pk]},
     )
     assert response.status_code == HTTPStatus.OK, response.content
-    assert [n["name"] for n in menu()] == ["Giyim", "Ayakkabı"]
+    assert [n["name"] for n in menu()] == ["Ayakkabı", "Giyim"]
 
     staff_api.post(
         f"{ADMIN}/categories/reorder",
@@ -121,6 +121,11 @@ def test_reordering_siblings_changes_the_menu_without_a_deploy(staff_api, tree):
     assert [c["name"] for c in giyim["children"]] == ["Etek", "Elbise"]
 
 
+def test_equal_sort_orders_fall_back_to_the_name(tree):
+    CategoryProfile.objects.update(sort_order=0)
+    assert [n["name"] for n in menu()] == ["Ayakkabı", "Giyim"]
+
+
 def test_reorder_needs_exactly_the_sibling_group(staff_api, tree):
     for ids in ([tree["giyim"].pk], [tree["giyim"].pk, tree["elbise"].pk]):
         response = staff_api.post(
@@ -128,7 +133,7 @@ def test_reorder_needs_exactly_the_sibling_group(staff_api, tree):
             {"parent_id": None, "ids": ids},
         )
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, ids
-    assert [n["name"] for n in menu()] == ["Ayakkabı", "Giyim"]
+    assert [n["name"] for n in menu()] == ["Giyim", "Ayakkabı"]
 
 
 def test_hiding_a_parent_hides_children_everywhere_and_404s(staff_api, tree):
@@ -245,7 +250,12 @@ def test_bad_image_is_refused(staff_api, tree):
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
-def test_admin_category_endpoints_need_sign_in():
+def test_admin_category_endpoints_need_sign_in(tree):
     client = Client()
-    assert client.post(f"{ADMIN}/categories/reorder", {}).status_code == 401
-    assert client.post(f"{ADMIN}/categories/1/image", {}).status_code == 401
+    for path in ("reorder", f"{tree['elbise'].pk}/image"):
+        response = client.post(
+            f"{ADMIN}/categories/{path}",
+            {},
+            content_type="application/json",
+        )
+        assert response.status_code == HTTPStatus.UNAUTHORIZED, path

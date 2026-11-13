@@ -7,9 +7,14 @@ from django.db import migrations, models
 def backfill_profiles(apps, schema_editor):
     Category = apps.get_model("catalogue", "Category")
     CategoryProfile = apps.get_model("store_catalog", "CategoryProfile")
-    CategoryProfile.objects.bulk_create(
-        CategoryProfile(category=c) for c in Category.objects.all()
-    )
+    # Keep today's menu order: position among siblings follows the tree path.
+    position: dict[str, int] = {}
+    rows = []
+    for c in Category.objects.all().order_by("path"):
+        parent = c.path[: -4]  # treebeard steplen
+        position[parent] = position.get(parent, 0) + 1
+        rows.append(CategoryProfile(category=c, sort_order=position[parent]))
+    CategoryProfile.objects.bulk_create(rows)
 
 
 class Migration(migrations.Migration):
