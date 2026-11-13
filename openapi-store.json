@@ -664,6 +664,66 @@
         "title": "CategoryNodeOut",
         "type": "object"
       },
+      "CategoryPageOut": {
+        "properties": {
+          "breadcrumbs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryChildOut"
+            },
+            "title": "Breadcrumbs",
+            "type": "array"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryChildOut"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "seo_description": {
+            "title": "Seo Description",
+            "type": "string"
+          },
+          "seo_title": {
+            "title": "Seo Title",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "description",
+          "seo_title",
+          "seo_description",
+          "image",
+          "breadcrumbs",
+          "children"
+        ],
+        "title": "CategoryPageOut",
+        "type": "object"
+      },
       "CheckoutIn": {
         "properties": {
           "billing_address": {
@@ -3031,6 +3091,39 @@
           }
         },
         "summary": "List Categories",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/store/categories/{slug}": {
+      "get": {
+        "description": "A Category page's copy, image and SEO fields; hidden Categories are 404.",
+        "operationId": "catalog_get_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Category",
         "tags": [
           "catalog"
         ]

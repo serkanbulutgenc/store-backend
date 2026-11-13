@@ -11,6 +11,7 @@ from store_backend.catalog.sizes import sizes_for
 from store_backend.services import attributes
 from store_backend.services import catalog
 from store_backend.services import catalog_policy
+from store_backend.services import categories
 from store_backend.services import media
 from store_backend.services import stock
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from oscar.apps.catalogue.models import Product
     from oscar.apps.catalogue.models import ProductClass
 
+    from store_backend.catalog.models import CategoryProfile
     from store_backend.catalog.models import Colour
     from store_backend.catalog.models import ProductPhoto
 
@@ -38,11 +40,32 @@ def colour_dict(c: Colour) -> dict:
 
 
 def category_dict(c: Category) -> dict:
+    p = categories.profile_of(c)
     return {
         "id": c.pk,
         "name": c.name,
         "slug": c.slug,
         "parent_id": c.get_parent().pk if c.depth > 1 else None,
+        "sort_order": p.sort_order,
+        "is_hidden": p.is_hidden,
+        "description": p.description,
+        "seo_title": p.seo_title,
+        "seo_description": p.seo_description,
+        "image": category_image_dict(p),
+    }
+
+
+def category_image_dict(p: CategoryProfile) -> dict | None:
+    if not p.image_original:
+        return None
+    return {
+        "status": p.image_status,
+        "alt_text": p.image_alt,
+        "original_url": media.media_url(p.image_original),
+        "width": p.image_width,
+        "height": p.image_height,
+        "derivatives": p.image_derivative_urls(),
+        "error": p.image_error,
     }
 
 

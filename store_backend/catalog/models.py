@@ -17,6 +17,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
 
 from store_backend.catalog.sizes import SizeScheme
@@ -308,6 +309,66 @@ class ProductPhoto(models.Model):
 
         return [
             {"width": d["width"], "url": media_url(d["name"])} for d in self.derivatives
+        ]
+
+
+class CategoryProfile(models.Model):
+    """What the store adds to an Oscar Category: copy, image, SEO, order, visibility.
+
+    Created with the Category (see signals). The image uses the same pipeline and
+    derivative sizes as product photos; it lives here as columns, not a table, since a
+    Category has at most one.
+    """
+
+    class ImageStatus(models.TextChoices):
+        NONE = "", "None"
+        PROCESSING = "processing", "Processing"
+        READY = "ready", "Ready"
+        FAILED = "failed", "Failed"
+
+    category = models.OneToOneField(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    description = models.TextField(blank=True)
+    seo_title = models.CharField(max_length=70, blank=True)
+    seo_description = models.CharField(max_length=160, blank=True)
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Position among siblings; ties fall back to the name.",
+    )
+    is_hidden = models.BooleanField(
+        default=False,
+        help_text="Hides the Category and its subtree from the Storefront.",
+    )
+    image_original = models.CharField(max_length=255, blank=True)
+    image_width = models.PositiveIntegerField(default=0)
+    image_height = models.PositiveIntegerField(default=0)
+    image_status = models.CharField(
+        max_length=16,
+        choices=ImageStatus.choices,
+        blank=True,
+        default="",
+    )
+    image_derivatives = models.JSONField(default=list, blank=True)
+    image_alt = models.CharField(max_length=255, blank=True)
+    image_error = models.TextField(blank=True)
+
+    def __str__(self) -> str:
+        return str(self.category)
+
+    def image_file_names(self) -> list[str]:
+        if not self.image_original:
+            return []
+        return [self.image_original, *(d["name"] for d in self.image_derivatives)]
+
+    def image_derivative_urls(self) -> list[dict]:
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        return [
+            {"width": d["width"], "url": media_url(d["name"])}
+            for d in self.image_derivatives
         ]
 
 

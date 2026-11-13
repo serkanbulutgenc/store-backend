@@ -32,6 +32,7 @@ from PIL import UnidentifiedImageError
 
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import PendingFileRemoval
 from store_backend.catalog.models import ProductPhoto
@@ -216,6 +217,35 @@ def _clean(img: Image.Image) -> Image.Image:
     return img
 
 
+def make_derivatives(
+    original: str,
+    folder: str,
+    written: list[str],
+) -> tuple[list[dict], int, int]:
+    """Write the WebP derivatives of a stored original; returns (derivatives, width,
+    height). New file names are appended to `written` as they are saved, so a caller
+    can clean up after a failure part-way.
+    """
+    with default_storage.open(original) as f:
+        opened = Image.open(f)
+        opened.load()
+    img = _clean(opened)
+    widths = [w for w in WIDTHS if w <= img.width] or [img.width]
+    derivatives = []
+    for width in widths:
+        height = max(1, round(img.height * width / img.width))
+        resized = img if width == img.width else img.resize((width, height))
+        buf = io.BytesIO()
+        resized.save(buf, "WEBP", quality=WEBP_QUALITY)
+        data = buf.getvalue()
+        name = f"{folder}/{hashlib.sha256(data).hexdigest()[:16]}-{width}.webp"
+        if not default_storage.exists(name):
+            default_storage.save(name, ContentFile(data))
+            written.append(name)
+        derivatives.append({"width": width, "name": name})
+    return derivatives, img.width, img.height
+
+
 def process(image_id: int) -> None:
     """Make the WebP derivatives of one image. Never raises: a failure marks the
     image failed and leaves the original in place.
@@ -225,23 +255,11 @@ def process(image_id: int) -> None:
         return
     written: list[str] = []
     try:
-        with default_storage.open(image.original) as f:
-            opened = Image.open(f)
-            opened.load()
-        img = _clean(opened)
-        widths = [w for w in WIDTHS if w <= img.width] or [img.width]
-        derivatives = []
-        for width in widths:
-            height = max(1, round(img.height * width / img.width))
-            resized = img if width == img.width else img.resize((width, height))
-            buf = io.BytesIO()
-            resized.save(buf, "WEBP", quality=WEBP_QUALITY)
-            data = buf.getvalue()
-            name = f"products/{hashlib.sha256(data).hexdigest()[:16]}-{width}.webp"
-            if not default_storage.exists(name):
-                default_storage.save(name, ContentFile(data))
-                written.append(name)
-            derivatives.append({"width": width, "name": name})
+        derivatives, width, height = make_derivatives(
+            image.original,
+            "products",
+            written,
+        )
     except Exception as exc:
         logger.exception("Image %s could not be processed", image_id)
         _schedule_names(written)
@@ -255,8 +273,8 @@ def process(image_id: int) -> None:
         status=ProductPhoto.Status.READY,
         error="",
         derivatives=derivatives,
-        width=img.width,
-        height=img.height,
+        width=width,
+        height=height,
     )
     if not updated:  # deleted while we worked: its delete did not know these files
         _schedule_names(written)
@@ -396,9 +414,14 @@ def schedule_removal(image: ProductPhoto) -> None:
 
 
 def _in_use(name: str) -> bool:
-    return ProductPhoto.objects.filter(
-        Q(original=name) | Q(derivatives__contains=[{"name": name}]),
-    ).exists()
+    return (
+        ProductPhoto.objects.filter(
+            Q(original=name) | Q(derivatives__contains=[{"name": name}]),
+        ).exists()
+        or CategoryProfile.objects.filter(
+            Q(image_original=name) | Q(image_derivatives__contains=[{"name": name}]),
+        ).exists()
+    )
 
 
 def purge_removed_files() -> int:

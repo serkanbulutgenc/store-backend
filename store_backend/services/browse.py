@@ -30,6 +30,7 @@ from store_backend.catalog.models import Attribute
 from store_backend.catalog.models import AttributeOption
 from store_backend.catalog.models import AttributeValue
 from store_backend.catalog.models import Brand
+from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductProfile
@@ -38,6 +39,7 @@ from store_backend.catalog.models import SlugRedirect
 from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import attributes
+from store_backend.services import categories
 from store_backend.services import search
 from store_backend.services import stock
 
@@ -118,10 +120,8 @@ def _price_from() -> Subquery:
 
 
 def _category_ids(slug: str) -> list[int]:
-    category = Category.objects.filter(slug=slug).first()
-    if category is None:
-        raise NotFoundError
-    return [category.pk, *category.get_descendants().values_list("pk", flat=True)]
+    """The Category and its visible descendants; a hidden Category is not found."""
+    return categories.visible_ids_under(categories.get_visible(slug))
 
 
 def _published() -> QuerySet[ProductProfile]:
@@ -412,15 +412,52 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
 
 
 def category_tree() -> list[dict]:
-    """Top-level Categories with their children, in tree order, for the menu."""
-    roots: list[dict] = []
-    for c in Category.objects.all().order_by("path"):
-        node = {"name": c.name, "slug": c.slug, "children": []}
-        if c.depth == 1:
-            roots.append(node)
-        else:
-            roots[-1]["children"].append(node)
-    return roots
+    """Visible top-level Categories with their children, each group in sibling order
+    (sort order, then name), for the menu."""
+    nodes = categories.ordered(categories.visible().order_by("path"))
+    roots = {
+        c.pk: {"name": c.name, "slug": c.slug, "children": []}
+        for c in nodes
+        if c.depth == 1
+    }
+    by_path = {c.path: pk for pk, c in ((c.pk, c) for c in nodes if c.depth == 1)}
+    for c in nodes:
+        if c.depth > 1:
+            parent_pk = by_path.get(c.path[: -Category.steplen])
+            if parent_pk is not None:
+                roots[parent_pk]["children"].append({"name": c.name, "slug": c.slug})
+    return list(roots.values())
+
+
+def category_page(slug: str) -> dict:
+    """What a Category page shows: copy, image, SEO fields, breadcrumb and children.
+    A hidden Category (or one under a hidden parent) is not found."""
+    category = categories.get_visible(slug)
+    profile = category.profile
+    image = None
+    if profile.image_status == CategoryProfile.ImageStatus.READY:
+        image = {
+            "alt": profile.image_alt or category.name,
+            "sizes": profile.image_derivative_urls(),
+        }
+    children = categories.ordered(
+        categories.visible().filter(
+            path__startswith=category.path,
+            depth=category.depth + 1,
+        ),
+    )
+    return {
+        "name": category.name,
+        "slug": category.slug,
+        "description": profile.description,
+        "seo_title": profile.seo_title,
+        "seo_description": profile.seo_description,
+        "image": image,
+        "breadcrumbs": [
+            {"name": a.name, "slug": a.slug} for a in category.get_ancestors()
+        ],
+        "children": [{"name": c.name, "slug": c.slug} for c in children],
+    }
 
 
 def detail(slug: str) -> dict:
@@ -446,7 +483,7 @@ def detail(slug: str) -> dict:
     variants = variants_by_product([product.pk])[product.pk]
     photos = photos_by_product([product.pk])[product.pk]
     card = _card(profile, variants, photos)
-    category = product.categories.first()
+    category = categories.visible().filter(productcategory__product=product).first()
     crumbs = [*category.get_ancestors(), category] if category is not None else []
     threshold = profile.low_stock_threshold
     return {

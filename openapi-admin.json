@@ -545,6 +545,52 @@
         "title": "CarrierOut",
         "type": "object"
       },
+      "CategoryImageOut": {
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          },
+          "derivatives": {
+            "items": {
+              "$ref": "#/components/schemas/ImageDerivativeOut"
+            },
+            "title": "Derivatives",
+            "type": "array"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "original_url": {
+            "title": "Original Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "alt_text",
+          "original_url",
+          "width",
+          "height",
+          "derivatives",
+          "error"
+        ],
+        "title": "CategoryImageOut",
+        "type": "object"
+      },
       "CategoryIn": {
         "properties": {
           "name": {
@@ -571,9 +617,27 @@
       },
       "CategoryOut": {
         "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_hidden": {
+            "title": "Is Hidden",
+            "type": "boolean"
           },
           "name": {
             "title": "Name",
@@ -590,18 +654,136 @@
             ],
             "title": "Parent Id"
           },
+          "seo_description": {
+            "title": "Seo Description",
+            "type": "string"
+          },
+          "seo_title": {
+            "title": "Seo Title",
+            "type": "string"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
           }
         },
         "required": [
           "id",
           "name",
           "slug",
-          "parent_id"
+          "parent_id",
+          "sort_order",
+          "is_hidden",
+          "description",
+          "seo_title",
+          "seo_description",
+          "image"
         ],
         "title": "CategoryOut",
+        "type": "object"
+      },
+      "CategoryPatch": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "image_alt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Alt"
+          },
+          "is_hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Hidden"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "seo_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seo Description"
+          },
+          "seo_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seo Title"
+          }
+        },
+        "title": "CategoryPatch",
+        "type": "object"
+      },
+      "CategoryReorderIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "title": "Ids",
+            "type": "array"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "CategoryReorderIn",
         "type": "object"
       },
       "ColourIn": {
@@ -5894,8 +6076,51 @@
         ]
       }
     },
+    "/api/admin/categories/reorder": {
+      "post": {
+        "description": "Save the order of one sibling group (the top level when parent_id is null).",
+        "operationId": "catalog_reorder_categories",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryReorderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reorder Categories",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/admin/categories/{category_id}": {
       "patch": {
+        "description": "Rename and/or edit properties; only the fields sent are changed.",
         "operationId": "catalog_update_category",
         "parameters": [
           {
@@ -5912,7 +6137,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NameIn"
+                "$ref": "#/components/schemas/CategoryPatch"
               }
             }
           },
@@ -5936,6 +6161,100 @@
           }
         ],
         "summary": "Update Category",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/categories/{category_id}/image": {
+      "delete": {
+        "operationId": "catalog_delete_category_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Category Image",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "post": {
+        "description": "One image (JPEG, PNG or WebP), replacing any existing one; derivatives are made\nin the background and the image reports `processing` until they exist.",
+        "operationId": "catalog_upload_category_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Category Image",
         "tags": [
           "catalog"
         ]

@@ -40,6 +40,7 @@ from store_backend.services import attributes
 from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import catalog_views as views
+from store_backend.services import categories
 from store_backend.services import media
 from store_backend.services import product_classes
 from store_backend.services import stock
@@ -101,11 +102,46 @@ class SupplierPatch(Schema):
     code: str | None = None
 
 
+class ImageDerivativeOut(Schema):
+    width: int
+    url: str
+
+
+class CategoryImageOut(Schema):
+    status: str
+    alt_text: str
+    original_url: str
+    width: int
+    height: int
+    derivatives: list[ImageDerivativeOut]
+    error: str
+
+
 class CategoryOut(Schema):
     id: int
     name: str
     slug: str
     parent_id: int | None
+    sort_order: int
+    is_hidden: bool
+    description: str
+    seo_title: str
+    seo_description: str
+    image: CategoryImageOut | None
+
+
+class CategoryPatch(Schema):
+    name: str | None = None
+    description: str | None = None
+    seo_title: str | None = None
+    seo_description: str | None = None
+    is_hidden: bool | None = None
+    image_alt: str | None = None
+
+
+class CategoryReorderIn(Schema):
+    parent_id: int | None = None
+    ids: list[int] = Field(..., max_length=500)
 
 
 class CategoryIn(Schema):
@@ -604,12 +640,60 @@ def create_category(request, data: CategoryIn):
     operation_id="catalog_update_category",
     response=CategoryOut,
 )
-def update_category(request, category_id: int, data: NameIn):
-    c = catalog.update_category(
-        get_object_or_404(Category, pk=category_id),
-        name=data.name,
-    )
-    return views.category_dict(c)
+def update_category(request, category_id: int, data: CategoryPatch):
+    """Rename and/or edit properties; only the fields sent are changed."""
+    c = get_object_or_404(Category, pk=category_id)
+    changes = data.model_dump(exclude_unset=True)
+    if "name" in changes:
+        if changes["name"] is None:
+            msg = "Ad girin."
+            raise UnprocessableError(msg, fields={"name": [msg]})
+        c = catalog.update_category(c, name=changes.pop("name"))
+    if changes:
+        if changes.get("is_hidden", False) is None:
+            msg = "Geçersiz değer."
+            raise UnprocessableError(msg, fields={"is_hidden": [msg]})
+        categories.update(c, changes)
+    return views.category_dict(Category.objects.get(pk=c.pk))
+
+
+@router.post(
+    "/categories/reorder",
+    auth=requires(Perm.MANAGE_CATEGORIES),
+    operation_id="catalog_reorder_categories",
+    response=list[CategoryOut],
+)
+def reorder_categories(request, data: CategoryReorderIn):
+    """Save the order of one sibling group (the top level when parent_id is null)."""
+    parent = catalog.ref(Category, data.parent_id, "parent_id")
+    ordered = categories.reorder(parent, data.ids)
+    return [views.category_dict(c) for c in ordered]
+
+
+@router.post(
+    "/categories/{category_id}/image",
+    auth=requires(Perm.MANAGE_CATEGORIES),
+    operation_id="catalog_upload_category_image",
+    response=CategoryOut,
+)
+def upload_category_image(request, category_id: int, file: File[UploadedFile]):
+    """One image (JPEG, PNG or WebP), replacing any existing one; derivatives are made
+    in the background and the image reports `processing` until they exist."""
+    c = get_object_or_404(Category, pk=category_id)
+    categories.upload_image(c, file)
+    return views.category_dict(Category.objects.get(pk=c.pk))
+
+
+@router.delete(
+    "/categories/{category_id}/image",
+    auth=requires(Perm.MANAGE_CATEGORIES),
+    operation_id="catalog_delete_category_image",
+    response=CategoryOut,
+)
+def delete_category_image(request, category_id: int):
+    c = get_object_or_404(Category, pk=category_id)
+    categories.remove_image(c)
+    return views.category_dict(Category.objects.get(pk=c.pk))
 
 
 # --- products and variants -----------------------------------------------------
@@ -854,11 +938,6 @@ def list_low_stock(request):
 
 
 # --- product photos -------------------------------------------------------------
-
-
-class ImageDerivativeOut(Schema):
-    width: int
-    url: str
 
 
 class ProductImageOut(Schema):

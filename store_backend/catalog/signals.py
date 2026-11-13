@@ -106,3 +106,11 @@ def reindex_on_category(sender, instance: Category, **kwargs) -> None:
 
     if not kwargs.get("raw"):
         search.reindex_category(instance)
+
+
+@receiver(post_save, sender=Category)
+def create_category_profile(sender, instance: Category, created, **kwargs) -> None:
+    from store_backend.catalog.models import CategoryProfile  # noqa: PLC0415
+
+    if created and not kwargs.get("raw"):
+        CategoryProfile.objects.get_or_create(category=instance)

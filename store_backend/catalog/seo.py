@@ -7,10 +7,10 @@ from xml.sax.saxutils import escape
 
 from django.http import HttpResponse
 from django.views.decorators.http import require_GET
-from oscar.apps.catalogue.models import Category
 
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
+from store_backend.services import categories
 
 DISALLOWED = (
     "/admin",
@@ -43,7 +43,7 @@ def sitemap_xml(request):
     entries: list[tuple[str, str | None]] = [("/", None)]
     entries += [
         (f"/kategori/{slug}", None)
-        for slug in Category.objects.order_by("path").values_list("slug", flat=True)
+        for slug in categories.visible().order_by("path").values_list("slug", flat=True)
     ]
     products = (
         ProductProfile.objects.filter(status=ProductStatus.PUBLISHED)

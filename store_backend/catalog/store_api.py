@@ -156,6 +156,27 @@ def list_categories(request):
     return browse.category_tree()
 
 
+class CategoryPageOut(Schema):
+    name: str
+    slug: str
+    description: str
+    seo_title: str
+    seo_description: str
+    image: CardImageOut | None
+    breadcrumbs: list[CategoryChildOut]
+    children: list[CategoryChildOut]
+
+
+@router.get(
+    "/categories/{slug}",
+    operation_id="catalog_get_category",
+    response=CategoryPageOut,
+)
+def get_category(request, slug: str):
+    """A Category page's copy, image and SEO fields; hidden Categories are 404."""
+    return browse.category_page(slug)
+
+
 class BrandOut(Schema):
     id: int
     name: str
