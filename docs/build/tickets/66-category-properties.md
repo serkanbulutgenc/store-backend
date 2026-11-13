@@ -3,7 +3,7 @@ title: Category properties: description, image, SEO, order, hidden
 repo: store-backend + store-frontend
 slice: 16
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: []
 ---
@@ -17,11 +17,11 @@ blocked-by: []
 
 ## Acceptance
 
-- [ ] Reordering siblings changes the Storefront menu order without a deploy.
-- [ ] Hiding a parent hides its children everywhere on the Storefront and its URL returns 404.
-- [ ] A Product in both a hidden and a visible category still lists under the visible one.
-- [ ] The image shows on the category page with the same derivative sizes as product photos.
-- [ ] SEO title and description appear in the page metadata; the sitemap omits hidden categories.
+- [x] Reordering siblings changes the Storefront menu order without a deploy.
+- [x] Hiding a parent hides its children everywhere on the Storefront and its URL returns 404.
+- [x] A Product in both a hidden and a visible category still lists under the visible one.
+- [x] The image shows on the category page with the same derivative sizes as product photos.
+- [x] SEO title and description appear in the page metadata; the sitemap omits hidden categories.
 
 ## Spec
 
