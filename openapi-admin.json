@@ -700,8 +700,33 @@
         "title": "CategoryIn",
         "type": "object"
       },
+      "CategoryMoveIn": {
+        "properties": {
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "title": "CategoryMoveIn",
+        "type": "object"
+      },
       "CategoryOut": {
         "properties": {
+          "child_count": {
+            "title": "Child Count",
+            "type": "integer"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -739,6 +764,10 @@
             ],
             "title": "Parent Id"
           },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
           "seo_description": {
             "title": "Seo Description",
             "type": "string"
@@ -761,6 +790,9 @@
           "name",
           "slug",
           "parent_id",
+          "depth",
+          "child_count",
+          "product_count",
           "sort_order",
           "is_hidden",
           "description",
@@ -6235,6 +6267,35 @@
       }
     },
     "/api/admin/categories/{category_id}": {
+      "delete": {
+        "description": "Owner only. Refused while the Category has children or Products.",
+        "operationId": "catalog_delete_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Category",
+        "tags": [
+          "catalog"
+        ]
+      },
       "patch": {
         "description": "Rename and/or edit properties; only the fields sent are changed.",
         "operationId": "catalog_update_category",
@@ -6371,6 +6432,54 @@
           }
         ],
         "summary": "Upload Category Image",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/categories/{category_id}/move": {
+      "post": {
+        "description": "Owner only. Moves the Category with its subtree; it goes last among its new\nsiblings.",
+        "operationId": "catalog_move_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryMoveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Move Category",
         "tags": [
           "catalog"
         ]

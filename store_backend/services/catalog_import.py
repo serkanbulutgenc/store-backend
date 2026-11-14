@@ -66,6 +66,9 @@ REQUIRED = (
 OPTIONAL = ("brand", "supplier", "sku", "kdv_class", "notes")
 MAX_KDV = Decimal(100)
 MAX_ERRORS_SHOWN = 20
+# The category lookup below resolves a root and one child only; deeper paths come with
+# ticket 70, so the import stays at two levels while the tree itself allows five.
+MAX_IMPORT_CATEGORY_DEPTH = 2
 
 
 @dataclass
@@ -256,7 +259,7 @@ class _Catalogue:
 
 def _category_path(text: str) -> tuple[str, ...] | None:
     parts = tuple(" ".join(p.split()) for p in text.split(">"))
-    if not 1 <= len(parts) <= catalog.MAX_CATEGORY_DEPTH or not all(parts):
+    if not 1 <= len(parts) <= MAX_IMPORT_CATEGORY_DEPTH or not all(parts):
         return None
     return parts
 

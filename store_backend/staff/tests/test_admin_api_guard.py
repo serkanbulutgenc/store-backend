@@ -38,6 +38,8 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "catalog_add_attribute_option": Perm.MANAGE_ATTRIBUTES,
     "catalog_update_attribute_option": Perm.MANAGE_ATTRIBUTES,
     "catalog_delete_attribute_option": Perm.MANAGE_ATTRIBUTES,
+    "catalog_move_category": Perm.RESTRUCTURE_CATEGORIES,
+    "catalog_delete_category": Perm.RESTRUCTURE_CATEGORIES,
     "catalog_create_colour": Perm.MANAGE_COLOURS,
     "catalog_update_colour": Perm.MANAGE_COLOURS,
     "catalog_list_suppliers": Perm.MANAGE_SUPPLIERS,

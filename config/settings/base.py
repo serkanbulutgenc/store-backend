@@ -428,6 +428,9 @@ OSCAR_ALLOW_ANON_CHECKOUT = True
 OSCAR_BASKET_COOKIE_LIFETIME = 14 * 24 * 60 * 60
 OSCAR_DEFAULT_CURRENCY = "TRY"
 OSCAR_DYNAMIC_CLASS_LOADER = "store_backend.catalog.loader.class_loader"
+# Oscar's own image cleanup needs sorl-thumbnail, which we do not install: the store keeps
+# its own photo files and queues their removal itself (PendingFileRemoval).
+OSCAR_DELETE_IMAGE_FILES = False
 # KDV rate for shipping and COD fee lines until Store settings (ticket 20) hold it.
 FEE_KDV_RATE = 20
 # Checkout attempts allowed per client IP: (count, window in seconds).

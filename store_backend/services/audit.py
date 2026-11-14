@@ -50,6 +50,8 @@ class Action(StrEnum):
     REVIEW_APPROVED = "review_approved"
     REVIEW_REJECTED = "review_rejected"
     REVIEW_DELETED = "review_deleted"
+    CATEGORY_MOVED = "category_moved"
+    CATEGORY_DELETED = "category_deleted"
 
 
 def record(  # noqa: PLR0913

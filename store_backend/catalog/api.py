@@ -122,12 +122,19 @@ class CategoryOut(Schema):
     name: str
     slug: str
     parent_id: int | None
+    depth: int
+    child_count: int
+    product_count: int
     sort_order: int
     is_hidden: bool
     description: str
     seo_title: str
     seo_description: str
     image: CategoryImageOut | None
+
+
+class CategoryMoveIn(Schema):
+    parent_id: int | None = None  # null: the top level
 
 
 class CategoryPatch(Schema):
@@ -620,7 +627,10 @@ def update_supplier(request, supplier_id: int, data: SupplierPatch):
     response=list[CategoryOut],
 )
 def list_categories(request):
-    return [views.category_dict(c) for c in Category.objects.all().order_by("path")]
+    counts = categories.product_counts()
+    return [
+        views.category_dict(c, counts) for c in Category.objects.all().order_by("path")
+    ]
 
 
 @router.post(
@@ -669,6 +679,32 @@ def update_category(request, category_id: int, data: CategoryPatch):
             raise UnprocessableError(msg, fields={"is_hidden": [msg]})
         categories.update(c, changes)
     return views.category_dict(Category.objects.get(pk=c.pk))
+
+
+@router.post(
+    "/categories/{category_id}/move",
+    auth=requires(Perm.RESTRUCTURE_CATEGORIES),
+    operation_id="catalog_move_category",
+    response=CategoryOut,
+)
+def move_category(request, category_id: int, data: CategoryMoveIn):
+    """Owner only. Moves the Category with its subtree; it goes last among its new
+    siblings."""
+    category = get_object_or_404(Category, pk=category_id)
+    parent = catalog.ref(Category, data.parent_id, "parent_id")
+    return views.category_dict(categories.move(request.auth, category, parent))
+
+
+@router.delete(
+    "/categories/{category_id}",
+    auth=requires(Perm.RESTRUCTURE_CATEGORIES),
+    operation_id="catalog_delete_category",
+    response={204: None},
+)
+def delete_category(request, category_id: int):
+    """Owner only. Refused while the Category has children or Products."""
+    categories.delete(request.auth, get_object_or_404(Category, pk=category_id))
+    return 204, None
 
 
 @router.post(

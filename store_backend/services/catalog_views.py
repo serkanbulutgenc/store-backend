@@ -39,13 +39,20 @@ def colour_dict(c: Colour) -> dict:
     }
 
 
-def category_dict(c: Category) -> dict:
+def category_dict(c: Category, product_counts: dict[int, int] | None = None) -> dict:
+    """`product_counts` (category id -> direct Products) saves one query per row when
+    a whole list is built; a single Category counts its own."""
     p = categories.profile_of(c)
+    if product_counts is None:
+        product_counts = categories.product_counts([c.pk])
     return {
         "id": c.pk,
         "name": c.name,
         "slug": c.slug,
         "parent_id": c.get_parent().pk if c.depth > 1 else None,
+        "depth": c.depth,
+        "child_count": c.numchild,
+        "product_count": product_counts.get(c.pk, 0),
         "sort_order": p.sort_order,
         "is_hidden": p.is_hidden,
         "description": p.description,

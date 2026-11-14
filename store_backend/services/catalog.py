@@ -68,7 +68,7 @@ TURKISH = str.maketrans(
     },
 )
 # fmt: on
-MAX_CATEGORY_DEPTH = 2
+MAX_CATEGORY_DEPTH = 5
 MAX_KDV_RATE = Decimal(100)
 
 
@@ -151,12 +151,13 @@ def resolve_slug(slug: str) -> tuple[Product, bool]:
 
 @transaction.atomic
 def create_category(name: str, parent: Category | None = None) -> Category:
-    """A node in the two-level tree: a top-level Category or one under it."""
+    """A node in the category tree: a top-level Category or one under another, up to
+    `MAX_CATEGORY_DEPTH` levels."""
     name = name.strip()
     if not name:
         raise _invalid("name", "Ad girin.")
     if parent is not None and parent.depth >= MAX_CATEGORY_DEPTH:
-        raise _invalid("parent", "Kategoriler en fazla iki seviye olabilir.")
+        raise _invalid("parent", "Kategoriler en fazla beş seviye olabilir.")
     slug = _unique_slug(
         slugify_tr(name),
         lambda s: Category.objects.filter(slug=s).exists(),

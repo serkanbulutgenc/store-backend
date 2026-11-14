@@ -277,11 +277,11 @@ def test_staff_manage_categories_and_brands(staff_api, seed):
         {"name": "Sandalet", "parent_id": top["id"]},
     )
     assert child.json()["parent_id"] == top["id"]
-    too_deep = staff_api.post(
+    grandchild = staff_api.post(
         f"{BASE}/categories",
         {"name": "Düz", "parent_id": child.json()["id"]},
     )
-    assert too_deep.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert grandchild.status_code == HTTPStatus.CREATED
     listing = staff_api.get(f"{BASE}/categories").json()
     assert {c["name"] for c in listing} >= {"Giyim", "Elbise", "Ayakkabı", "Sandalet"}
     assert (

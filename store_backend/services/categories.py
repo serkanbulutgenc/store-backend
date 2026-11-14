@@ -15,12 +15,18 @@ from typing import TYPE_CHECKING
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Count
+from django.db.models import Max
 from django.db.models import Q
 from oscar.apps.catalogue.models import Category
+from oscar.apps.catalogue.models import ProductCategory
 
+from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import CategoryProfile
+from store_backend.services import audit
+from store_backend.services import catalog
 from store_backend.services import media
 
 if TYPE_CHECKING:
@@ -28,6 +34,8 @@ if TYPE_CHECKING:
 
     from django.core.files.uploadedfile import UploadedFile
     from django.db.models import QuerySet
+
+    from store_backend.users.models import User
 
 MAX_SEO_TITLE = 70
 MAX_SEO_DESCRIPTION = 160
@@ -41,6 +49,18 @@ EDITABLE = frozenset(
 
 def _invalid(field: str, message: str) -> UnprocessableError:
     return UnprocessableError(message, fields={field: [message]})
+
+
+def product_counts(ids: Iterable[int] | None = None) -> dict[int, int]:
+    """Products directly in each Category (their primary Category), by Category id."""
+    rows = ProductCategory.objects.all()
+    if ids is not None:
+        rows = rows.filter(category_id__in=list(ids))
+    return dict(
+        rows.values_list("category_id")
+        .annotate(n=Count("product_id"))
+        .values_list("category_id", "n"),
+    )
 
 
 def profile_of(category: Category) -> CategoryProfile:
@@ -151,6 +171,93 @@ def reorder(parent: Category | None, ids: list[int]) -> list[Category]:
     for position, pk in enumerate(ids, start=1):
         CategoryProfile.objects.filter(category_id=pk).update(sort_order=position)
     return [by_id[pk] for pk in ids]
+
+
+# --- move ------------------------------------------------------------------
+
+
+@transaction.atomic
+def move(actor: User, category: Category, parent: Category | None) -> Category:
+    """Move a Category with its whole subtree under `parent` (None: the top level).
+
+    It goes last among its new siblings. Refused under itself or one of its own
+    descendants, or when the deepest descendant would end up past the depth limit.
+    """
+    category = Category.objects.select_for_update().get(pk=category.pk)
+    if parent is not None:
+        parent = Category.objects.select_for_update().get(pk=parent.pk)
+        if parent.path.startswith(category.path):
+            msg = "Kategori kendi altına ya da alt kategorilerinin altına taşınamaz."
+            raise _invalid("parent_id", msg)  # noqa: EM101
+    old_parent = category.get_parent() if category.depth > 1 else None
+    if old_parent == parent:
+        return category
+    deepest = (
+        Category.objects.filter(path__startswith=category.path).aggregate(
+            deepest=Max("depth"),
+        )["deepest"]
+        - category.depth
+    )
+    if (parent.depth if parent else 0) + 1 + deepest > catalog.MAX_CATEGORY_DEPTH:
+        msg = "Bu taşıma ağacı beş seviyeden daha derine çıkarır."
+        raise _invalid("parent_id", msg)  # noqa: EM101
+    if parent is None:
+        category.move(Category.get_last_root_node(), pos="last-sibling")
+    else:
+        category.move(parent, pos="last-child")
+    category = Category.objects.get(pk=category.pk)
+    siblings = Category.objects.filter(depth=category.depth).exclude(pk=category.pk)
+    if parent is not None:
+        siblings = siblings.filter(path__startswith=parent.path)
+    top = CategoryProfile.objects.filter(category__in=siblings).aggregate(
+        top=Max("sort_order"),
+    )["top"]
+    CategoryProfile.objects.filter(category=category).update(sort_order=(top or 0) + 1)
+    category.save()  # Oscar's public-ancestor flags and the search text follow the move
+    audit.record(
+        actor,
+        audit.Action.CATEGORY_MOVED,
+        target=category,
+        summary=(
+            f"Kategori taşındı: {category.name} → "
+            f"{parent.name if parent else 'üst seviye'}"
+        ),
+        before={"parent": old_parent.name if old_parent else None},
+        after={"parent": parent.name if parent else None},
+    )
+    return category
+
+
+# --- delete ----------------------------------------------------------------
+
+
+@transaction.atomic
+def delete(actor: User, category: Category) -> None:
+    """Delete a Category and queue its image files for removal. Audited."""
+    category = Category.objects.select_for_update().get(pk=category.pk)
+    children = category.numchild
+    products = product_counts([category.pk]).get(category.pk, 0)
+    if children or products:
+        parts = []
+        if children:
+            parts.append(f"{children} alt kategori")
+        if products:
+            parts.append(f"{products} ürün")
+        msg = (
+            f"Bu kategoride {' ve '.join(parts)} var; önce taşıyın ya da silin. "
+            "Gizlemek de bir seçenek."
+        )
+        raise ConflictError(msg, code="category_in_use")
+    profile = profile_of(category)
+    media._schedule_names(profile.image_file_names())  # noqa: SLF001
+    audit.record(
+        actor,
+        audit.Action.CATEGORY_DELETED,
+        target=category,
+        summary=f"Kategori silindi: {category.name}",
+        before={"name": category.name, "slug": category.slug, "depth": category.depth},
+    )
+    category.delete()
 
 
 # --- image -----------------------------------------------------------------

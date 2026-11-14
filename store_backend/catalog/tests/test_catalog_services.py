@@ -137,9 +137,13 @@ def test_renaming_back_to_an_old_slug_drops_its_redirect(product):
 # --- categories ------------------------------------------------------------
 
 
-def test_categories_are_two_levels(elbise):
+def test_categories_stop_at_five_levels(elbise):
+    node = elbise  # Giyim > Elbise: level 2
+    for name in ("Mini", "Desenli", "Yazlık"):
+        node = catalog.create_category(name, parent=node)
+    assert node.depth == catalog.MAX_CATEGORY_DEPTH
     with pytest.raises(UnprocessableError):
-        catalog.create_category("Mini", parent=elbise)
+        catalog.create_category("Fazla", parent=node)
 
 
 def test_product_has_exactly_one_primary_category(product, elbise):
