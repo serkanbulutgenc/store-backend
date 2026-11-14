@@ -19,6 +19,7 @@ from django.utils.text import slugify
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
 from oscar.apps.catalogue.models import ProductCategory
+from oscar.apps.order.models import Line
 from oscar.apps.partner.models import Partner
 from oscar.apps.partner.models import StockRecord
 
@@ -27,6 +28,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Brand
 from store_backend.catalog.models import Colour
+from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import SlugRedirect
@@ -339,6 +341,33 @@ def delete_product(product: Product) -> None:
     product.delete()
 
 
+def order_line_count(product: Product) -> int:
+    """Order lines that reference this Product or any of its Variants."""
+    ids = [product.pk, *product.children.values_list("pk", flat=True)]
+    return Line.objects.filter(product_id__in=ids).count()
+
+
+@transaction.atomic
+def remove_product(actor: User, product: Product) -> None:
+    """Owner delete of a Product with no Orders (ADR 0005). Audited.
+
+    Photos, Variants and slug redirects go with it; the photo files are queued for
+    removal by the photo delete signal.
+    """
+    product = Product.objects.select_for_update().get(pk=product.pk)
+    if lines := order_line_count(product):
+        msg = f"Bu ürün {lines} siparişte var; silinemez. Arşivleyebilirsiniz."
+        raise ConflictError(msg, code="product_has_orders")
+    audit.record(
+        actor,
+        audit.Action.PRODUCT_DELETED,
+        target=product,
+        summary=f"Ürün silindi: {product.title}",
+        before={"title": product.title, "slug": product.profile.slug},
+    )
+    delete_product(product)
+
+
 # --- variants --------------------------------------------------------------
 
 
@@ -580,6 +609,27 @@ def update_product(  # noqa: C901, PLR0912
 
 
 @transaction.atomic
+@transaction.atomic
+def delete_variant(actor: User, variant: Product) -> None:
+    """Delete a Variant with no Orders, never the last of a published Product."""
+    parent = Product.objects.select_for_update().get(pk=variant.parent_id)
+    if lines := order_line_count(variant):
+        msg = f"Bu varyant {lines} siparişte var; silinemez."
+        raise ConflictError(msg, code="variant_has_orders")
+    published = parent.profile.status == ProductStatus.PUBLISHED
+    if published and parent.children.count() == 1:
+        msg = "Yayındaki ürünün son varyantı silinemez; önce ürünü yayından kaldırın."
+        raise ConflictError(msg, code="last_variant")
+    audit.record(
+        actor,
+        audit.Action.VARIANT_DELETED,
+        target=parent,
+        summary=f"Varyant silindi: {variant.variant_profile.sku}",
+        before={"sku": variant.variant_profile.sku, "product": parent.title},
+    )
+    variant.delete()
+
+
 def update_variant(actor: User, variant: Product, **changes: object) -> Product:
     """Edit a Variant's SKU, barcode or price override (colour and size are fixed)."""
     unknown = set(changes) - {"sku", "barcode", "price_override"}
@@ -724,10 +774,54 @@ def _rename(obj, name: str | None) -> None:
 
 
 @transaction.atomic
+def brand_blockers(brand: Brand) -> int:
+    """How many Products use this Brand (what blocks deleting it)."""
+    return ProductProfile.objects.filter(brand=brand).count()
+
+
+@transaction.atomic
+def delete_brand(actor: User, brand: Brand) -> None:
+    """Delete an unused Brand (ADR 0005). Audited."""
+    brand = Brand.objects.select_for_update().get(pk=brand.pk)
+    if products := brand_blockers(brand):
+        msg = f"Bu markayı {products} ürün kullanıyor; silinemez."
+        raise ConflictError(msg, code="brand_in_use")
+    audit.record(
+        actor,
+        audit.Action.BRAND_DELETED,
+        target=brand,
+        summary=f"Marka silindi: {brand.name}",
+        before={"name": brand.name},
+    )
+    brand.delete()
+
+
 def update_brand(brand: Brand, *, name: str | None = None) -> Brand:
     _rename(brand, name)
     brand.save()
     return brand
+
+
+def supplier_blockers(supplier: Supplier) -> int:
+    """How many Products use this Supplier (what blocks deleting it)."""
+    return ProductProfile.objects.filter(supplier=supplier).count()
+
+
+@transaction.atomic
+def delete_supplier(actor: User, supplier: Supplier) -> None:
+    """Delete an unused Supplier (ADR 0005). Audited."""
+    supplier = Supplier.objects.select_for_update().get(pk=supplier.pk)
+    if products := supplier_blockers(supplier):
+        msg = f"Bu tedarikçiyi {products} ürün kullanıyor; silinemez."
+        raise ConflictError(msg, code="supplier_in_use")
+    audit.record(
+        actor,
+        audit.Action.SUPPLIER_DELETED,
+        target=supplier,
+        summary=f"Tedarikçi silindi: {supplier.name}",
+        before={"name": supplier.name, "code": supplier.code},
+    )
+    supplier.delete()
 
 
 @transaction.atomic
@@ -747,6 +841,40 @@ def update_supplier(
         supplier.code = code
     supplier.save()
     return supplier
+
+
+def colour_blockers(colour: Colour) -> dict[str, int]:
+    """Variants and photos that use this Colour (what blocks deleting it)."""
+    return {
+        "variants": VariantProfile.objects.filter(colour=colour).count(),
+        "photos": ProductPhoto.objects.filter(colour=colour).count(),
+    }
+
+
+@transaction.atomic
+def delete_colour(actor: User, colour: Colour) -> None:
+    """Delete an unused Colour (ADR 0005); an in-use one is deactivated instead."""
+    colour = Colour.objects.select_for_update().get(pk=colour.pk)
+    blockers = colour_blockers(colour)
+    if any(blockers.values()):
+        parts = []
+        if blockers["variants"]:
+            parts.append(f"{blockers['variants']} varyant")
+        if blockers["photos"]:
+            parts.append(f"{blockers['photos']} fotoğraf")
+        msg = (
+            f"Bu rengi {' ve '.join(parts)} kullanıyor; silinemez. "
+            "Pasif yapabilirsiniz."
+        )
+        raise ConflictError(msg, code="colour_in_use")
+    audit.record(
+        actor,
+        audit.Action.COLOUR_DELETED,
+        target=colour,
+        summary=f"Renk silindi: {colour.name}",
+        before={"name": colour.name, "hex_code": colour.hex_code},
+    )
+    colour.delete()
 
 
 @transaction.atomic

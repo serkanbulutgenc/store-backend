@@ -5982,6 +5982,35 @@
       }
     },
     "/api/admin/brands/{brand_id}": {
+      "delete": {
+        "description": "Owner only. Refused while Products use the Brand.",
+        "operationId": "catalog_delete_brand",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brand_id",
+            "required": true,
+            "schema": {
+              "title": "Brand Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Brand",
+        "tags": [
+          "catalog"
+        ]
+      },
       "patch": {
         "operationId": "catalog_update_brand",
         "parameters": [
@@ -6552,6 +6581,35 @@
       }
     },
     "/api/admin/colours/{colour_id}": {
+      "delete": {
+        "description": "Owner only. Refused while a Variant or photo uses the Colour.",
+        "operationId": "catalog_delete_colour",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "colour_id",
+            "required": true,
+            "schema": {
+              "title": "Colour Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Colour",
+        "tags": [
+          "catalog"
+        ]
+      },
       "patch": {
         "operationId": "catalog_update_colour",
         "parameters": [
@@ -8379,6 +8437,35 @@
       }
     },
     "/api/admin/products/{product_id}": {
+      "delete": {
+        "description": "Owner only. Refused while the Product has Orders; archive it instead.",
+        "operationId": "catalog_delete_product",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Product",
+        "tags": [
+          "catalog"
+        ]
+      },
       "get": {
         "operationId": "catalog_get_product",
         "parameters": [
@@ -9578,6 +9665,35 @@
       }
     },
     "/api/admin/suppliers/{supplier_id}": {
+      "delete": {
+        "description": "Owner only. Refused while Products use the Supplier.",
+        "operationId": "catalog_delete_supplier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "title": "Supplier Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Supplier",
+        "tags": [
+          "catalog"
+        ]
+      },
       "patch": {
         "operationId": "catalog_update_supplier",
         "parameters": [
@@ -9625,6 +9741,35 @@
       }
     },
     "/api/admin/variants/{variant_id}": {
+      "delete": {
+        "description": "Owner only. Refused with Orders and for a published Product's last Variant.",
+        "operationId": "catalog_delete_variant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "title": "Variant Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Variant",
+        "tags": [
+          "catalog"
+        ]
+      },
       "patch": {
         "operationId": "catalog_update_variant",
         "parameters": [

@@ -3,7 +3,7 @@ title: Backend: delete routes for products, variants, brands, suppliers, colours
 repo: store-backend
 slice: 17
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: []
 ---
@@ -17,9 +17,9 @@ blocked-by: []
 
 ## Acceptance
 
-- [ ] Each resource deletes when unreferenced and returns 409 with a count when referenced.
-- [ ] The last Variant of a published Product cannot be deleted.
-- [ ] Each delete writes an Audit entry; Staff get 403.
+- [x] Each resource deletes when unreferenced and returns 409 with a count when referenced.
+- [x] The last Variant of a published Product cannot be deleted.
+- [x] Each delete writes an Audit entry; Staff get 403.
 
 ## Spec
 

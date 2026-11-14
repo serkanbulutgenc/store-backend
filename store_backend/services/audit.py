@@ -52,6 +52,11 @@ class Action(StrEnum):
     REVIEW_DELETED = "review_deleted"
     CATEGORY_MOVED = "category_moved"
     CATEGORY_DELETED = "category_deleted"
+    BRAND_DELETED = "brand_deleted"
+    SUPPLIER_DELETED = "supplier_deleted"
+    COLOUR_DELETED = "colour_deleted"
+    VARIANT_DELETED = "variant_deleted"
+    PRODUCT_DELETED = "product_deleted"
 
 
 def record(  # noqa: PLR0913

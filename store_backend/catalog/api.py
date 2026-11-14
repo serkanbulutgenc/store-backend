@@ -559,6 +559,18 @@ def update_colour(request, colour_id: int, data: ColourPatch):
     return catalog.update_colour(colour, **data.model_dump(exclude_unset=True))
 
 
+@router.delete(
+    "/colours/{colour_id}",
+    auth=requires(Perm.DELETE_CATALOGUE),
+    operation_id="catalog_delete_colour",
+    response={204: None},
+)
+def delete_colour(request, colour_id: int):
+    """Owner only. Refused while a Variant or photo uses the Colour."""
+    catalog.delete_colour(request.auth, get_object_or_404(Colour, pk=colour_id))
+    return 204, None
+
+
 @router.get(
     "/brands",
     auth=requires(Perm.VIEW_PRODUCTS),
@@ -587,6 +599,18 @@ def create_brand(request, data: NameIn):
 )
 def update_brand(request, brand_id: int, data: NamePatch):
     return catalog.update_brand(get_object_or_404(Brand, pk=brand_id), name=data.name)
+
+
+@router.delete(
+    "/brands/{brand_id}",
+    auth=requires(Perm.DELETE_CATALOGUE),
+    operation_id="catalog_delete_brand",
+    response={204: None},
+)
+def delete_brand(request, brand_id: int):
+    """Owner only. Refused while Products use the Brand."""
+    catalog.delete_brand(request.auth, get_object_or_404(Brand, pk=brand_id))
+    return 204, None
 
 
 @router.get(
@@ -618,6 +642,18 @@ def create_supplier(request, data: SupplierIn):
 def update_supplier(request, supplier_id: int, data: SupplierPatch):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
     return catalog.update_supplier(supplier, **data.model_dump(exclude_unset=True))
+
+
+@router.delete(
+    "/suppliers/{supplier_id}",
+    auth=requires(Perm.DELETE_CATALOGUE),
+    operation_id="catalog_delete_supplier",
+    response={204: None},
+)
+def delete_supplier(request, supplier_id: int):
+    """Owner only. Refused while Products use the Supplier."""
+    catalog.delete_supplier(request.auth, get_object_or_404(Supplier, pk=supplier_id))
+    return 204, None
 
 
 @router.get(
@@ -805,6 +841,18 @@ def get_product(request, product_id: int):
     return views.product_dict(request.auth, catalog.get_product(product_id))
 
 
+@router.delete(
+    "/products/{product_id}",
+    auth=requires(Perm.DELETE_CATALOGUE),
+    operation_id="catalog_delete_product",
+    response={204: None},
+)
+def delete_product(request, product_id: int):
+    """Owner only. Refused while the Product has Orders; archive it instead."""
+    catalog.remove_product(request.auth, catalog.get_product(product_id))
+    return 204, None
+
+
 @router.post(
     "/products",
     auth=requires(Perm.MANAGE_PRODUCTS),
@@ -925,6 +973,18 @@ def update_variant(request, variant_id: int, data: VariantPatch):
         **data.model_dump(exclude_unset=True),
     )
     return views.variant_dict(catalog.get_variant(variant_id))
+
+
+@router.delete(
+    "/variants/{variant_id}",
+    auth=requires(Perm.DELETE_CATALOGUE),
+    operation_id="catalog_delete_variant",
+    response={204: None},
+)
+def delete_variant(request, variant_id: int):
+    """Owner only. Refused with Orders and for a published Product's last Variant."""
+    catalog.delete_variant(request.auth, catalog.get_variant(variant_id))
+    return 204, None
 
 
 # --- stock ---------------------------------------------------------------------
