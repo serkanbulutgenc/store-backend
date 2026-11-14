@@ -34,7 +34,7 @@ class Message(models.Model):
     body_html = models.TextField()
     status = models.CharField(
         max_length=10,
-        choices=MessageStatus.choices,
+        choices=MessageStatus,
         default=MessageStatus.PENDING,
         db_index=True,
     )

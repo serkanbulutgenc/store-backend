@@ -24,7 +24,7 @@ class Guest:
         self.client = Client(
             enforce_csrf_checks=True,
             REMOTE_ADDR=ip,
-            HTTP_USER_AGENT=user_agent,
+            headers={"user-agent": user_agent},
         )
         self.headers = {"X-Session-Token": token} if token else {}
         if not token:

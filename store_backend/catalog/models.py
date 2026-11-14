@@ -118,7 +118,7 @@ class ProductProfile(models.Model):
     slug = models.SlugField(max_length=255, unique=True)
     status = models.CharField(
         max_length=16,
-        choices=ProductStatus.choices,
+        choices=ProductStatus,
         default=ProductStatus.DRAFT,
     )
     brand = models.ForeignKey(
@@ -401,7 +401,7 @@ class Attribute(models.Model):
         related_name="spec_attributes",
     )
     name = models.CharField(max_length=64)
-    kind = models.CharField(max_length=8, choices=AttributeKind.choices)
+    kind = models.CharField(max_length=8, choices=AttributeKind)
     is_multiple = models.BooleanField(
         default=False,
         help_text="A Product may pick several options (option lists only).",

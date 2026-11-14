@@ -239,7 +239,7 @@ class OrderRecord(models.Model):
     refund_amount = _money(null=True, blank=True)
     refund_method = models.CharField(
         max_length=20,
-        choices=RefundMethod.choices,
+        choices=RefundMethod,
         blank=True,
     )
     refund_iban = models.CharField(max_length=34, blank=True)
@@ -272,7 +272,7 @@ class Invoice(models.Model):
     )
     status = models.CharField(
         max_length=20,
-        choices=InvoiceStatus.choices,
+        choices=InvoiceStatus,
         default=InvoiceStatus.NOT_ISSUED,
     )
     number = models.CharField(max_length=50, blank=True)
@@ -540,10 +540,10 @@ class ReturnRequest(models.Model):
     )
     status = models.CharField(
         max_length=20,
-        choices=ReturnStatus.choices,
+        choices=ReturnStatus,
         default=ReturnStatus.REQUESTED,
     )
-    reason = models.CharField(max_length=20, choices=ReturnReason.choices)
+    reason = models.CharField(max_length=20, choices=ReturnReason)
     note = models.CharField(max_length=500, blank=True)
     requested_at = models.DateTimeField(auto_now_add=True)
     decided_at = models.DateTimeField(null=True, blank=True)
@@ -552,7 +552,7 @@ class ReturnRequest(models.Model):
     refund_amount = _money(null=True, blank=True)
     refund_method = models.CharField(
         max_length=20,
-        choices=RefundMethod.choices,
+        choices=RefundMethod,
         blank=True,
     )
     refund_iban = models.CharField(max_length=34, blank=True)
@@ -650,7 +650,7 @@ class Review(models.Model):
     body = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
-        choices=ReviewStatus.choices,
+        choices=ReviewStatus,
         default=ReviewStatus.PUBLISHED,
         db_index=True,
     )

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 def client_ip(request: HttpRequest) -> str | None:
     if settings.TRUST_FORWARDED_FOR:
-        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        forwarded = request.headers.get("x-forwarded-for", "")
         first = forwarded.split(",")[0].strip()
         if first:
             return first
@@ -22,4 +22,4 @@ def client_ip(request: HttpRequest) -> str | None:
 
 
 def user_agent(request: HttpRequest) -> str:
-    return request.META.get("HTTP_USER_AGENT", "")[:USER_AGENT_MAX]
+    return request.headers.get("user-agent", "")[:USER_AGENT_MAX]

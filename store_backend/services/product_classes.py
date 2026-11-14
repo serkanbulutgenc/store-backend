@@ -58,7 +58,7 @@ def _scheme(value: object) -> str:
 def _kdv(value: object) -> Decimal:
     try:
         rate = Decimal(str(value)).quantize(CENTS)
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         raise _invalid("default_kdv_rate", "KDV oranı bir sayı olmalı.") from None
     if not Decimal(0) <= rate <= MAX_KDV_RATE:
         raise _invalid("default_kdv_rate", "KDV oranı 0 ile 100 arasında olmalı.")
