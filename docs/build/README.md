@@ -123,4 +123,15 @@ Scoped in [phase-2.md](../spec/phase-2.md) on 2026-11-12. Same conventions as ab
 - 67 [Favorites: Shoppers heart Products](tickets/67-favorites.md) (both repos, AFK)
 - 68 [Reviews: verified-buyer ratings, moderation queue, basic markdown and emoji](tickets/68-reviews.md) (both repos, AFK), blocked by 67
 
+### Slice 17: Category tree and deletes
+
+Rules in [CONTEXT.md](../../CONTEXT.md) (Category) and [ADR 0005](../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md).
+
+- 69 [Backend: category tree to five levels, move and delete](tickets/69-be-category-tree.md) (store-backend, AFK)
+- 70 [Backend: deeper categories in import, browse, search and sitemap](tickets/70-be-category-depth.md) (store-backend, AFK), blocked by 69
+- 71 [Backend: delete routes for products, variants, brands, suppliers, colours](tickets/71-be-deletes.md) (store-backend, AFK)
+- 72 [Frontend: Dashboard category tree](tickets/72-fe-category-tree.md) (store-frontend, AFK), blocked by 69
+- 73 [Frontend: delete buttons and confirm dialogs](tickets/73-fe-deletes.md) (store-frontend, AFK), blocked by 71, 72
+- 74 [Frontend: drag and drop in the category tree](tickets/74-fe-category-dnd.md) (store-frontend, AFK), blocked by 72
+
 Build in this order, one at a time. Deploy 60-62 on their own first (DB backup, new `api` image, manual `migrate`, new `web` image); batch 63-68 into one or two later releases.

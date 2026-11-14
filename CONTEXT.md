@@ -18,7 +18,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 - **Owner**: The role with unrestricted access to the financial and structural core of the business: Settings, Dashboard users, the Colour list, cost prices and Supplier data, archiving, refunds, cancelling paid Orders, account deletion requests, and all Revenue data.
 - **Staff**: The everyday role, limited to execution: processing Orders (including marking them paid), managing Products and stock. Sees each Order's own amounts, never Revenue data, and cannot take Owner-only actions.
 - **Revenue data**: Anything that aggregates money across Orders (sales totals, trends, exports such as the accountant CSV) and anything that reveals margin (cost prices, Supplier data). A single Order's amounts are not Revenue data, because executing that Order needs them (for example the cash to collect on delivery).
-- **Destructive action**: An action that sends money out or removes something for good: archiving a Product, recording a refund, cancelling a paid Order, handling an account deletion request. Owner-only. Mistakes that can be corrected by editing, such as a wrong stock count or price, are not destructive; the Audit log is their safety net. Marking an Order paid only records money that has arrived, so Staff may do it, though Staff cannot undo it.
+- **Destructive action**: An action that sends money out or removes something for good: archiving a Product, recording a refund, cancelling a paid Order, handling an account deletion request. Owner-only. So is every hard delete (see [ADR 0005](docs/adr/0005-deletes-are-owner-only-and-refused-while-referenced.md)). Mistakes that can be corrected by editing, such as a wrong stock count or price, are not destructive; the Audit log is their safety net. Marking an Order paid only records money that has arrived, so Staff may do it, though Staff cannot undo it.
 - **Invitation**: An Owner's email invite through which a new Dashboard user sets a password. Dashboard users are deactivated, never deleted.
 
 **Audit log**: Append-only record of sensitive Dashboard actions (who, when, what, before and after), shown on the Order and as an Owner-only list.
@@ -37,7 +37,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Colour**: An entry in the Owner-managed shared colour list, with a swatch.
 
-**Category**: A node in a two-level tree (e.g. Giyim > Elbise). A Product has one primary Category.
+**Category**: A node in a tree up to five levels deep (e.g. Giyim > Elbise > Midi Elbise); the top level and the number of children per Category are unlimited. A Product has one primary Category, at any level. A Category can be moved with its whole subtree (never under itself or its own descendants, never so that the tree passes five levels) and can be deleted only when it has no children and no Products; its URL then returns 404.
 
 **Brand**: The maker label of a Product (e.g. a clothing label). Optional.
 
