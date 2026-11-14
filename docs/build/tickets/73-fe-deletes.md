@@ -3,7 +3,7 @@ title: Frontend: delete buttons and confirm dialogs
 repo: store-frontend
 slice: 17
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [71-be-deletes.md, 72-fe-category-tree.md]
 ---
@@ -16,8 +16,8 @@ blocked-by: [71-be-deletes.md, 72-fe-category-tree.md]
 
 ## Acceptance
 
-- [ ] Every resource in ADR 0005 has a delete action for the Owner and none for Staff.
-- [ ] A refused delete tells the Owner what blocks it; a successful one refreshes the list.
+- [x] Every resource in ADR 0005 has a delete action for the Owner and none for Staff.
+- [x] A refused delete tells the Owner what blocks it; a successful one refreshes the list.
 
 ## Spec
 
