@@ -3,7 +3,7 @@ title: Frontend: drag and drop in the category tree
 repo: store-frontend
 slice: 17
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [72-fe-category-tree.md]
 ---
@@ -15,8 +15,8 @@ blocked-by: [72-fe-category-tree.md]
 
 ## Acceptance
 
-- [ ] Dragging reorders and re-parents with the same results as the buttons.
-- [ ] Everything still works without a pointer.
+- [x] Dragging reorders and re-parents with the same results as the buttons.
+- [x] Everything still works without a pointer.
 
 ## Spec
 
