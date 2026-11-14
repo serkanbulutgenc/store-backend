@@ -1896,6 +1896,8 @@
               "newest",
               "price_asc",
               "price_desc",
+              "name_asc",
+              "rating_desc",
               "relevance"
             ],
             "title": "Sort",
@@ -3923,6 +3925,8 @@
                 "newest",
                 "price_asc",
                 "price_desc",
+                "name_asc",
+                "rating_desc",
                 "relevance"
               ],
               "title": "Sort",

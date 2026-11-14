@@ -112,7 +112,14 @@ class ProductListQuery(Schema):
     price_min: Decimal | None = Field(None, ge=0)
     price_max: Decimal | None = Field(None, ge=0)
     in_stock: bool = True
-    sort: Literal["newest", "price_asc", "price_desc", "relevance"] = "newest"
+    sort: Literal[
+        "newest",
+        "price_asc",
+        "price_desc",
+        "name_asc",
+        "rating_desc",
+        "relevance",
+    ] = "newest"
     page: int = Field(1, ge=1)
 
 

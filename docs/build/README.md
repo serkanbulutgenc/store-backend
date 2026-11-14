@@ -133,5 +133,6 @@ Rules in [CONTEXT.md](../../CONTEXT.md) (Category) and [ADR 0005](../adr/0005-de
 - 72 [Frontend: Dashboard category tree](tickets/72-fe-category-tree.md) (store-frontend, AFK), blocked by 69
 - 73 [Frontend: delete buttons and confirm dialogs](tickets/73-fe-deletes.md) (store-frontend, AFK), blocked by 71, 72
 - 74 [Frontend: drag and drop in the category tree](tickets/74-fe-category-dnd.md) (store-frontend, AFK), blocked by 72
+- 75 [Frontend: infinite scroll, name and rating sorts for the listing](tickets/75-fe-infinite-scroll.md) (store-frontend, AFK), blocked by 18
 
 Build in this order, one at a time. Deploy 60-62 on their own first (DB backup, new `api` image, manual `migrate`, new `web` image); batch 63-68 into one or two later releases.

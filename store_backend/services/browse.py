@@ -14,6 +14,7 @@ from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from django.db.models import Avg
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
@@ -22,6 +23,7 @@ from django.db.models import Min
 from django.db.models import OuterRef
 from django.db.models import Subquery
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Collate
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import ProductCategory
 
@@ -43,6 +45,8 @@ from store_backend.services import categories
 from store_backend.services import reviews
 from store_backend.services import search
 from store_backend.services import stock
+from store_backend.shop.models import Review
+from store_backend.shop.models import ReviewStatus
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -387,6 +391,26 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:
         return qs.order_by("-has_stock", "price_from", "-product_id")
     if sort == "price_desc":
         return qs.order_by("-has_stock", "-price_from", "-product_id")
+    if sort == "name_asc":
+        # Turkish collation, so ı/İ/ş/ğ sort where a Turkish reader expects them.
+        qs = qs.annotate(title_tr=Collate("product__title", "tr-x-icu"))
+        return qs.order_by("-has_stock", "title_tr", "-product_id")
+    if sort == "rating_desc":
+        average = (
+            Review.objects.filter(
+                product_id=OuterRef("product_id"),
+                status=ReviewStatus.PUBLISHED,
+            )
+            .values("product_id")
+            .annotate(avg=Avg("stars"))
+            .values("avg")
+        )
+        qs = qs.annotate(rating_avg=Subquery(average))
+        return qs.order_by(
+            "-has_stock",
+            F("rating_avg").desc(nulls_last=True),
+            "-product_id",
+        )
     return qs.order_by("-has_stock", "-product_id")
 
 

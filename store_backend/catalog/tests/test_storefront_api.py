@@ -221,6 +221,42 @@ def test_sorting(client, shop):
     assert titles(get(client, sort="price_desc")) == ["A", "C", "B"]
 
 
+def test_sort_by_name_uses_turkish_order_and_keeps_sold_out_last(client, shop):
+    for title in ["Çanta", "Ceket", "Ilık", "Işık", "Zeytin"]:
+        shop.product(title, [(shop.black, "M", 1)])
+    shop.product("Aba", [(shop.black, "M", 0)])
+
+    # Turkish: c < ç, ı < i... "Ilık" (I = ı) sorts before "Işık"; sold out stays last.
+    assert titles(get(client, sort="name_asc", in_stock="false")) == [
+        "Ceket",
+        "Çanta",
+        "Ilık",
+        "Işık",
+        "Zeytin",
+        "Aba",
+    ]
+
+
+def test_sort_by_rating_puts_unrated_last_and_breaks_ties_by_newest(client, shop):
+    from django.contrib.auth import get_user_model
+
+    from store_backend.shop.models import Review
+
+    user_model = get_user_model()
+    users = [
+        user_model.objects.create_user(email=f"u{i}@example.com", password="x")  # noqa: S106
+        for i in range(2)
+    ]
+    low = shop.product("Düşük", [(shop.black, "M", 1)])
+    high = shop.product("Yüksek", [(shop.black, "M", 1)])
+    shop.product("Puansız", [(shop.black, "M", 1)])
+    for user in users:
+        Review.objects.create(user=user, product=low, stars=2)
+        Review.objects.create(user=user, product=high, stars=5)
+
+    assert titles(get(client, sort="rating_desc")) == ["Yüksek", "Düşük", "Puansız"]
+
+
 def test_variant_price_override_drives_price_and_hides_old_price(client, shop):
     product = shop.product(
         "Farklı",
