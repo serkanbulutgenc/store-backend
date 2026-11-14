@@ -426,10 +426,28 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
 # --- product page --------------------------------------------------------------
 
 
+THUMBNAIL_WIDTH = 400
+
+
+def _thumbnail_url(profile: CategoryProfile) -> str | None:
+    """The menu thumbnail of a Category: its ready image at about 400 px."""
+    if profile.image_status != CategoryProfile.ImageStatus.READY:
+        return None
+    sizes = sorted(profile.image_derivative_urls(), key=lambda s: s["width"])
+    if not sizes:
+        return None
+    for size in sizes:
+        if size["width"] >= THUMBNAIL_WIDTH:
+            return size["url"]
+    return sizes[-1]["url"]
+
+
 def category_tree(depth: int = 2) -> list[dict]:
     """Visible Categories as a tree down to `depth` levels, each group in sibling
     order (sort order, then name), for the menu. Every node carries `child_count`, its
-    visible direct children, even when they are below the cut-off."""
+    visible direct children, even when they are below the cut-off, and an `image_url`
+    (the smallest derivative of at least 400 px, else the largest) once its image is
+    ready, else None."""
     nodes = categories.ordered(categories.visible().order_by("path"))
     child_counts: dict[str, int] = {}
     for c in nodes:
@@ -444,6 +462,7 @@ def category_tree(depth: int = 2) -> list[dict]:
             "name": c.name,
             "slug": c.slug,
             "child_count": child_counts.get(c.path, 0),
+            "image_url": _thumbnail_url(c.profile),
             "children": [],
         }
         built[c.path] = node

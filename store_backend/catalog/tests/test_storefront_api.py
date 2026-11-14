@@ -7,6 +7,7 @@ import pytest
 from oscar.apps.catalogue.models import ProductClass
 from oscar.apps.partner.models import StockRecord
 
+from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
@@ -336,11 +337,13 @@ def test_category_tree_is_public_and_two_level_by_default(client, shop):
             "name": "Giyim",
             "slug": shop.giyim.slug,
             "child_count": 1,
+            "image_url": None,
             "children": [
                 {
                     "name": "Elbise",
                     "slug": shop.elbise.slug,
                     "child_count": 0,
+                    "image_url": None,
                     "children": [],
                 },
             ],
@@ -349,9 +352,30 @@ def test_category_tree_is_public_and_two_level_by_default(client, shop):
             "name": "Ayakkabı",
             "slug": shop.ayakkabi.slug,
             "child_count": 0,
+            "image_url": None,
             "children": [],
         },
     ]
+
+
+def test_category_tree_carries_the_thumbnail_once_the_image_is_ready(client, shop):
+    derivatives = [
+        {"name": "c/big.webp", "width": 800},
+        {"name": "c/s.webp", "width": 400},
+    ]
+    CategoryProfile.objects.filter(category=shop.elbise).update(
+        image_status=CategoryProfile.ImageStatus.READY,
+        image_derivatives=derivatives,
+    )
+    CategoryProfile.objects.filter(category=shop.ayakkabi).update(
+        image_status=CategoryProfile.ImageStatus.PROCESSING,
+        image_derivatives=derivatives,
+    )
+
+    tree = client.get("/api/store/categories").json()
+
+    assert tree[0]["children"][0]["image_url"].endswith("c/s.webp")
+    assert tree[1]["image_url"] is None
 
 
 def test_old_slug_resolves_to_the_product_at_its_current_slug(client, shop):

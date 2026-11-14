@@ -146,6 +146,7 @@ class CategoryNodeOut(Schema):
     name: str
     slug: str
     child_count: int
+    image_url: str | None
     children: list[CategoryNodeOut]
 
 
@@ -156,7 +157,8 @@ class CategoryNodeOut(Schema):
 )
 def list_categories(request, depth: int = Query(2, ge=1, le=5)):
     """The category tree for the header menu and the homepage: `depth` levels
-    (1 to 5, default 2), each node with its `child_count`."""
+    (1 to 5, default 2), each node with its `child_count`
+    and the `image_url` of its thumbnail (null until the image is ready)."""
     return browse.category_tree(depth)
 
 

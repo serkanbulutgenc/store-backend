@@ -651,6 +651,17 @@
             "title": "Children",
             "type": "array"
           },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -664,6 +675,7 @@
           "name",
           "slug",
           "child_count",
+          "image_url",
           "children"
         ],
         "title": "CategoryNodeOut",
@@ -3462,7 +3474,7 @@
     },
     "/api/store/categories": {
       "get": {
-        "description": "The category tree for the header menu and the homepage: `depth` levels\n(1 to 5, default 2), each node with its `child_count`.",
+        "description": "The category tree for the header menu and the homepage: `depth` levels\n(1 to 5, default 2), each node with its `child_count`\nand the `image_url` of its thumbnail (null until the image is ready).",
         "operationId": "catalog_list_categories",
         "parameters": [
           {
