@@ -3,7 +3,7 @@ title: Frontend: Dashboard category tree
 repo: store-frontend
 slice: 17
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [69-be-category-tree.md]
 ---
@@ -18,9 +18,9 @@ blocked-by: [69-be-category-tree.md]
 
 ## Acceptance
 
-- [ ] A five-level tree renders, expands and collapses; the "Move to..." picker blocks invalid targets.
-- [ ] Reordering and moving work by keyboard and touch with no drag and drop.
-- [ ] Staff do not see move or delete.
+- [x] A five-level tree renders, expands and collapses; the "Move to..." picker blocks invalid targets.
+- [x] Reordering and moving work by keyboard and touch with no drag and drop.
+- [x] Staff do not see move or delete.
 
 ## Spec
 
