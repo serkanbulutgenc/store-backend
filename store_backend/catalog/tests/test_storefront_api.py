@@ -328,16 +328,29 @@ def test_list_query_count_does_not_grow_with_the_page(
         get(client)
 
 
-def test_category_tree_is_public_and_two_level(client, shop):
+def test_category_tree_is_public_and_two_level_by_default(client, shop):
     response = client.get("/api/store/categories")
     assert response.status_code == HTTPStatus.OK
     assert response.json() == [
         {
             "name": "Giyim",
             "slug": shop.giyim.slug,
-            "children": [{"name": "Elbise", "slug": shop.elbise.slug}],
+            "child_count": 1,
+            "children": [
+                {
+                    "name": "Elbise",
+                    "slug": shop.elbise.slug,
+                    "child_count": 0,
+                    "children": [],
+                },
+            ],
         },
-        {"name": "Ayakkabı", "slug": shop.ayakkabi.slug, "children": []},
+        {
+            "name": "Ayakkabı",
+            "slug": shop.ayakkabi.slug,
+            "child_count": 0,
+            "children": [],
+        },
     ]
 
 

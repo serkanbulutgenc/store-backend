@@ -145,7 +145,8 @@ class CategoryChildOut(Schema):
 class CategoryNodeOut(Schema):
     name: str
     slug: str
-    children: list[CategoryChildOut]
+    child_count: int
+    children: list[CategoryNodeOut]
 
 
 @router.get(
@@ -153,9 +154,10 @@ class CategoryNodeOut(Schema):
     operation_id="catalog_list_categories",
     response=list[CategoryNodeOut],
 )
-def list_categories(request):
-    """The two-level category tree for the header menu and the homepage."""
-    return browse.category_tree()
+def list_categories(request, depth: int = Query(2, ge=1, le=5)):
+    """The category tree for the header menu and the homepage: `depth` levels
+    (1 to 5, default 2), each node with its `child_count`."""
+    return browse.category_tree(depth)
 
 
 class CategoryPageOut(Schema):

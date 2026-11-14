@@ -3,7 +3,7 @@ title: Backend: deeper categories in import, browse, search and sitemap
 repo: store-backend
 slice: 17
 type: AFK
-status: open
+status: closed
 assignee:
 blocked-by: [69-be-category-tree.md]
 ---
@@ -17,9 +17,9 @@ blocked-by: [69-be-category-tree.md]
 
 ## Acceptance
 
-- [ ] A five-part import path creates the chain once and re-importing does not duplicate it.
-- [ ] A listing of a mid-level Category includes Products of all its descendants.
-- [ ] The Category endpoint returns children and breadcrumbs for a depth-4 Category; hiding a depth-2 Category hides depth 3-5.
+- [x] A five-part import path creates the chain once and re-importing does not duplicate it.
+- [x] A listing of a mid-level Category includes Products of all its descendants.
+- [x] The Category endpoint returns children and breadcrumbs for a depth-4 Category; hiding a depth-2 Category hides depth 3-5.
 
 ## Spec
 

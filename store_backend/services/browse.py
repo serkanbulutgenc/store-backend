@@ -426,22 +426,32 @@ def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
 # --- product page --------------------------------------------------------------
 
 
-def category_tree() -> list[dict]:
-    """Visible top-level Categories with their children, each group in sibling order
-    (sort order, then name), for the menu."""
+def category_tree(depth: int = 2) -> list[dict]:
+    """Visible Categories as a tree down to `depth` levels, each group in sibling
+    order (sort order, then name), for the menu. Every node carries `child_count`, its
+    visible direct children, even when they are below the cut-off."""
     nodes = categories.ordered(categories.visible().order_by("path"))
-    roots = {
-        c.pk: {"name": c.name, "slug": c.slug, "children": []}
-        for c in nodes
-        if c.depth == 1
-    }
-    by_path = {c.path: pk for pk, c in ((c.pk, c) for c in nodes if c.depth == 1)}
+    child_counts: dict[str, int] = {}
     for c in nodes:
-        if c.depth > 1:
-            parent_pk = by_path.get(c.path[: -Category.steplen])
-            if parent_pk is not None:
-                roots[parent_pk]["children"].append({"name": c.name, "slug": c.slug})
-    return list(roots.values())
+        parent_path = c.path[: -Category.steplen]
+        child_counts[parent_path] = child_counts.get(parent_path, 0) + 1
+    built: dict[str, dict] = {}
+    roots: list[dict] = []
+    for c in sorted(nodes, key=lambda c: c.depth):  # stable: sibling order kept
+        if c.depth > depth:
+            break
+        node = {
+            "name": c.name,
+            "slug": c.slug,
+            "child_count": child_counts.get(c.path, 0),
+            "children": [],
+        }
+        built[c.path] = node
+        if c.depth == 1:
+            roots.append(node)
+        else:
+            built[c.path[: -Category.steplen]]["children"].append(node)
+    return roots
 
 
 def category_page(slug: str) -> dict:

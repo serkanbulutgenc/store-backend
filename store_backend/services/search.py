@@ -55,8 +55,7 @@ def document_for(profile: ProductProfile) -> str:
         parts.append(profile.brand.name)
     for category in product.categories.all():
         parts.append(category.name)
-        if category.depth > 1:
-            parts.append(category.get_parent().name)
+        parts.extend(a.name for a in category.get_ancestors())
     for variant in VariantProfile.objects.filter(parent=product).select_related(
         "colour",
     ):

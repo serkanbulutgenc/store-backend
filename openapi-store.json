@@ -640,9 +640,13 @@
       },
       "CategoryNodeOut": {
         "properties": {
+          "child_count": {
+            "title": "Child Count",
+            "type": "integer"
+          },
           "children": {
             "items": {
-              "$ref": "#/components/schemas/CategoryChildOut"
+              "$ref": "#/components/schemas/CategoryNodeOut"
             },
             "title": "Children",
             "type": "array"
@@ -659,6 +663,7 @@
         "required": [
           "name",
           "slug",
+          "child_count",
           "children"
         ],
         "title": "CategoryNodeOut",
@@ -3457,9 +3462,22 @@
     },
     "/api/store/categories": {
       "get": {
-        "description": "The two-level category tree for the header menu and the homepage.",
+        "description": "The category tree for the header menu and the homepage: `depth` levels\n(1 to 5, default 2), each node with its `child_count`.",
         "operationId": "catalog_list_categories",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "maximum": 5,
+              "minimum": 1,
+              "title": "Depth",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

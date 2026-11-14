@@ -15,8 +15,9 @@ Columns (header names are case-insensitive; `,` `;` or tab separated, UTF-8):
 
 `quantity` is the on-hand count to end up with; the difference goes through
 `stock.adjust`, so it is audited. `kdv_class` is empty for the Product class default
-or a percentage (0-100) overriding it. `category` is `Name` or `Parent > Child`.
-`notes` is ignored. Brands, suppliers and categories that do not exist are created
+or a percentage (0-100) overriding it. `category` is `Name` or a path such as
+`Parent > Child > Grandchild`, up to five levels. `notes` is ignored. Brands,
+suppliers and categories that do not exist (every missing ancestor too) are created
 on confirm; colours are never created (a colour needs a swatch), sizes must be in the
 class's scheme, and Products are created as drafts.
 """
@@ -66,9 +67,7 @@ REQUIRED = (
 OPTIONAL = ("brand", "supplier", "sku", "kdv_class", "notes")
 MAX_KDV = Decimal(100)
 MAX_ERRORS_SHOWN = 20
-# The category lookup below resolves a root and one child only; deeper paths come with
-# ticket 70, so the import stays at two levels while the tree itself allows five.
-MAX_IMPORT_CATEGORY_DEPTH = 2
+MAX_IMPORT_CATEGORY_DEPTH = catalog.MAX_CATEGORY_DEPTH
 
 
 @dataclass
@@ -225,19 +224,17 @@ class _Catalogue:
     colours: dict[str, Colour]
     brands: set[str]
     suppliers: set[str]
-    roots: dict[str, Category]
-    children: dict[tuple[int, str], Category]
+    by_path: dict[tuple[str, ...], Category]
 
     @classmethod
     def load(cls) -> _Catalogue:
         categories = list(Category.objects.all().order_by("path"))
-        roots = {_key(c.name): c for c in categories if c.depth == 1}
-        by_path = {c.path: c for c in categories}
-        children = {
-            (by_path[c.path[: -c.steplen]].pk, _key(c.name)): c
-            for c in categories
-            if c.depth > 1
-        }
+        keys: dict[str, tuple[str, ...]] = {}  # tree path -> normalised name path
+        by_path: dict[tuple[str, ...], Category] = {}
+        for c in categories:  # parents sort before their children
+            key = (*keys.get(c.path[: -c.steplen], ()), _key(c.name))
+            keys[c.path] = key
+            by_path[key] = c
         return cls(
             classes={
                 _key(pc.name): pc
@@ -246,15 +243,11 @@ class _Catalogue:
             colours={_key(c.name): c for c in Colour.objects.all()},
             brands={_key(b.name) for b in Brand.objects.all()},
             suppliers={_key(s.name) for s in Supplier.objects.all()},
-            roots=roots,
-            children=children,
+            by_path=by_path,
         )
 
     def category(self, path: tuple[str, ...]) -> Category | None:
-        node = self.roots.get(_key(path[0]))
-        if node is not None and len(path) > 1:
-            node = self.children.get((node.pk, _key(path[1])))
-        return node
+        return self.by_path.get(tuple(_key(p) for p in path))
 
 
 def _category_path(text: str) -> tuple[str, ...] | None:

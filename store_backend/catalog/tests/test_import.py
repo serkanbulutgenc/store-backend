@@ -134,7 +134,7 @@ def test_one_bad_row_changes_nothing_and_names_row_and_column(owner, colours):
         ("E,K,,,Giyim,Siyah,M,,10,,-1,\n", "quantity"),
         ("E,K,,,Giyim,Siyah,M,,10,150,1,\n", "kdv_class"),
         (",K,,,Giyim,Siyah,M,,10,,1,\n", "product_name"),
-        ("E,A > B > C,,,Giyim,Siyah,M,,10,,1,\n", "category"),
+        ("E,A > B > C > D > E > F,,,Giyim,Siyah,M,,10,,1,\n", "category"),
     ],
 )
 def test_row_errors_name_the_column(colours, row, column):
@@ -304,3 +304,62 @@ def test_product_price_does_not_depend_on_row_order(colours):
     flipped = "\n".join(reversed(rows)) + "\n"
     first = catalog_import.preview(csv_bytes(ROWS)).products[0].price
     assert catalog_import.preview(csv_bytes(flipped)).products[0].price == first
+
+
+DEEP = "Kadın > Giyim > Elbise > Midi > Yazlık"
+
+
+def deep_row(path: str = DEEP, size: str = "M") -> str:
+    return f"Elbise,{path},Moda,,Giyim,Siyah,{size},,199.90,,5,\n"
+
+
+def category_names() -> list[str]:
+    return [c.name for c in Category.objects.order_by("path")]
+
+
+def test_a_five_part_category_path_creates_the_chain_once(api_for, owner, colours):
+    api = api_for(owner, enrol=True)
+
+    first = upload(api, f"{BASE}/confirm", csv_bytes(deep_row()))
+    again = upload(api, f"{BASE}/confirm", csv_bytes(deep_row()))
+
+    assert first.status_code == HTTPStatus.OK
+    assert first.json()["new_categories"] == [
+        "Kadın",
+        "Kadın > Giyim",
+        "Kadın > Giyim > Elbise",
+        "Kadın > Giyim > Elbise > Midi",
+        DEEP,
+    ]
+    assert again.status_code == HTTPStatus.OK
+    assert again.json()["new_categories"] == []
+    assert category_names() == ["Kadın", "Giyim", "Elbise", "Midi", "Yazlık"]
+    assert [c.depth for c in Category.objects.order_by("path")] == [1, 2, 3, 4, 5]
+    assert Product.objects.filter(structure=Product.PARENT).count() == 1
+
+
+def test_only_the_missing_ancestors_are_created(api_for, owner, colours):
+    api = api_for(owner, enrol=True)
+    upload(api, f"{BASE}/confirm", csv_bytes(deep_row("Kadın > Giyim")))
+
+    response = upload(api, f"{BASE}/confirm", csv_bytes(deep_row(DEEP, "L")))
+
+    assert response.json()["new_categories"] == [
+        "Kadın > Giyim > Elbise",
+        "Kadın > Giyim > Elbise > Midi",
+        DEEP,
+    ]
+    assert category_names().count("Kadın") == 1
+    assert category_names().count("Giyim") == 1
+
+
+def test_a_six_part_category_path_is_a_row_error_on_category(api_for, owner, colours):
+    api = api_for(owner, enrol=True)
+
+    response = upload(api, f"{BASE}/preview", csv_bytes(deep_row(DEEP + " > Altı")))
+
+    assert response.status_code == HTTPStatus.OK
+    assert [(e["row"], e["column"]) for e in response.json()["errors"]] == [
+        (2, "category"),
+    ]
+    assert Category.objects.count() == 0
