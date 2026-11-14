@@ -35,6 +35,12 @@ To run the tests, check your test coverage, and generate an HTML coverage report
     uv run coverage html
     uv run open htmlcov/index.html
 
+#### Running tests without a local Python setup
+
+    scripts/dev-test.sh test store_backend/catalog -q   # pytest in the store-api:dev image + throwaway Postgres
+    scripts/dev-test.sh manage export_openapi            # any manage.py command
+    scripts/dev-test.sh down                             # stop the throwaway Postgres
+
 #### Running tests with pytest
 
     uv run pytest
