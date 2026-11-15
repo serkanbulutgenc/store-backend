@@ -22,10 +22,12 @@ from django.db.models import Max
 from django.db.models import Min
 from django.db.models import OuterRef
 from django.db.models import Subquery
+from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Collate
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import ProductCategory
+from oscar.apps.order.models import Line
 
 from store_backend.api.errors import NotFoundError
 from store_backend.catalog.models import Attribute
@@ -42,6 +44,8 @@ from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import attributes
 from store_backend.services import categories
+from store_backend.services.order_ops import STATUS_CANCELLED
+from store_backend.services.order_ops import STATUS_RETURNED
 from store_backend.services import reviews
 from store_backend.services import search
 from store_backend.services import stock
@@ -70,6 +74,7 @@ class Filters:
     price_min: Decimal | None = None
     price_max: Decimal | None = None
     in_stock: bool = True
+    on_sale: bool = False
     options: list[int] = field(default_factory=list)
     # Selected option ids grouped by attribute; filled in by `resolve`.
     groups: dict[int, list[int]] = field(default_factory=dict)
@@ -154,6 +159,8 @@ def _pool(
         qs = qs.filter(Exists(in_category))
     if f.q.strip():
         qs = search.search(qs, f.q)
+    if f.on_sale:
+        qs = qs.filter(old_price__isnull=False)
     if f.brands and skip != "brand":
         qs = qs.filter(brand_id__in=f.brands)
     if skip != "price":
@@ -395,6 +402,17 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:
         # Turkish collation, so ı/İ/ş/ğ sort where a Turkish reader expects them.
         qs = qs.annotate(title_tr=Collate("product__title", "tr-x-icu"))
         return qs.order_by("-has_stock", "title_tr", "-product_id")
+    if sort == "popular":
+        # Units sold across the Product's Variants, not counting undone Orders.
+        sold = (
+            Line.objects.filter(product__parent_id=OuterRef("product_id"))
+            .exclude(order__status__in=(STATUS_CANCELLED, STATUS_RETURNED))
+            .values("product__parent_id")
+            .annotate(units=Sum("quantity"))
+            .values("units")
+        )
+        qs = qs.annotate(units_sold=Coalesce(Subquery(sold), 0))
+        return qs.order_by("-has_stock", "-units_sold", "-product_id")
     if sort == "rating_desc":
         average = (
             Review.objects.filter(

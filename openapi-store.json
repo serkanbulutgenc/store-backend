@@ -1834,6 +1834,12 @@
             "title": "In Stock",
             "type": "boolean"
           },
+          "on_sale": {
+            "default": false,
+            "description": "Only Products with an old price.",
+            "title": "On Sale",
+            "type": "boolean"
+          },
           "option": {
             "description": "Attribute option ids: any of one attribute's, all attributes.",
             "items": {
@@ -1898,6 +1904,7 @@
               "price_desc",
               "name_asc",
               "rating_desc",
+              "popular",
               "relevance"
             ],
             "title": "Sort",
@@ -3916,6 +3923,18 @@
             }
           },
           {
+            "description": "Only Products with an old price.",
+            "in": "query",
+            "name": "on_sale",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only Products with an old price.",
+              "title": "On Sale",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "query",
             "name": "sort",
             "required": false,
@@ -3927,6 +3946,7 @@
                 "price_desc",
                 "name_asc",
                 "rating_desc",
+                "popular",
                 "relevance"
               ],
               "title": "Sort",

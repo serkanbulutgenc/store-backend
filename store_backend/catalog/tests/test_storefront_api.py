@@ -6,6 +6,8 @@ from http import HTTPStatus
 import pytest
 from django.contrib.auth import get_user_model
 from oscar.apps.catalogue.models import ProductClass
+from oscar.apps.order.models import Line
+from oscar.apps.order.models import Order
 from oscar.apps.partner.models import StockRecord
 
 from store_backend.catalog.models import CategoryProfile
@@ -252,6 +254,52 @@ def test_sort_by_rating_puts_unrated_last_and_breaks_ties_by_newest(client, shop
         Review.objects.create(user=user, product=high, stars=5)
 
     assert titles(get(client, sort="rating_desc")) == ["Yüksek", "Düşük", "Puansız"]
+
+
+def test_on_sale_filter_keeps_only_products_with_an_old_price(client, shop):
+    shop.product("İndirimli", [(shop.black, "M", 1)], price="80.00", old_price="100.00")
+    shop.product("Normal", [(shop.black, "M", 1)])
+
+    assert titles(get(client, on_sale="true")) == ["İndirimli"]
+    assert titles(get(client)) == ["Normal", "İndirimli"]
+
+
+def _sell(product, quantity, number, status="Pending"):
+    variant = product.children.get()
+    order = Order.objects.create(
+        number=number,
+        status=status,
+        total_incl_tax=1,
+        total_excl_tax=1,
+    )
+    Line.objects.create(
+        order=order,
+        product=variant,
+        title="x",
+        partner_name="p",
+        partner_sku="s",
+        stockrecord=variant.stockrecords.get(),
+        quantity=quantity,
+        num_allocated=quantity,
+        line_price_incl_tax=1,
+        line_price_excl_tax=1,
+        line_price_before_discounts_incl_tax=1,
+        line_price_before_discounts_excl_tax=1,
+        unit_price_incl_tax=1,
+        unit_price_excl_tax=1,
+    )
+
+
+def test_sort_by_popular_counts_units_sold_and_ignores_cancelled_orders(client, shop):
+    few = shop.product("Az", [(shop.black, "M", 9)])
+    many = shop.product("Çok", [(shop.black, "M", 9)])
+    shop.product("Hiç", [(shop.black, "M", 9)])
+    cancelled = shop.product("İptal", [(shop.black, "M", 9)])
+    _sell(few, 1, "700001")
+    _sell(many, 5, "700002")
+    _sell(cancelled, 50, "700003", status="cancelled")
+
+    assert titles(get(client, sort="popular")) == ["Çok", "Az", "İptal", "Hiç"]
 
 
 def test_variant_price_override_drives_price_and_hides_old_price(client, shop):

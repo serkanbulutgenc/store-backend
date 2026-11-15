@@ -112,12 +112,14 @@ class ProductListQuery(Schema):
     price_min: Decimal | None = Field(None, ge=0)
     price_max: Decimal | None = Field(None, ge=0)
     in_stock: bool = True
+    on_sale: bool = Field(False, description="Only Products with an old price.")
     sort: Literal[
         "newest",
         "price_asc",
         "price_desc",
         "name_asc",
         "rating_desc",
+        "popular",
         "relevance",
     ] = "newest"
     page: int = Field(1, ge=1)
@@ -140,6 +142,7 @@ def list_products(request, params: Query[ProductListQuery]):
         price_min=params.price_min,
         price_max=params.price_max,
         in_stock=params.in_stock,
+        on_sale=params.on_sale,
     )
     return browse.listing(filters, sort=params.sort, page=params.page)
 
