@@ -42,16 +42,39 @@ class BasketLineOut(Schema):
     )
 
 
+class VoucherOut(Schema):
+    code: str
+    discount: Money = Field(
+        description="What it takes off the items; 0.00 while it has a problem.",
+    )
+    minimum: Money | None = Field(
+        None,
+        description="The items total the Voucher needs; null when it has no minimum.",
+    )
+    problem: str | None = Field(
+        None,
+        description="minimum when the basket fell below the minimum; null when fine.",
+    )
+
+
 class BasketOut(Schema):
     lines: list[BasketLineOut]
     item_count: int
     subtotal: Money
     has_problems: bool
+    voucher: VoucherOut | None = Field(
+        None,
+        description="The Voucher applied to this basket, if any.",
+    )
 
 
 class AddIn(Schema):
     variant_id: int
     quantity: int = Field(1, ge=1, le=basket_service.MAX_QUANTITY)
+
+
+class VoucherIn(Schema):
+    code: str = Field(max_length=128)
 
 
 class QuantityIn(Schema):
@@ -86,4 +109,23 @@ def set_quantity(request, line_id: int, data: QuantityIn):
 )
 def remove_line(request, line_id: int):
     basket_service.remove(request.basket, line_id)
+    return basket_service.view(request.basket)
+
+
+@router.post("/basket/voucher", operation_id="basket_apply_voucher", response=BasketOut)
+def apply_voucher(request, data: VoucherIn):
+    """Apply a Voucher code to the basket, replacing any earlier one."""
+    user = request.user if request.user.is_authenticated else None
+    basket_service.apply_voucher(request.basket, data.code, user)
+    return basket_service.view(request.basket)
+
+
+@router.delete(
+    "/basket/voucher",
+    operation_id="basket_remove_voucher",
+    response=BasketOut,
+)
+def remove_voucher(request):
+    """Take the Voucher off the basket. Harmless when there is none."""
+    basket_service.remove_voucher(request.basket)
     return basket_service.view(request.basket)

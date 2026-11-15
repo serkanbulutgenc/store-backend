@@ -13,6 +13,8 @@ from oscar.apps.voucher.models import Voucher
 from oscar.apps.voucher.models import VoucherApplication
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from oscar.apps.order.models import Order
 
     from store_backend.users.models import User
@@ -36,11 +38,16 @@ class VoucherError(Exception):
 
 
 def _used_by(voucher: Voucher, user: User | None, email: str) -> bool:
-    """Whether this Customer, or whoever used this email as a Guest, redeemed it."""
-    who = Q(order__guest_email__iexact=email.strip())
+    """Whether this Customer, or whoever used this email as a Guest, redeemed it.
+
+    A blank email identifies nobody, so it never matches an earlier Order.
+    """
+    who = Q()
+    if email.strip():
+        who |= Q(order__guest_email__iexact=email.strip())
     if user is not None:
         who |= Q(user=user)
-    return voucher.applications.filter(who).exists()
+    return bool(who) and voucher.applications.filter(who).exists()
 
 
 def validate(
@@ -69,6 +76,12 @@ def validate(
     if voucher.usage == Voucher.ONCE_PER_CUSTOMER and _used_by(voucher, user, email):
         raise VoucherError(Reason.ALREADY_USED)
     return voucher
+
+
+def check_minimum(voucher: Voucher, items_total: Decimal) -> None:
+    """Refuse when the items cost less than the Voucher's minimum basket."""
+    if items_total < voucher.offers.get().condition.value:
+        raise VoucherError(Reason.MINIMUM)
 
 
 def release(order: Order) -> None:

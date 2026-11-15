@@ -13,18 +13,26 @@ from django.db import transaction
 from oscar.apps.basket.models import Basket as BasketModel
 from oscar.apps.catalogue.models import Product
 
+from store_backend.api.errors import BadRequestError
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
+from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
 from store_backend.services import catalog
 from store_backend.services import pricing
 from store_backend.services import stock
+from store_backend.services import vouchers
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from oscar.apps.basket.models import Basket
 
+    from store_backend.users.models import User
+
 MAX_QUANTITY = 99
+EMPTY_BASKET = "Sepetiniz boş."
 
 
 def _available(variant: Product) -> int:
@@ -114,6 +122,67 @@ def _problem(variant: Product | None, quantity: int, available: int) -> str | No
     return None
 
 
+def _items_total(basket: Basket) -> Decimal:
+    lines = basket.lines.select_related("product") if basket.id else []
+    return sum(
+        (
+            pricing.kurus(catalog.shelf_price_for(line.product)) * line.quantity
+            for line in lines
+        ),
+        pricing.ZERO,
+    )
+
+
+def _voucher_view(basket: Basket, subtotal: Decimal) -> dict | None:
+    voucher = basket.vouchers.first() if basket.id else None
+    if voucher is None:
+        return None
+    offer = voucher.offers.get()
+    minimum = offer.condition.value
+    below = subtotal < minimum
+    benefit = offer.benefit
+    return {
+        "code": voucher.code,
+        "discount": (
+            pricing.ZERO
+            if below
+            else pricing.voucher_discount(subtotal, benefit.type, benefit.value)
+        ),
+        "minimum": minimum or None,
+        "problem": "minimum" if below else None,
+    }
+
+
+def _voucher_refused(reason: vouchers.Reason) -> UnprocessableError:
+    return UnprocessableError(
+        "Kupon kodu kullanılamıyor.",
+        code="voucher_invalid",
+        fields={"voucher_code": [reason.value]},
+    )
+
+
+def apply_voucher(basket: Basket, code: str, user: User | None) -> None:
+    """Attach the Voucher a Shopper typed to their basket, replacing any earlier one.
+
+    A Guest's email is not known yet, so "once per Customer" is checked again, with the
+    email, when the Order is placed.
+    """
+    if not basket.id or not basket.lines.exists():
+        raise BadRequestError(EMPTY_BASKET, code="basket_empty")
+    try:
+        voucher = vouchers.validate(code, user=user, email=user.email if user else "")
+        vouchers.check_minimum(voucher, _items_total(basket))
+    except vouchers.VoucherError as error:
+        raise _voucher_refused(error.reason) from error
+    basket.vouchers.set([voucher])
+
+
+def remove_voucher(basket: Basket) -> None:
+    """Take the Voucher off the basket; harmless when there is none."""
+    if basket.id:
+        basket.vouchers.clear()
+
+
 def view(basket: Basket) -> dict:
     """The basket as the storefront shows it: lines with live prices, and the subtotal.
 
@@ -180,4 +249,5 @@ def view(basket: Basket) -> dict:
         "item_count": sum(line["quantity"] for line in out),
         "subtotal": subtotal,
         "has_problems": any(line["problem"] for line in out),
+        "voucher": _voucher_view(basket, subtotal),
     }
