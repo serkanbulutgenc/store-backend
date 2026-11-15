@@ -2,22 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from django.utils import timezone
 from oscar.apps.basket.models import Line
 from oscar.apps.offer.models import Benefit
-from oscar.apps.offer.models import Condition
-from oscar.apps.offer.models import ConditionalOffer
-from oscar.apps.offer.models import Range
-from oscar.apps.voucher.models import Voucher
 
 from store_backend.services import quote as quoting
 from store_backend.services import shop_settings
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.tests.conftest import Guest
+from store_backend.shop.tests.conftest import make_voucher
 from store_backend.shop.tests.test_checkout import fill
 
 pytestmark = pytest.mark.django_db
@@ -35,40 +30,6 @@ def lines(shop):
             "product__parent__product_class__profile",
         ),
     )
-
-
-def make_voucher(
-    benefit_type: str,
-    value: str,
-    *,
-    minimum: str = "0",
-    code: str = "YAZ10",
-) -> Voucher:
-    """A Voucher as the Dashboard will store it: Oscar's voucher, offer and benefit."""
-    everything = Range.objects.create(name=f"all-{code}", includes_all_products=True)
-    offer = ConditionalOffer.objects.create(
-        name=f"offer-{code}",
-        offer_type=ConditionalOffer.VOUCHER,
-        condition=Condition.objects.create(
-            range=everything,
-            type=Condition.VALUE,
-            value=D(minimum),
-        ),
-        benefit=Benefit.objects.create(
-            range=everything,
-            type=benefit_type,
-            value=D(value),
-        ),
-    )
-    now = timezone.now()
-    voucher = Voucher.objects.create(
-        name=f"voucher-{code}",
-        code=code,
-        start_datetime=now - timedelta(days=1),
-        end_datetime=now + timedelta(days=30),
-    )
-    voucher.offers.add(offer)
-    return voucher
 
 
 def test_percentage_voucher_discounts_the_items_but_not_the_fees(lines):

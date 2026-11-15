@@ -1,6 +1,18 @@
+from datetime import timedelta
+from decimal import Decimal
+
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.test import Client
+from django.utils import timezone
 from oscar.apps.catalogue.models import ProductClass
+from oscar.apps.offer.models import Benefit
+from oscar.apps.offer.models import Condition
+from oscar.apps.offer.models import ConditionalOffer
+from oscar.apps.offer.models import Range
+from oscar.apps.order.models import Order
+from oscar.apps.voucher.models import Voucher
+from oscar.apps.voucher.models import VoucherApplication
 
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
@@ -85,3 +97,56 @@ def flat_shipping(request):
     """Most tests price shipping from the flat Settings fee; with no rates, it is."""
     if "computed_shipping" not in request.fixturenames:
         RateRow.objects.all().delete()
+
+
+def make_voucher(  # noqa: PLR0913
+    benefit_type: str,
+    value: str,
+    *,
+    minimum: str = "0",
+    code: str = "YAZ10",
+    starts_in_days: int = -1,
+    ends_in_days: int = 30,
+    usage: str = Voucher.MULTI_USE,
+) -> Voucher:
+    """A Voucher as the Dashboard will store it: Oscar's voucher, offer and benefit."""
+    everything = Range.objects.create(name=f"all-{code}", includes_all_products=True)
+    offer = ConditionalOffer.objects.create(
+        name=f"offer-{code}",
+        offer_type=ConditionalOffer.VOUCHER,
+        condition=Condition.objects.create(
+            range=everything,
+            type=Condition.VALUE,
+            value=Decimal(minimum),
+        ),
+        benefit=Benefit.objects.create(
+            range=everything,
+            type=benefit_type,
+            value=Decimal(value),
+        ),
+    )
+    now = timezone.now()
+    voucher = Voucher.objects.create(
+        name=f"voucher-{code}",
+        code=code,
+        usage=usage,
+        start_datetime=now + timedelta(days=starts_in_days),
+        end_datetime=now + timedelta(days=ends_in_days),
+    )
+    voucher.offers.add(offer)
+    return voucher
+
+
+def redeem(voucher: Voucher, *, email: str = "ayse@example.com", user=None) -> Order:
+    """One Redemption: an Order that used `voucher`, as placement will record it."""
+    number = f"AT-T{VoucherApplication.objects.count() + 1:05d}"
+    order = Order.objects.create(
+        number=number,
+        currency="TRY",
+        total_incl_tax=Decimal("100.00"),
+        total_excl_tax=Decimal("83.33"),
+        guest_email=email,
+        user=user,
+    )
+    voucher.record_usage(order, user or AnonymousUser())
+    return order
