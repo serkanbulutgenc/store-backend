@@ -47,7 +47,12 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Shelf price**: The KDV-inclusive price shown to Shoppers. Set on the Product; a Variant may override it.
 
-**Old price**: Optional earlier shelf price shown struck through to signal a discount.
+**Old price**: Optional earlier shelf price shown struck through to signal a discount. A catalogue markdown that needs no code, unlike a **Voucher**.
+
+**Voucher**: A code a Shopper (Guest or Customer) enters at checkout to reduce the price of the items in their basket, either by a percentage or by a fixed TL amount. Only the Owner creates and manages Vouchers; Staff see which Voucher an Order used. An Order carries at most one Voucher, and it applies to every item, including those showing an Old price. An Owner can limit a Voucher with an expiry date, a minimum basket amount, a total redemption cap and an optional "once per Customer" limit, which matches a Guest by the email on the Order.
+- **Redemption**: One Order's use of a Voucher. Counted when the Order is placed and released if the Order is cancelled, including the automatic cancel after the Payment window.
+- **Voucher discount**: The amount a Voucher takes off an Order's items, spread across the item lines in proportion to their value. Shipping and COD fees are never discounted, the minimum basket amount and the free-shipping threshold are measured before it, and it cannot take the items below zero. It stays frozen on the Order, and a refund returns what the Shopper actually paid for a line, net of its share.
+- A Voucher that has been redeemed can be deactivated but never deleted.
 
 **Archived**: A Product hidden from the Storefront but kept for Order history. Products with Orders are never deleted.
 
