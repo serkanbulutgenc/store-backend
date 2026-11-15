@@ -4,6 +4,7 @@ from __future__ import annotations
 from http import HTTPStatus
 
 import pytest
+from django.contrib.auth import get_user_model
 from oscar.apps.catalogue.models import ProductClass
 from oscar.apps.partner.models import StockRecord
 
@@ -12,6 +13,7 @@ from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import catalog
+from store_backend.shop.models import Review
 
 pytestmark = pytest.mark.django_db
 
@@ -238,13 +240,8 @@ def test_sort_by_name_uses_turkish_order_and_keeps_sold_out_last(client, shop):
 
 
 def test_sort_by_rating_puts_unrated_last_and_breaks_ties_by_newest(client, shop):
-    from django.contrib.auth import get_user_model
-
-    from store_backend.shop.models import Review
-
-    user_model = get_user_model()
     users = [
-        user_model.objects.create_user(email=f"u{i}@example.com", password="x")  # noqa: S106
+        get_user_model().objects.create_user(email=f"u{i}@example.com", password="x")  # noqa: S106
         for i in range(2)
     ]
     low = shop.product("Düşük", [(shop.black, "M", 1)])
