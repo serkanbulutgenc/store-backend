@@ -57,6 +57,11 @@ class Action(StrEnum):
     COLOUR_DELETED = "colour_deleted"
     VARIANT_DELETED = "variant_deleted"
     PRODUCT_DELETED = "product_deleted"
+    VOUCHER_CREATED = "voucher_created"
+    VOUCHER_EDITED = "voucher_edited"
+    VOUCHER_DEACTIVATED = "voucher_deactivated"
+    VOUCHER_ACTIVATED = "voucher_activated"
+    VOUCHER_DELETED = "voucher_deleted"
 
 
 def record(  # noqa: PLR0913

@@ -45,6 +45,7 @@ def test_owner_only_permissions_match_the_prd(db):
         "MANAGE_ATTRIBUTES",
         "RESTRUCTURE_CATEGORIES",
         "DELETE_CATALOGUE",
+        "MANAGE_VOUCHERS",
     }
 
 

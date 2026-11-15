@@ -179,6 +179,13 @@ class ReturnRow(Schema):
         return sum(line.quantity for line in obj.lines.all())
 
 
+class OrderVoucherOut(Schema):
+    """The Voucher the Order used, as it was when the Shopper placed it."""
+
+    code: str
+    discount: Money
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -190,6 +197,7 @@ class OrderDetail(Schema):
     shipping_address: OrderShippingOut | None
     lines: list[OrderLineOut]
     items_total: Money
+    voucher: OrderVoucherOut | None
     shipping_fee: Money
     cod_fee: Money
     total: Money
@@ -242,6 +250,17 @@ def _lines(order) -> list[dict]:
         }
         for line in sorted(order.lines.all(), key=lambda row: row.pk)
     ]
+
+
+def _voucher(order) -> dict | None:
+    """From the Order's own frozen discount record, so later edits never change it."""
+    discounts = [d for d in order.discounts.all() if d.voucher_code]
+    if not discounts:
+        return None
+    return {
+        "code": discounts[0].voucher_code,
+        "discount": sum((d.amount for d in discounts), pricing.ZERO),
+    }
 
 
 def _audit(order) -> list[dict]:
@@ -306,6 +325,7 @@ def order_detail(order) -> dict:
         "shipping_address": _shipping(order),
         "lines": lines,
         "items_total": sum((line["line_total"] for line in lines), pricing.ZERO),
+        "voucher": _voucher(order),
         "shipping_fee": order.shipping_incl_tax,
         "cod_fee": cod_fee,
         "total": order.total_incl_tax,

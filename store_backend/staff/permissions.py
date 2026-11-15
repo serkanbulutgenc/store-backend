@@ -50,6 +50,7 @@ class Perm(StrEnum):
     MANAGE_ATTRIBUTES = "manage_attributes"
     RESTRUCTURE_CATEGORIES = "restructure_categories"  # move and delete
     DELETE_CATALOGUE = "delete_catalogue"  # hard deletes (ADR 0005)
+    MANAGE_VOUCHERS = "manage_vouchers"  # create, edit, deactivate, delete
 
     @property
     def label(self) -> str:
@@ -80,6 +81,7 @@ OWNER_ONLY: frozenset[Perm] = frozenset(
         Perm.MANAGE_ATTRIBUTES,
         Perm.RESTRUCTURE_CATEGORIES,
         Perm.DELETE_CATALOGUE,
+        Perm.MANAGE_VOUCHERS,
     },
 )
 
