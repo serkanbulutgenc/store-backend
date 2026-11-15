@@ -147,6 +147,9 @@ class ReturnAdminOut(Schema):
     reject_reason: str
     decided_at: datetime | None
     received_at: datetime | None
+    refund_due: Money = Field(
+        description="What the Shopper paid for these units, net of any Voucher.",
+    )
     refund_amount: Money | None
     refund_method: str
     refunded_at: datetime | None

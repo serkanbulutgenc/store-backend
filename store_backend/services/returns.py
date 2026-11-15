@@ -27,6 +27,7 @@ from store_backend.services import audit
 from store_backend.services import order_ops
 from store_backend.services import outbox
 from store_backend.services import pre_information
+from store_backend.services import pricing
 from store_backend.services import stock
 from store_backend.services import tracking
 from store_backend.shop.models import RefundMethod
@@ -439,6 +440,7 @@ def refund(  # noqa: PLR0913
             "status": request.status,
             "payment_status": tracking.payment_status_of(order),
             "amount": str(amount),
+            "refund_due": str(refund_due(request)),
             "method": str(method),
         },
     )
@@ -449,6 +451,43 @@ def refund(  # noqa: PLR0913
         method=method.label,
     )
     return request
+
+
+def _asked_before(request: ReturnRequest, order_line_id: int) -> int:
+    """Units of an Order line asked for in earlier requests that were not rejected."""
+    earlier = (
+        ReturnLine.objects.filter(
+            request__order=request.order_id,
+            request__pk__lt=request.pk,
+            order_line_id=order_line_id,
+        )
+        .exclude(request__status=ReturnStatus.REJECTED)
+        .aggregate(total=Sum("quantity"))["total"]
+    )
+    return earlier or 0
+
+
+def refund_due(request: ReturnRequest) -> Decimal:
+    """What the Shopper actually paid for the units of this request: the Order lines'
+    prices after any Voucher, not the shelf prices. Fees are the Owner's decision.
+
+    A line's total is split by cumulative rounding: the first k units are worth
+    `round(total x k / quantity)`, and a request is worth the step from the units
+    asked for before it. So returns of one line always add up to exactly its total.
+    A rejected request is worth nothing.
+    """
+    due = pricing.ZERO
+    if request.status == ReturnStatus.REJECTED:
+        return due
+    for row in request.lines.select_related("order_line"):
+        line = row.order_line
+        before = _asked_before(request, line.pk)
+
+        def worth(units: int, line=line) -> Decimal:
+            return pricing.kurus(line.line_price_incl_tax * units / line.quantity)
+
+        due += worth(before + row.quantity) - worth(before)
+    return due
 
 
 def request_views(order: Order, *, staff: bool = False) -> list[dict]:
@@ -479,6 +518,7 @@ def request_views(order: Order, *, staff: bool = False) -> list[dict]:
                 "reject_reason": r.reject_reason,
                 "decided_at": r.decided_at,
                 "received_at": r.received_at,
+                "refund_due": refund_due(r),
                 "refund_amount": r.refund_amount,
                 "refund_method": r.refund_method,
                 "refunded_at": r.refunded_at,

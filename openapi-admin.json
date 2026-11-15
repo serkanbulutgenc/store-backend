@@ -4150,6 +4150,15 @@
             ],
             "title": "Refund Amount"
           },
+          "refund_due": {
+            "description": "What the Shopper paid for these units, net of any Voucher.",
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Refund Due",
+            "type": "string"
+          },
           "refund_method": {
             "title": "Refund Method",
             "type": "string"
@@ -4193,6 +4202,7 @@
           "reject_reason",
           "decided_at",
           "received_at",
+          "refund_due",
           "refund_amount",
           "refund_method",
           "refunded_at",
