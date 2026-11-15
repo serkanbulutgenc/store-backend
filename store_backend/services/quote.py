@@ -15,8 +15,13 @@ if TYPE_CHECKING:
     from decimal import Decimal
 
     from oscar.apps.basket.models import Line as BasketLine
+    from oscar.apps.voucher.models import Voucher
 
     from store_backend.shop.models import StoreSettings
+
+
+class VoucherNotApplicableError(Exception):
+    """The Voucher does not apply to this basket (for example below its minimum)."""
 
 
 @dataclass(frozen=True)
@@ -37,6 +42,7 @@ class Quote:
     snapshots: dict[int, pricing.LineSnapshot]
     fees: Fees
     store: StoreSettings
+    discount: Decimal = pricing.ZERO
     totals: pricing.OrderTotals = field(init=False)
 
     def __post_init__(self) -> None:
@@ -47,7 +53,9 @@ class Quote:
 
     @property
     def items_total(self) -> Decimal:
-        return sum((s.total_incl for s in self.snapshots.values()), pricing.ZERO)
+        """What the items cost before any Voucher discount."""
+        paid = sum((s.total_incl for s in self.snapshots.values()), pricing.ZERO)
+        return paid + self.discount
 
     @property
     def free_shipping(self) -> bool:
@@ -109,17 +117,29 @@ def quote(
     method: PaymentMethod,
     store: StoreSettings,
     province: str | None = None,
+    voucher: Voucher | None = None,
 ) -> Quote:
     """Price `lines` for a payment method under `store`'s fees. No writes.
 
     `province` is the destination il; without a known one (or desi) shipping is the
-    flat Settings fee.
+    flat Settings fee. A `voucher` discounts the items only; fees, and the free
+    shipping threshold, are measured on the items before it.
     """
     snapshots = _snapshots(lines)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
+    discount = pricing.ZERO
+    if voucher is not None:
+        offer = voucher.offers.get()
+        if items_total < offer.condition.value:
+            raise VoucherNotApplicableError
+        benefit = offer.benefit
+        discount = pricing.voucher_discount(items_total, benefit.type, benefit.value)
+        discounted = pricing.apply_discount(list(snapshots.values()), discount)
+        snapshots = dict(zip(snapshots, discounted, strict=True))
     return Quote(
         lines,
         snapshots,
         _fees(lines, items_total, method, store, province),
         store,
+        discount,
     )

@@ -89,10 +89,12 @@ def voucher_discount(
     benefit_type: str,
     value: Decimal,
 ) -> Decimal:
-    """The TL amount a Voucher's benefit takes off `items_total`."""
+    """The TL amount a Voucher's benefit takes off `items_total`, never more than it."""
     if benefit_type == Benefit.PERCENTAGE:
-        return kurus(items_total * value / HUNDRED)
-    return kurus(value)
+        amount = kurus(items_total * value / HUNDRED)
+    else:
+        amount = kurus(value)
+    return min(amount, items_total)
 
 
 def apply_discount(lines: list[LineSnapshot], discount: Decimal) -> list[LineSnapshot]:
