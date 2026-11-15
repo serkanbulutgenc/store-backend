@@ -196,6 +196,10 @@ def create_order(  # noqa: PLR0913
     billing: Address,
 ) -> Order:
     totals, fees = quote.totals, quote.fees
+    # Oscar would check and record the basket's Vouchers by its own rules (no Guests for
+    # "once per Customer"). `validate` has already decided, and `record_voucher` below
+    # records the Redemption, so the basket lets go of them. A rollback restores them.
+    basket.vouchers.clear()
     shipping_address = ShippingAddress.objects.create(
         phone_number=phone,
         **_address_fields(full_name, shipping),

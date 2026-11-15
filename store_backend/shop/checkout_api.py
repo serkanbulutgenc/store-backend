@@ -98,6 +98,11 @@ class QuoteOut(Schema):
     )
 
 
+def _basket_voucher_code(basket) -> str | None:
+    voucher = basket.vouchers.first() if basket.id else None
+    return voucher.code if voucher else None
+
+
 def _address(data: AddressIn | None) -> contact.Address | None:
     return contact.Address(**data.dict()) if data else None
 
@@ -126,7 +131,12 @@ class OrderPlacedOut(Schema):
     payment_method: PaymentMethod
     email: str
     lines: list[PlacedLineOut]
-    items_total: Money
+    items_total: Money = Field(description="What the items cost before any Voucher.")
+    discount: Money = Field(description="What the Voucher took off the items.")
+    voucher_code: str | None = Field(
+        None,
+        description="The Voucher this Order used, if any.",
+    )
     shipping_fee: Money
     cod_fee: Money
     total: Money
@@ -140,6 +150,12 @@ class OrderPlacedOut(Schema):
 def placed_summary(order) -> dict:
     method = payment.payment_method_of(order)
     cod_fee = sum((s.incl_tax for s in order.surcharges.all()), pricing.ZERO)
+    order_lines = list(
+        order.lines.select_related(
+            "product__parent",
+            "product__variant_profile__colour",
+        ).order_by("pk"),
+    )
     lines = [
         {
             "id": line.pk,
@@ -151,11 +167,9 @@ def placed_summary(order) -> dict:
             "unit_price": line.unit_price_incl_tax,
             "line_total": line.line_price_incl_tax,
         }
-        for line in order.lines.select_related(
-            "product__parent",
-            "product__variant_profile__colour",
-        ).order_by("pk")
+        for line in order_lines
     ]
+    discounts = list(order.discounts.all())
     bank = None
     if method == PaymentMethod.BANK_TRANSFER:
         store = shop_settings.get()
@@ -172,7 +186,14 @@ def placed_summary(order) -> dict:
         "payment_method": method,
         "email": order.guest_email,
         "lines": lines,
-        "items_total": sum((line["line_total"] for line in lines), pricing.ZERO),
+        "items_total": sum(
+            (line.line_price_before_discounts_incl_tax for line in order_lines),
+            pricing.ZERO,
+        ),
+        "discount": sum((d.amount for d in discounts), pricing.ZERO),
+        "voucher_code": next(
+            (d.voucher_code for d in discounts if d.voucher_code), None,
+        ),
         "shipping_fee": order.shipping_incl_tax,
         "cod_fee": cod_fee,
         "total": order.total_incl_tax,
@@ -208,6 +229,7 @@ def place_order(request, data: CheckoutIn):
         cod_fee_consent=data.cod_fee_consent,
         marketing_consent=data.marketing_consent,
         legal_versions=data.legal_versions,
+        voucher_code=_basket_voucher_code(request.basket),
     )
     user = request.user if request.user.is_authenticated else None
     order = checkout_service.place_order(

@@ -1256,11 +1256,21 @@
             "title": "Cod Fee",
             "type": "string"
           },
+          "discount": {
+            "description": "What the Voucher took off the items.",
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
           "email": {
             "title": "Email",
             "type": "string"
           },
           "items_total": {
+            "description": "What the items cost before any Voucher.",
             "examples": [
               "349.90"
             ],
@@ -1318,6 +1328,18 @@
             "description": "Signed link token (valid 30 days) for GET /tracking/link/{token}.",
             "title": "Tracking Token",
             "type": "string"
+          },
+          "voucher_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Voucher this Order used, if any.",
+            "title": "Voucher Code"
           }
         },
         "required": [
@@ -1328,6 +1350,7 @@
           "email",
           "lines",
           "items_total",
+          "discount",
           "shipping_fee",
           "cod_fee",
           "total",

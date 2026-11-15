@@ -139,17 +139,28 @@ def _voucher_view(basket: Basket, subtotal: Decimal) -> dict | None:
         return None
     offer = voucher.offers.get()
     minimum = offer.condition.value
-    below = subtotal < minimum
+    owner = basket.owner
+    problem = None
+    try:
+        vouchers.validate(
+            voucher.code,
+            user=owner,
+            email=owner.email if owner else "",
+        )
+    except vouchers.VoucherError as error:
+        problem = error.reason.value
+    if problem is None and subtotal < minimum:
+        problem = vouchers.Reason.MINIMUM.value
     benefit = offer.benefit
     return {
         "code": voucher.code,
         "discount": (
             pricing.ZERO
-            if below
+            if problem
             else pricing.voucher_discount(subtotal, benefit.type, benefit.value)
         ),
         "minimum": minimum or None,
-        "problem": "minimum" if below else None,
+        "problem": problem,
     }
 
 

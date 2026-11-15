@@ -9,3 +9,5 @@ Oscar gaps are filled in our code: Guests are matched by the Order's email for "
 We rejected a fully own Voucher model: it would duplicate fields Oscar already holds and migrate. We rejected Oscar's full offer pipeline: it fights the per-line KDV snapshot.
 
 Consequences: invoice and Order history depend on the pro-rata allocation, so changing it later means a data migration. Oscar upgrades must be checked against the voucher and offer tables we now use.
+
+Oscar's `Applicator` is replaced by one that applies nothing (`catalog/applicator.py`, registered in the class loader). Without that, Oscar's basket middleware applies the offer of every Voucher on a basket by itself and gives the Order a second discount. Oscar's own voucher usage recording in its `OrderCreator` is switched off for the same reason: `order_creation.record_voucher` records the Redemption once. A future offers feature has to remove this override.

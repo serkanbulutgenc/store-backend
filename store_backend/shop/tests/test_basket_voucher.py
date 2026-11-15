@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from http import HTTPStatus
 
 import pytest
+from django.utils import timezone
 from oscar.apps.offer.models import Benefit
 from oscar.apps.voucher.models import Voucher
 
@@ -153,3 +155,20 @@ def test_a_code_cannot_be_applied_to_an_empty_basket():
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.json()["code"] == "basket_empty"
+
+
+def test_the_cart_flags_a_voucher_that_expired_since_it_was_applied(shop):
+    make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
+    guest = Guest()
+    fill(guest, shop[1]["M"], quantity=2)
+    guest.post(VOUCHER, {"code": "YAZ10"})
+    Voucher.objects.update(
+        start_datetime=timezone.now() - timedelta(days=10),
+        end_datetime=timezone.now() - timedelta(days=1),
+    )
+
+    voucher = guest.get(BASKET).json()["voucher"]
+
+    assert voucher["code"] == "YAZ10"
+    assert voucher["discount"] == "0.00"
+    assert voucher["problem"] == "expired"
