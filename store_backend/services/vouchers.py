@@ -37,9 +37,20 @@ def _used_by(voucher: Voucher, user: User | None, email: str) -> bool:
     return voucher.applications.filter(who).exists()
 
 
-def validate(code: str, *, user: User | None, email: str) -> Voucher:
-    """The Voucher for `code`, or an error saying why the Shopper cannot use it."""
-    voucher = Voucher.objects.filter(code__iexact=code.strip()).first()
+def validate(
+    code: str,
+    *,
+    user: User | None,
+    email: str,
+    lock: bool = False,
+) -> Voucher:
+    """The Voucher for `code`, or an error saying why the Shopper cannot use it.
+
+    `lock` holds the Voucher row until the transaction ends, so a placement counts its
+    Redemptions after any concurrent one has committed. Needs a transaction.
+    """
+    found = Voucher.objects.filter(code__iexact=code.strip())
+    voucher = (found.select_for_update() if lock else found).first()
     if voucher is None:
         raise VoucherError(Reason.INVALID)
     if not voucher.is_active():

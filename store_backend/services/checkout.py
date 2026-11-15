@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
@@ -32,6 +33,7 @@ from store_backend.services import pre_information
 from store_backend.services import quote as quoting
 from store_backend.services import shop_settings
 from store_backend.services import stock
+from store_backend.services import vouchers
 from store_backend.services.contact import MIN_NAME_PARTS
 from store_backend.services.contact import Address
 from store_backend.services.contact import clean_address
@@ -66,6 +68,7 @@ class CheckoutForm:
     cod_fee_consent: bool = False
     marketing_consent: bool = False
     legal_versions: dict[str, str] | None = None  # what the Shopper was shown
+    voucher_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -120,6 +123,7 @@ def _validated(form: CheckoutForm) -> CheckoutForm:
         cod_fee_consent=form.cod_fee_consent,
         marketing_consent=form.marketing_consent,
         legal_versions=form.legal_versions,
+        voucher_code=form.voucher_code,
     )
 
 
@@ -209,6 +213,8 @@ def place(
         shipping=form.shipping_address,
         billing=form.billing_address or form.shipping_address,
     )
+    if quote.voucher is not None:
+        quote.voucher.record_usage(order, order.user or AnonymousUser())
     ConsentRecord.objects.create(
         order=order,
         contract_acknowledged=form.contract_acknowledged,
@@ -253,11 +259,22 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
     )
     store = shop_settings.get()
     _check_legal_versions(form, store)
+    voucher = (
+        vouchers.validate(
+            form.voucher_code,
+            user=caller.user,
+            email=form.email,
+            lock=True,
+        )
+        if form.voucher_code
+        else None
+    )
     quote = quoting.quote(
         lines,
         form.payment_method,
         store,
         province=form.shipping_address.il,
+        voucher=voucher,
     )
     return place(basket, quote, form, caller)
 

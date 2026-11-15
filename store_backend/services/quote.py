@@ -43,6 +43,7 @@ class Quote:
     fees: Fees
     store: StoreSettings
     discount: Decimal = pricing.ZERO
+    voucher: Voucher | None = None
     totals: pricing.OrderTotals = field(init=False)
 
     def __post_init__(self) -> None:
@@ -142,4 +143,5 @@ def quote(
         _fees(lines, items_total, method, store, province),
         store,
         discount,
+        voucher,
     )
