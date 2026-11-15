@@ -44,6 +44,7 @@ class Quote:
     store: StoreSettings
     discount: Decimal = pricing.ZERO
     voucher: Voucher | None = None
+    gross_snapshots: dict[int, pricing.LineSnapshot] = field(default_factory=dict)
     totals: pricing.OrderTotals = field(init=False)
 
     def __post_init__(self) -> None:
@@ -126,7 +127,7 @@ def quote(
     flat Settings fee. A `voucher` discounts the items only; fees, and the free
     shipping threshold, are measured on the items before it.
     """
-    snapshots = _snapshots(lines)
+    snapshots = gross = _snapshots(lines)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
     discount = pricing.ZERO
     if voucher is not None:
@@ -144,4 +145,5 @@ def quote(
         store,
         discount,
         voucher,
+        gross,
     )

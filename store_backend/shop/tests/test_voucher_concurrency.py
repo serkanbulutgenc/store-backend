@@ -19,6 +19,7 @@ from oscar.apps.order.models import Order
 from oscar.apps.voucher.models import Voucher
 from oscar.apps.voucher.models import VoucherApplication
 
+from store_backend.api.errors import ConflictError
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import catalog
@@ -83,8 +84,8 @@ def _place(barrier, basket_pk: int, email: str) -> str:
     barrier.wait()
     try:
         place(basket, "LAST10", email=email)
-    except vouchers.VoucherError as error:
-        return error.reason
+    except ConflictError as error:
+        return error.fields["voucher_code"][0]
     return "placed"
 
 

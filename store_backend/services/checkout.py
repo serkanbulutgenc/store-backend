@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
-from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
@@ -47,6 +46,7 @@ if TYPE_CHECKING:
     from oscar.apps.basket.models import Line as BasketLine
     from oscar.apps.order.models import Order
     from oscar.apps.partner.models import StockRecord
+    from oscar.apps.voucher.models import Voucher
 
     from store_backend.services.quote import Quote
     from store_backend.shop.models import StoreSettings
@@ -213,8 +213,7 @@ def place(
         shipping=form.shipping_address,
         billing=form.billing_address or form.shipping_address,
     )
-    if quote.voucher is not None:
-        quote.voucher.record_usage(order, order.user or AnonymousUser())
+    order_creation.record_voucher(order, quote)
     ConsentRecord.objects.create(
         order=order,
         contract_acknowledged=form.contract_acknowledged,
@@ -249,6 +248,31 @@ def place(
     return order
 
 
+def _voucher_refused(reason: vouchers.Reason) -> ConflictError:
+    return ConflictError(
+        "Kupon kodu artık kullanılamıyor.",
+        code="voucher_invalid",
+        fields={"voucher_code": [reason.value]},
+    )
+
+
+def _voucher(form: CheckoutForm, caller: Caller) -> Voucher | None:
+    """The Voucher the Shopper typed, locked for this placement; refused if it stopped
+    working since they applied it, so they can carry on without it.
+    """
+    if not form.voucher_code:
+        return None
+    try:
+        return vouchers.validate(
+            form.voucher_code,
+            user=caller.user,
+            email=form.email,
+            lock=True,
+        )
+    except vouchers.VoucherError as error:
+        raise _voucher_refused(error.reason) from error
+
+
 @transaction.atomic
 def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> Order:
     form = _validated(raw_form)
@@ -259,23 +283,17 @@ def place_order(basket: BasketModel, raw_form: CheckoutForm, caller: Caller) -> 
     )
     store = shop_settings.get()
     _check_legal_versions(form, store)
-    voucher = (
-        vouchers.validate(
-            form.voucher_code,
-            user=caller.user,
-            email=form.email,
-            lock=True,
+    voucher = _voucher(form, caller)
+    try:
+        quote = quoting.quote(
+            lines,
+            form.payment_method,
+            store,
+            province=form.shipping_address.il,
+            voucher=voucher,
         )
-        if form.voucher_code
-        else None
-    )
-    quote = quoting.quote(
-        lines,
-        form.payment_method,
-        store,
-        province=form.shipping_address.il,
-        voucher=voucher,
-    )
+    except quoting.VoucherNotApplicableError as error:
+        raise _voucher_refused(vouchers.Reason.MINIMUM) from error
     return place(basket, quote, form, caller)
 
 

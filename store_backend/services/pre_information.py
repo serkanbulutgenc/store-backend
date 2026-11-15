@@ -100,6 +100,11 @@ def render(
         [
             "",
             f"Ürünler toplamı: {format_try(quote.items_total)}",
+            *(
+                [f"Kupon ({quote.voucher.code}): -{format_try(quote.discount)}"]
+                if quote.voucher
+                else []
+            ),
             f"Kargo ücreti: {format_try(quote.fees.shipping.total_incl)}",
         ],
     )

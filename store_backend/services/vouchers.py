@@ -21,6 +21,7 @@ class Reason(StrEnum):
     INACTIVE = "inactive"
     EXHAUSTED = "exhausted"
     ALREADY_USED = "already_used"
+    MINIMUM = "minimum"
 
 
 class VoucherError(Exception):

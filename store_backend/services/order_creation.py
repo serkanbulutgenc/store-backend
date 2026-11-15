@@ -9,11 +9,13 @@ from __future__ import annotations
 import secrets
 from typing import TYPE_CHECKING
 
+from django.contrib.auth.models import AnonymousUser
 from django.db import IntegrityError
 from django.db import transaction
 from oscar.apps.address.models import Country
 from oscar.apps.order.models import BillingAddress
 from oscar.apps.order.models import Order
+from oscar.apps.order.models import OrderDiscount
 from oscar.apps.order.models import ShippingAddress
 from oscar.apps.order.models import Surcharge
 from oscar.apps.order.utils import OrderCreator
@@ -63,15 +65,21 @@ class _SnapshotOrderCreator(OrderCreator):
     `pricing`) is what keeps stored line amounts, snapshots and the Order total equal.
     """
 
-    def __init__(self, snapshots: dict[int, pricing.LineSnapshot]) -> None:
+    def __init__(
+        self,
+        snapshots: dict[int, pricing.LineSnapshot],
+        gross: dict[int, pricing.LineSnapshot],
+    ) -> None:
         self.snapshots = snapshots
+        self.gross = gross
 
     def create_additional_line_models(self, order, order_line, basket_line):
         snap = self.snapshots[basket_line.pk]
+        before = self.gross[basket_line.pk]
         order_line.line_price_incl_tax = snap.total_incl
         order_line.line_price_excl_tax = snap.total_excl
-        order_line.line_price_before_discounts_incl_tax = snap.total_incl
-        order_line.line_price_before_discounts_excl_tax = snap.total_excl
+        order_line.line_price_before_discounts_incl_tax = before.total_incl
+        order_line.line_price_before_discounts_excl_tax = before.total_excl
         order_line.unit_price_incl_tax = snap.unit_price_incl
         order_line.unit_price_excl_tax = snap.unit_price_excl
         order_line.save()
@@ -155,6 +163,25 @@ def _with_unique_number(creator: OrderCreator, **kwargs) -> Order:
     raise AssertionError  # unreachable
 
 
+def record_voucher(order: Order, quote: Quote) -> None:
+    """Record the Voucher's Redemption and what it took off, with the Order."""
+    voucher = quote.voucher
+    if voucher is None:
+        return
+    voucher.record_usage(order, order.user or AnonymousUser())
+    offer = voucher.offers.get()
+    OrderDiscount.objects.create(
+        order=order,
+        category=OrderDiscount.BASKET,
+        offer_id=offer.pk,
+        offer_name=offer.name,
+        voucher_id=voucher.pk,
+        voucher_code=voucher.code,
+        frequency=1,
+        amount=quote.discount,
+    )
+
+
 def create_order(  # noqa: PLR0913
     *,
     basket: Basket,
@@ -177,7 +204,7 @@ def create_order(  # noqa: PLR0913
         **_address_fields(full_name, billing),
     )
     order = _with_unique_number(
-        _SnapshotOrderCreator(quote.snapshots),
+        _SnapshotOrderCreator(quote.snapshots, quote.gross_snapshots),
         basket=basket,
         total=Price(CURRENCY, excl_tax=totals.total_excl, tax=totals.total_kdv),
         shipping_method=_ShippingMethod(),
