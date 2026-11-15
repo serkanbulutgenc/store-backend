@@ -78,7 +78,18 @@ class QuoteIn(Schema):
 
 
 class QuoteOut(Schema):
-    items_total: Money
+    items_total: Money = Field(description="What the items cost before any Voucher.")
+    discount: Money = Field(
+        description="What the basket's Voucher takes off the items.",
+    )
+    voucher_code: str | None = Field(
+        None,
+        description="The Voucher the basket carries, if any.",
+    )
+    voucher_problem: str | None = Field(
+        None,
+        description="Why the Voucher is not applied (minimum); null when it is.",
+    )
     shipping_fee: Money
     cod_fee: Money
     total: Money
@@ -225,10 +236,15 @@ def quote_order(request, data: QuoteIn):
         request.basket,
         data.payment_method,
         data.province.strip() or None,
+        request.user if request.user.is_authenticated else None,
     )
     cod = quote.fees.cod
+    voucher = quote.voucher or quote.skipped_voucher
     return {
         "items_total": quote.items_total,
+        "discount": quote.discount,
+        "voucher_code": voucher.code if voucher else None,
+        "voucher_problem": quote.voucher_problem,
         "shipping_fee": quote.fees.shipping.total_incl,
         "cod_fee": cod.total_incl if cod else pricing.ZERO,
         "total": quote.totals.total_incl,

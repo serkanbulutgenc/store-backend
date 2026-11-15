@@ -45,6 +45,8 @@ class Quote:
     discount: Decimal = pricing.ZERO
     voucher: Voucher | None = None
     gross_snapshots: dict[int, pricing.LineSnapshot] = field(default_factory=dict)
+    skipped_voucher: Voucher | None = None  # on the basket, but not applied
+    voucher_problem: str | None = None  # why it was not applied
     totals: pricing.OrderTotals = field(init=False)
 
     def __post_init__(self) -> None:

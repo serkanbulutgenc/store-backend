@@ -12,6 +12,7 @@ never touched on failure.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
@@ -301,15 +302,34 @@ def preview(
     basket: BasketModel,
     method: PaymentMethod,
     province: str | None,
+    user: User | None = None,
 ) -> Quote:
     """Price the basket for a destination without locking or writing anything.
 
     The same `quote` that `place_order` uses, so what the Shopper is shown is what the
     Order is charged, unless prices, fees or the basket change in between.
     """
-    return quoting.quote(
-        _basket_lines(basket),
-        method,
-        shop_settings.get(),
-        province=province,
-    )
+    lines = _basket_lines(basket)
+    store = shop_settings.get()
+    voucher = basket.vouchers.first() if basket.id else None
+    problem: str | None = None
+    if voucher is not None:
+        try:
+            vouchers.validate(
+                voucher.code,
+                user=user,
+                email=user.email if user else "",
+            )
+            return quoting.quote(
+                lines,
+                method,
+                store,
+                province=province,
+                voucher=voucher,
+            )
+        except vouchers.VoucherError as error:
+            problem = error.reason.value
+        except quoting.VoucherNotApplicableError:
+            problem = vouchers.Reason.MINIMUM.value
+    plain = quoting.quote(lines, method, store, province=province)
+    return replace(plain, skipped_voucher=voucher, voucher_problem=problem)

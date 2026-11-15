@@ -2069,12 +2069,22 @@
             "title": "Cod Fee",
             "type": "string"
           },
+          "discount": {
+            "description": "What the basket's Voucher takes off the items.",
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
           "free_shipping": {
             "description": "True when the items total reached the free-shipping threshold.",
             "title": "Free Shipping",
             "type": "boolean"
           },
           "items_total": {
+            "description": "What the items cost before any Voucher.",
             "examples": [
               "349.90"
             ],
@@ -2097,10 +2107,35 @@
             "pattern": "^-?\\d+\\.\\d{2}$",
             "title": "Total",
             "type": "string"
+          },
+          "voucher_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Voucher the basket carries, if any.",
+            "title": "Voucher Code"
+          },
+          "voucher_problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the Voucher is not applied (minimum); null when it is.",
+            "title": "Voucher Problem"
           }
         },
         "required": [
           "items_total",
+          "discount",
           "shipping_fee",
           "cod_fee",
           "total",
