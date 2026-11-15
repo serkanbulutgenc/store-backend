@@ -159,3 +159,13 @@ def test_the_pre_information_snapshot_shows_the_voucher_and_what_it_took_off(bas
     # It sits between the items total and the shipping fee.
     assert text.index("Ürünler toplamı") < text.index("Kupon (YAZ10)")
     assert text.index("Kupon (YAZ10)") < text.index("Kargo ücreti")
+
+
+def test_the_snapshot_lists_lines_at_their_price_before_the_voucher(basket):
+    make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
+
+    text = place(basket, "YAZ10").pre_information.text
+
+    # The lines add up to "Ürünler toplamı"; the Kupon line then takes 20,00 off.
+    assert "x 2: birim 100,00 TL, toplam 200,00 TL (KDV %10.00 dahil)" in text
+    assert "toplam 180,00 TL" not in text

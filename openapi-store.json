@@ -1520,6 +1520,7 @@
             "type": "string"
           },
           "line_total": {
+            "description": "Before any Voucher, so lines add up to items_total.",
             "examples": [
               "349.90"
             ],
@@ -2628,6 +2629,7 @@
             "type": "integer"
           },
           "line_total": {
+            "description": "Before any Voucher, so lines add up to items_total.",
             "examples": [
               "349.90"
             ],

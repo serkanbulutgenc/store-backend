@@ -95,7 +95,7 @@ def render(
         "ÜRÜNLER",
     ]
     for line in quote.lines:
-        out.extend(_line(line, quote.snapshots[line.pk]))
+        out.extend(_line(line, quote.gross_snapshots[line.pk]))
     out.extend(
         [
             "",

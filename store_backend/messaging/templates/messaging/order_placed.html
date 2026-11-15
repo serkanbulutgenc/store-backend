@@ -9,6 +9,12 @@
         <td align="right">{{ line.total }}</td>
       </tr>
     {% endfor %}
+    {% if voucher %}
+      <tr>
+        <td>Kupon ({{ voucher.code }})</td>
+        <td align="right">-{{ voucher.discount }}</td>
+      </tr>
+    {% endif %}
     <tr>
       <td>Kargo</td>
       <td align="right">{{ shipping_fee }}</td>

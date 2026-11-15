@@ -126,3 +126,19 @@ def test_a_customers_order_is_recorded_against_their_account(shop, customer, log
     again = signed_in.post(VOUCHER, {"code": "ONCE10"})
     assert again.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert again.json()["fields"] == {"voucher_code": ["already_used"]}
+
+
+def test_the_placed_lines_add_up_to_the_items_before_the_voucher(guest, owner):  # noqa: F811
+    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
+    guest.post(VOUCHER, {"code": "YAZ10"})
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    line = placed["lines"][0]
+    assert (line["unit_price"], line["line_total"]) == ("100.00", "200.00")
+    lines_total = sum(D(item["line_total"]) for item in placed["lines"])
+    assert lines_total == D(placed["items_total"])
+    # Lines, the Voucher and shipping together give the total the Shopper pays.
+    paid = lines_total - D(placed["discount"]) + D(placed["shipping_fee"])
+    assert paid == D(placed["total"])

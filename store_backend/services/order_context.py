@@ -35,10 +35,13 @@ def build(order: Order, store: StoreSettings) -> dict[str, Any]:
             "colour": line.product.variant_profile.colour.name,
             "size": line.product.variant_profile.size,
             "quantity": line.quantity,
-            "total": pre_information.format_try(line.line_price_incl_tax),
+            "total": pre_information.format_try(
+                line.line_price_before_discounts_incl_tax,
+            ),
         }
         for line in sorted(order.lines.all(), key=lambda row: row.pk)
     ]
+    discounts = [d for d in order.discounts.all() if d.voucher_code]
     base = settings.STOREFRONT_URL.rstrip("/")
     is_cod = payment.payment_method_of(order) == PaymentMethod.COD
     context = {
@@ -51,6 +54,17 @@ def build(order: Order, store: StoreSettings) -> dict[str, Any]:
             and tracking.payment_status_of(order) == "unpaid"
         ),
         "lines": lines,
+        # Lines show their price before the Voucher, so the figures add up.
+        "voucher": (
+            {
+                "code": discounts[0].voucher_code,
+                "discount": pre_information.format_try(
+                    sum((d.amount for d in discounts), Decimal(0)),
+                ),
+            }
+            if discounts
+            else None
+        ),
         "total": pre_information.format_try(order.total_incl_tax),
         "shipping_fee": pre_information.format_try(order.shipping_incl_tax),
         "tracking_url": f"{base}/siparis-takip?t={tracking.link_token(order)}",

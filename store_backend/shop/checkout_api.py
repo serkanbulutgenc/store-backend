@@ -114,7 +114,9 @@ class PlacedLineOut(Schema):
     size: str
     quantity: int
     unit_price: Money
-    line_total: Money
+    line_total: Money = Field(
+        description="Before any Voucher, so lines add up to items_total.",
+    )
 
 
 class BankOut(Schema):
@@ -165,7 +167,7 @@ def placed_summary(order) -> dict:
             "size": line.product.variant_profile.size,
             "quantity": line.quantity,
             "unit_price": line.unit_price_incl_tax,
-            "line_total": line.line_price_incl_tax,
+            "line_total": line.line_price_before_discounts_incl_tax,
         }
         for line in order_lines
     ]
@@ -192,7 +194,8 @@ def placed_summary(order) -> dict:
         ),
         "discount": sum((d.amount for d in discounts), pricing.ZERO),
         "voucher_code": next(
-            (d.voucher_code for d in discounts if d.voucher_code), None,
+            (d.voucher_code for d in discounts if d.voucher_code),
+            None,
         ),
         "shipping_fee": order.shipping_incl_tax,
         "cod_fee": cod_fee,
