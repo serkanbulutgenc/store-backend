@@ -13,6 +13,7 @@ from decimal import ROUND_HALF_UP
 from decimal import Decimal
 
 from django.conf import settings
+from oscar.apps.offer.models import Benefit
 
 KURUS = Decimal("0.01")
 HUNDRED = Decimal(100)
@@ -81,6 +82,49 @@ def line_snapshot(
         total_excl=excl,
         total_kdv=kdv,
     )
+
+
+def voucher_discount(
+    items_total: Decimal,
+    benefit_type: str,
+    value: Decimal,
+) -> Decimal:
+    """The TL amount a Voucher's benefit takes off `items_total`."""
+    if benefit_type == Benefit.PERCENTAGE:
+        return kurus(items_total * value / HUNDRED)
+    return kurus(value)
+
+
+def apply_discount(lines: list[LineSnapshot], discount: Decimal) -> list[LineSnapshot]:
+    """Spread a Voucher discount over item lines in proportion to their value.
+
+    Shares are rounded to kuruş and the kuruş the rounding leaves over (or adds) is
+    put on the largest line, so the shares always sum to `discount`. A discount above
+    the items total is capped at it: the items never go below zero. Each line is split
+    for KDV again on its discounted total.
+    """
+    items_total = sum((line.total_incl for line in lines), ZERO)
+    if not items_total:
+        return list(lines)
+    discount = min(discount, items_total)
+    shares = [kurus(discount * line.total_incl / items_total) for line in lines]
+    largest = max(range(len(lines)), key=lambda i: lines[i].total_incl)
+    shares[largest] += discount - sum(shares, ZERO)
+    discounted = []
+    for line, share in zip(lines, shares, strict=True):
+        total = line.total_incl - share
+        excl, kdv = split_kdv(total, line.kdv_rate)
+        discounted.append(
+            LineSnapshot(
+                quantity=line.quantity,
+                unit_price_incl=line.unit_price_incl,
+                kdv_rate=line.kdv_rate,
+                total_incl=total,
+                total_excl=excl,
+                total_kdv=kdv,
+            ),
+        )
+    return discounted
 
 
 def fee_rate() -> Decimal:
