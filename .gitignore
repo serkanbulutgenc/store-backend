@@ -271,6 +271,7 @@ dump.rdb
 
 ### Project template
 store_backend/media/
+sample-catalog/
 
 .pytest_cache/
 .ipython/
