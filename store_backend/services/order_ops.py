@@ -38,6 +38,7 @@ from store_backend.services import outbox
 from store_backend.services import pre_information
 from store_backend.services import stock
 from store_backend.services import tracking
+from store_backend.services import vouchers
 from store_backend.services.checkout import STATUS_NEW
 from store_backend.services.checkout import STATUS_PREPARING
 from store_backend.services.tracking import PAYMENT_PAID
@@ -305,6 +306,7 @@ def _cancel_order(
     """Cancel and release the reserved stock; a person's cancel and the timed one."""
     before = _snapshot(order)
     stock.release(order)
+    vouchers.release(order)
     _apply(
         actor,
         order,

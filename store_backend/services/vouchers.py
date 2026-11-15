@@ -5,11 +5,16 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from django.db.models import F
 from django.db.models import Q
+from django.db.models.functions import Greatest
 from oscar.apps.offer.models import ConditionalOffer
 from oscar.apps.voucher.models import Voucher
+from oscar.apps.voucher.models import VoucherApplication
 
 if TYPE_CHECKING:
+    from oscar.apps.order.models import Order
+
     from store_backend.users.models import User
 
 
@@ -64,3 +69,16 @@ def validate(
     if voucher.usage == Voucher.ONCE_PER_CUSTOMER and _used_by(voucher, user, email):
         raise VoucherError(Reason.ALREADY_USED)
     return voucher
+
+
+def release(order: Order) -> None:
+    """Give back the Redemption an Order used, so its code can be used again.
+
+    The Order keeps its frozen discount record; only the usage is undone.
+    """
+    used = VoucherApplication.objects.filter(order=order)
+    for voucher_id in set(used.values_list("voucher_id", flat=True)):
+        Voucher.objects.filter(pk=voucher_id).update(
+            num_orders=Greatest(F("num_orders") - 1, 0),
+        )
+    used.delete()
