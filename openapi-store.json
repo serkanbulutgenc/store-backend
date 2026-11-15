@@ -27,7 +27,17 @@
             "title": "Cod Fee",
             "type": "string"
           },
+          "discount": {
+            "description": "What the Voucher took off the items.",
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
           "items_total": {
+            "description": "What the items cost before any Voucher.",
             "examples": [
               "349.90"
             ],
@@ -118,6 +128,18 @@
               }
             ],
             "title": "Tracking Number"
+          },
+          "voucher_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Voucher this Order used, if any.",
+            "title": "Voucher Code"
           }
         },
         "required": [
@@ -128,6 +150,7 @@
           "payment_method",
           "lines",
           "items_total",
+          "discount",
           "shipping_fee",
           "cod_fee",
           "total",
@@ -2708,7 +2731,17 @@
             "title": "Cod Fee",
             "type": "string"
           },
+          "discount": {
+            "description": "What the Voucher took off the items.",
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
           "items_total": {
+            "description": "What the items cost before any Voucher.",
             "examples": [
               "349.90"
             ],
@@ -2789,6 +2822,18 @@
               }
             ],
             "title": "Tracking Number"
+          },
+          "voucher_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Voucher this Order used, if any.",
+            "title": "Voucher Code"
           }
         },
         "required": [
@@ -2799,6 +2844,7 @@
           "payment_method",
           "lines",
           "items_total",
+          "discount",
           "shipping_fee",
           "cod_fee",
           "total",

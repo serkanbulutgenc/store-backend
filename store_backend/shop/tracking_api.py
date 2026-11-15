@@ -81,7 +81,12 @@ class TrackingOut(Schema):
     payment_status: str
     payment_method: PaymentMethod
     lines: list[TrackingLineOut]
-    items_total: Money
+    items_total: Money = Field(description="What the items cost before any Voucher.")
+    discount: Money = Field(description="What the Voucher took off the items.")
+    voucher_code: str | None = Field(
+        None,
+        description="The Voucher this Order used, if any.",
+    )
     shipping_fee: Money
     cod_fee: Money
     total: Money
