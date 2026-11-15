@@ -28,4 +28,4 @@ blocked-by: []
 
 ## Spec
 
-- [PRD Legal pages](../../spec/prd.md); [ADR 0002](../../adr/0002-legal-pages-are-immutable-versions-in-the-database.md); CONTEXT.md terms Legal page and Legal page version.
+- [PRD Legal pages](../../spec/prd.md); [ADR 0002](../../adr/0002-legal-pages-are-immutable-versions-in-the-database.md); GLOSSARY.md terms Legal page and Legal page version.

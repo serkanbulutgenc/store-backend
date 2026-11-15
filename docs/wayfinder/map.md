@@ -15,7 +15,7 @@ A handoff-ready PRD + architecture spec for **phase 1** of the Aura Tekstil onli
 - "Multi supplier and brand" = internal sourcing attributes, NOT a marketplace.
 - Frontend = one TanStack Start app: storefront at `/`, dashboard under `/admin`.
 - Hosting assumption: single VPS, Docker Compose.
-- Domain vocabulary lives in `/CONTEXT.md` at the backend repo root; consult it. Use the grilling + domain-modeling skills for grilling tickets.
+- Domain vocabulary lives in `/GLOSSARY.md` at the backend repo root; consult it. Use the grilling + domain-modeling skills for grilling tickets.
 
 ## Decisions so far
 

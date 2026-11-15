@@ -13,7 +13,7 @@ Decide: the dashboard's phase 1 screens (catalog, stock, orders, customers, supp
 
 ## Resolution
 
-Decided with the user (all recommended answers accepted). Glossary updated in `/CONTEXT.md`.
+Decided with the user (all recommended answers accepted). Glossary updated in `/GLOSSARY.md`.
 
 1. **Screens, phase 1.** Orders (list/detail, mark paid, cancel with reason, ship with carrier and tracking, deliver, return, refund); Products with Variants, photos, prices, status; Stock (manual adjustments with reason, low-stock list); Categories, Brands, Suppliers, Colour list; Customers (read-only); Settings (shipping fee and threshold, COD fee, low-stock default, bank details); Staff users; Home (new orders, unpaid transfers near expiry, low stock; no charts). Out: reports, discounts, CMS pages, label printing, messaging inbox.
 2. **Owner-only.** Settings, Staff users, Colour list, cost price and Supplier data, archive/unarchive, recording refunds, cancelling paid Orders, account-deletion requests. Staff role: everything else, including marking paid.

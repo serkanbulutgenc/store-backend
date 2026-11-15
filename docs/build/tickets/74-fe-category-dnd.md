@@ -20,4 +20,4 @@ blocked-by: [72-fe-category-tree.md]
 
 ## Spec
 
-- `CONTEXT.md` (Category)
+- `GLOSSARY.md` (Category)

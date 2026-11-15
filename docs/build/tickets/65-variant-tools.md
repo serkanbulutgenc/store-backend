@@ -25,4 +25,4 @@ blocked-by: []
 
 ## Spec
 
-- CONTEXT.md terms Variant, SKU, Size scheme; phase-2.md bulk import (same SKU rules).
+- GLOSSARY.md terms Variant, SKU, Size scheme; phase-2.md bulk import (same SKU rules).

@@ -17,7 +17,7 @@ blocked-by: [63-product-classes.md]
 - Search: text and option labels of attribute values are part of `ProductProfile.search_text`, rebuilt when values change.
 - Facets: filterable attributes appear as extra facets on category and search listings with the existing rules (AND across facets, "only in stock" default, counts).
 - The bulk import is unchanged in this ticket.
-- Docs: CONTEXT.md terms Attribute and Attribute value; ADR 0003 (shared with 67 and 68).
+- Docs: GLOSSARY.md terms Attribute and Attribute value; ADR 0003 (shared with 67 and 68).
 
 ## Acceptance
 
@@ -29,4 +29,4 @@ blocked-by: [63-product-classes.md]
 
 ## Spec
 
-- Decisions of 2026-11-13 Admin features interview; CONTEXT.md; architecture.md "Domain additions".
+- Decisions of 2026-11-13 Admin features interview; GLOSSARY.md; architecture.md "Domain additions".

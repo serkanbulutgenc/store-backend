@@ -24,4 +24,4 @@ blocked-by: [69-be-category-tree.md]
 
 ## Spec
 
-- `CONTEXT.md` (Category), [ADR 0005](../../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md)
+- `GLOSSARY.md` (Category), [ADR 0005](../../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md)

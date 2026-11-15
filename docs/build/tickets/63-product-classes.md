@@ -27,4 +27,4 @@ blocked-by: []
 
 ## Spec
 
-- CONTEXT.md terms Product class and Size scheme; [ADR 0001](../../adr/0001-staff-trusted-with-correctable-actions.md).
+- GLOSSARY.md terms Product class and Size scheme; [ADR 0001](../../adr/0001-staff-trusted-with-correctable-actions.md).

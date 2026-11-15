@@ -23,4 +23,4 @@ blocked-by: [69-be-category-tree.md]
 
 ## Spec
 
-- `CONTEXT.md` (Category). The Storefront side (children links, breadcrumbs, mega menu) is built in the storefront round.
+- `GLOSSARY.md` (Category). The Storefront side (children links, breadcrumbs, mega menu) is built in the storefront round.

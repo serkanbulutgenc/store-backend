@@ -9,11 +9,11 @@ parent: map.md
 
 ## Question
 
-Decide the catalog domain model for women's clothing/shoes/underwear/accessories: product classes and attributes (size, colour, material), variant structure, category tree, Brand and Supplier entities and their relationships to products/stock, SKU/barcode scheme, how prices/KDV rate are held. Update CONTEXT.md.
+Decide the catalog domain model for women's clothing/shoes/underwear/accessories: product classes and attributes (size, colour, material), variant structure, category tree, Brand and Supplier entities and their relationships to products/stock, SKU/barcode scheme, how prices/KDV rate are held. Update GLOSSARY.md.
 
 ## Resolution
 
-Glossary updated in `/CONTEXT.md`.
+Glossary updated in `/GLOSSARY.md`.
 
 - **Shape**: one Product per model; Variants are colour x size, each with own stock. Photos tagged by colour (storage itself still in the fog).
 - **Vocabularies**: sizes are fixed lists per Product class; colours one shared Owner-managed list with swatch hex.

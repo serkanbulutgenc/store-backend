@@ -125,7 +125,7 @@ Scoped in [phase-2.md](../spec/phase-2.md) on 2026-11-12. Same conventions as ab
 
 ### Slice 17: Category tree and deletes
 
-Rules in [CONTEXT.md](../../CONTEXT.md) (Category) and [ADR 0005](../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md).
+Rules in [GLOSSARY.md](../../GLOSSARY.md) (Category) and [ADR 0005](../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md).
 
 - 69 [Backend: category tree to five levels, move and delete](tickets/69-be-category-tree.md) (store-backend, AFK)
 - 70 [Backend: deeper categories in import, browse, search and sitemap](tickets/70-be-category-depth.md) (store-backend, AFK), blocked by 69

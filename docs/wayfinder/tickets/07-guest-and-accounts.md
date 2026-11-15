@@ -9,7 +9,7 @@ parent: map.md
 
 ## Question
 
-Decide: guest identity (email/phone captured at checkout), how guests track an order, basket persistence for anonymous users, what happens when a guest later signs up with the same email (claiming past orders, merging basket), address book, email verification requirement. Update CONTEXT.md.
+Decide: guest identity (email/phone captured at checkout), how guests track an order, basket persistence for anonymous users, what happens when a guest later signs up with the same email (claiming past orders, merging basket), address book, email verification requirement. Update GLOSSARY.md.
 
 ## Resolution
 

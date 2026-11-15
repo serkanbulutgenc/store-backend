@@ -25,4 +25,4 @@ blocked-by: []
 
 ## Spec
 
-- CONTEXT.md term Category; [media storage](../../wayfinder/tickets/15-media-storage.md).
+- GLOSSARY.md term Category; [media storage](../../wayfinder/tickets/15-media-storage.md).

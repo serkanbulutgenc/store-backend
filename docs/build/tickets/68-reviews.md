@@ -17,7 +17,7 @@ blocked-by: [67-favorites.md]
 - Emoji are stored as Unicode. The form converts a small common `:shortcode:` set on submit. No picker.
 - Display name "Ayşe K." (first name and last initial). Product page shows average, count and the published list; listing cards show average and count. No rating sort and no helpful votes yet.
 - Account deletion removes or anonymises the Shopper's reviews (decide with the existing deletion rules, record it in ADR 0004).
-- Docs: CONTEXT.md term Review; prd.md and phase-2.md; ADRs 0003 and 0004.
+- Docs: GLOSSARY.md term Review; prd.md and phase-2.md; ADRs 0003 and 0004.
 
 ## Acceptance
 

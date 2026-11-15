@@ -9,7 +9,7 @@ parent: map.md
 
 ## Question
 
-Decide the order state machine for bank transfer and cash on delivery: states and transitions, who confirms payment and how, bank-transfer deadline/auto-cancel, stock reservation/allocation timing, cancellation rules, what staff can do at each state. Update CONTEXT.md.
+Decide the order state machine for bank transfer and cash on delivery: states and transitions, who confirms payment and how, bank-transfer deadline/auto-cancel, stock reservation/allocation timing, cancellation rules, what staff can do at each state. Update GLOSSARY.md.
 
 ## Resolution
 

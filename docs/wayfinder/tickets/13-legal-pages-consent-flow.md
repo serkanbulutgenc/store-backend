@@ -13,7 +13,7 @@ Decide what the store must show and record to meet distance-selling and KVKK rul
 
 ## Resolution
 
-Decided in a two-round grilling; all recommendations accepted. Vocabulary added to `CONTEXT.md`: Legal page, Pre-information snapshot, Consent record, Hygiene product, Store settings.
+Decided in a two-round grilling; all recommendations accepted. Vocabulary added to `GLOSSARY.md`: Legal page, Pre-information snapshot, Consent record, Hygiene product, Store settings.
 
 **Wording and ownership**
 - The spec defines pages, mechanism and data; the lawyer's text is loaded as content later. "Lawyer-approved text loaded" is a launch blocker, not a build blocker.

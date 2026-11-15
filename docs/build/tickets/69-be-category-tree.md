@@ -24,7 +24,7 @@ blocked-by: []
 
 ## Spec
 
-- [ADR 0005](../../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md), `CONTEXT.md` (Category)
+- [ADR 0005](../../adr/0005-deletes-are-owner-only-and-refused-while-referenced.md), `GLOSSARY.md` (Category)
 
 ## Notes
 
