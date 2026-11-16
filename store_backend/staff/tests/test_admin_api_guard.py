@@ -51,6 +51,8 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "vouchers_deactivate": Perm.MANAGE_VOUCHERS,
     "vouchers_activate": Perm.MANAGE_VOUCHERS,
     "vouchers_delete": Perm.MANAGE_VOUCHERS,
+    "menus_get_for_editing": Perm.MANAGE_MENUS,
+    "menus_save": Perm.MANAGE_MENUS,
     "catalog_create_colour": Perm.MANAGE_COLOURS,
     "catalog_update_colour": Perm.MANAGE_COLOURS,
     "catalog_list_suppliers": Perm.MANAGE_SUPPLIERS,

@@ -62,6 +62,7 @@ class Action(StrEnum):
     VOUCHER_DEACTIVATED = "voucher_deactivated"
     VOUCHER_ACTIVATED = "voucher_activated"
     VOUCHER_DELETED = "voucher_deleted"
+    MENU_SAVED = "menu_saved"
 
 
 def record(  # noqa: PLR0913

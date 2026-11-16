@@ -51,6 +51,7 @@ class Perm(StrEnum):
     RESTRUCTURE_CATEGORIES = "restructure_categories"  # move and delete
     DELETE_CATALOGUE = "delete_catalogue"  # hard deletes (ADR 0005)
     MANAGE_VOUCHERS = "manage_vouchers"  # create, edit, deactivate, delete
+    MANAGE_MENUS = "manage_menus"  # read and save the Header and Footer menus
 
     @property
     def label(self) -> str:
@@ -82,6 +83,7 @@ OWNER_ONLY: frozenset[Perm] = frozenset(
         Perm.RESTRUCTURE_CATEGORIES,
         Perm.DELETE_CATALOGUE,
         Perm.MANAGE_VOUCHERS,
+        Perm.MANAGE_MENUS,
     },
 )
 
