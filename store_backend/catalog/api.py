@@ -59,6 +59,10 @@ class NamedOut(Schema):
     name: str
 
 
+class BrandOut(NamedOut):
+    menu_item_count: int  # Menu items that block deleting it (ADR 0007)
+
+
 class ColourOut(Schema):
     id: int
     name: str
@@ -125,6 +129,7 @@ class CategoryOut(Schema):
     depth: int
     child_count: int
     product_count: int
+    menu_item_count: int  # Menu items that block deleting it (ADR 0007)
     sort_order: int
     is_hidden: bool
     description: str
@@ -364,6 +369,7 @@ class ProductOut(Schema):
     cost_price: Money | None = None
     supplier: SupplierOut | None = None
     supplier_code: str | None = None
+    menu_item_count: int = 0  # Menu items that block deleting it (ADR 0007)
 
 
 class LowStockOut(Schema):
@@ -575,10 +581,11 @@ def delete_colour(request, colour_id: int):
     "/brands",
     auth=requires(Perm.VIEW_PRODUCTS),
     operation_id="catalog_list_brands",
-    response=list[NamedOut],
+    response=list[BrandOut],
 )
 def list_brands(request):
-    return Brand.objects.all()
+    counts = catalog.brand_menu_item_counts()
+    return [views.brand_dict(b, counts) for b in Brand.objects.all()]
 
 
 @router.post(
@@ -608,7 +615,7 @@ def update_brand(request, brand_id: int, data: NamePatch):
     response={204: None},
 )
 def delete_brand(request, brand_id: int):
-    """Owner only. Refused while Products use the Brand."""
+    """Owner only. Refused while Products or Menu items use the Brand."""
     catalog.delete_brand(request.auth, get_object_or_404(Brand, pk=brand_id))
     return 204, None
 
@@ -664,8 +671,10 @@ def delete_supplier(request, supplier_id: int):
 )
 def list_categories(request):
     counts = categories.product_counts()
+    menu_counts = categories.menu_item_counts()
     return [
-        views.category_dict(c, counts) for c in Category.objects.all().order_by("path")
+        views.category_dict(c, counts, menu_counts)
+        for c in Category.objects.all().order_by("path")
     ]
 
 
@@ -738,7 +747,7 @@ def move_category(request, category_id: int, data: CategoryMoveIn):
     response={204: None},
 )
 def delete_category(request, category_id: int):
-    """Owner only. Refused while the Category has children or Products."""
+    """Owner only. Refused while the Category has children, Products or Menu items."""
     categories.delete(request.auth, get_object_or_404(Category, pk=category_id))
     return 204, None
 
@@ -848,7 +857,8 @@ def get_product(request, product_id: int):
     response={204: None},
 )
 def delete_product(request, product_id: int):
-    """Owner only. Refused while the Product has Orders; archive it instead."""
+    """Owner only. Refused while the Product has Orders or Menu items; archive it
+    instead."""
     catalog.remove_product(request.auth, catalog.get_product(product_id))
     return 204, None
 

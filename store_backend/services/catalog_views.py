@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from oscar.apps.catalogue.models import Product
     from oscar.apps.catalogue.models import ProductClass
 
+    from store_backend.catalog.models import Brand
     from store_backend.catalog.models import CategoryProfile
     from store_backend.catalog.models import Colour
     from store_backend.catalog.models import ProductPhoto
@@ -27,6 +28,10 @@ if TYPE_CHECKING:
 
 def named(obj: Any) -> dict | None:
     return None if obj is None else {"id": obj.pk, "name": obj.name}
+
+
+def brand_dict(b: Brand, menu_counts: dict[int, int]) -> dict:
+    return {"id": b.pk, "name": b.name, "menu_item_count": menu_counts.get(b.pk, 0)}
 
 
 def colour_dict(c: Colour) -> dict:
@@ -39,12 +44,22 @@ def colour_dict(c: Colour) -> dict:
     }
 
 
-def category_dict(c: Category, product_counts: dict[int, int] | None = None) -> dict:
-    """`product_counts` (category id -> direct Products) saves one query per row when
-    a whole list is built; a single Category counts its own."""
+def category_dict(
+    c: Category,
+    product_counts: dict[int, int] | None = None,
+    menu_counts: dict[int, int] | None = None,
+) -> dict:
+    """`product_counts` and `menu_counts` (category id -> direct Products / Menu
+    items) save a query per row when a whole list is built; a single Category counts
+    its own."""
     p = categories.profile_of(c)
     if product_counts is None:
         product_counts = categories.product_counts([c.pk])
+    menu_item_count = (
+        categories.menu_item_count(c)
+        if menu_counts is None
+        else menu_counts.get(c.pk, 0)
+    )
     return {
         "id": c.pk,
         "name": c.name,
@@ -53,6 +68,7 @@ def category_dict(c: Category, product_counts: dict[int, int] | None = None) -> 
         "depth": c.depth,
         "child_count": c.numchild,
         "product_count": product_counts.get(c.pk, 0),
+        "menu_item_count": menu_item_count,
         "sort_order": p.sort_order,
         "is_hidden": p.is_hidden,
         "description": p.description,
@@ -138,6 +154,7 @@ def product_dict(user: Any, product: Product) -> dict:
         if supplier is None
         else {"id": supplier.pk, "name": supplier.name, "code": supplier.code},
         "supplier_code": profile.supplier_code,
+        "menu_item_count": catalog.product_menu_items(product),
     }
     return catalog_policy.omit_owner_fields(user, payload)
 

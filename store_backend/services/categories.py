@@ -232,6 +232,21 @@ def move(actor: User, category: Category, parent: Category | None) -> Category:
 # --- delete ----------------------------------------------------------------
 
 
+def menu_item_count(category: Category) -> int:
+    """How many Menu items point at this Category (ADR 0007)."""
+    return MenuItem.objects.filter(category=category).count()
+
+
+def menu_item_counts() -> dict[int, int]:
+    """Menu items pointing at each Category, by Category id (one query for a list)."""
+    return dict(
+        MenuItem.objects.filter(category__isnull=False)
+        .values_list("category_id")
+        .annotate(n=Count("pk"))
+        .values_list("category_id", "n"),
+    )
+
+
 @transaction.atomic
 def delete(actor: User, category: Category) -> None:
     """Delete a Category and queue its image files for removal. Audited."""
@@ -249,8 +264,7 @@ def delete(actor: User, category: Category) -> None:
             "Gizlemek de bir seçenek."
         )
         raise ConflictError(msg, code="category_in_use")
-    in_menus = MenuItem.objects.filter(category=category).count()
-    if in_menus:
+    if in_menus := menu_item_count(category):
         msg = (
             f"Bu kategoriye {in_menus} menü öğesi bağlı; önce menüden kaldırın. "
             "Gizlemek de bir seçenek."
