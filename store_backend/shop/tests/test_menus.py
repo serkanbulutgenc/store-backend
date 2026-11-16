@@ -446,3 +446,48 @@ def test_the_menu_item_counts_cost_one_query_per_list(api_for):  # noqa: F811
             assert owner_api.get(path).status_code == HTTPStatus.OK
         menu_queries = [q for q in ctx.captured_queries if "shop_menuitem" in q["sql"]]
         assert len(menu_queries) == 1, path
+
+
+def test_the_products_list_carries_each_products_menu_item_count(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    elbise = product("Elbise")
+    gomlek = product("Gömlek")
+    unused = product("Kullanılmayan")
+    clear("header")
+    for _ in range(2):
+        item("header", "product", product=elbise)
+    item("header", "product", product=gomlek)
+
+    rows = {p["id"]: p for p in owner_api.get("/api/admin/products").json()["items"]}
+
+    assert rows[elbise.pk]["menu_item_count"] == 2  # noqa: PLR2004
+    assert rows[gomlek.pk]["menu_item_count"] == 1
+    assert rows[unused.pk]["menu_item_count"] == 0
+    detail = owner_api.get(f"/api/admin/products/{elbise.pk}").json()
+    assert rows[elbise.pk]["menu_item_count"] == detail["menu_item_count"]
+
+
+def test_the_products_list_counts_menu_items_once_per_product_when_searching(
+    api_for,  # noqa: F811
+):
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    elbise = product("Elbise")
+    clear("header")
+    for _ in range(3):
+        item("header", "product", product=elbise)
+
+    rows = owner_api.get("/api/admin/products?q=Elbise").json()["items"]
+
+    assert [(r["id"], r["menu_item_count"]) for r in rows] == [(elbise.pk, 3)]
+
+
+def test_the_products_list_menu_item_count_costs_one_query_per_list(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    for n in range(4):
+        item("header", "product", product=product(f"Ürün {n}"))
+
+    with CaptureQueriesContext(connection) as ctx:
+        assert owner_api.get("/api/admin/products").status_code == HTTPStatus.OK
+
+    menu_queries = [q for q in ctx.captured_queries if "shop_menuitem" in q["sql"]]
+    assert len(menu_queries) == 1

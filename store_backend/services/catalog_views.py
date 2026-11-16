@@ -173,6 +173,7 @@ def list_dict(p: Product) -> dict:
         "stock_total": sum(
             r.num_in_stock for c in children for r in c.stockrecords.all()
         ),
+        "menu_item_count": p.menu_item_count,
     }
 
 

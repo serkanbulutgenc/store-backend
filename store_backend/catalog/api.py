@@ -348,6 +348,7 @@ class ProductListOut(Schema):
     shelf_price: Money
     variant_count: int
     stock_total: int
+    menu_item_count: int  # Menu items that block deleting it (ADR 0007)
 
 
 class ProductOut(Schema):
@@ -796,11 +797,11 @@ def list_products(
     ordering: str | None = None,
 ):
     """Search by title, slug, or an exact SKU or barcode of any Variant."""
-    qs = (
+    qs = catalog.with_menu_item_count(
         Product.objects.filter(structure=Product.PARENT)
         .select_related("profile")
         .prefetch_related("categories", "children__stockrecords")
-        .annotate(shelf_price=F("profile__shelf_price"), status=F("profile__status"))
+        .annotate(shelf_price=F("profile__shelf_price"), status=F("profile__status")),
     )
     if q:
         term = q.strip()
