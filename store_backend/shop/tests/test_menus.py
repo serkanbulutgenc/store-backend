@@ -5,9 +5,12 @@ from importlib import import_module
 
 import pytest
 from django.apps import apps
+from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 from oscar.apps.catalogue.models import ProductClass
 
+from store_backend.api.errors import ConflictError
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import catalog
@@ -334,3 +337,112 @@ def test_a_brand_without_a_published_product_is_left_out_of_the_menu():
     catalog.archive_product(elbise)
 
     assert [n["label"] for n in menus()["header"]] == ["Ana sayfa"]
+
+
+# --- Product and Brand deletes are refused while a Menu item points at them ---------
+
+
+def test_a_brand_in_a_menu_cannot_be_deleted_until_its_item_is_removed(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    aura = catalog.create_brand("Aura")
+    item("header", "brand", brand=aura)
+    item("footer", "brand", brand=aura)
+
+    refused = owner_api.delete(f"/api/admin/brands/{aura.pk}")
+
+    assert refused.status_code == HTTPStatus.CONFLICT
+    assert refused.json()["code"] == "brand_in_menu"
+    assert "2 menü öğesi" in refused.json()["message"]
+    MenuItem.objects.filter(brand=aura).delete()
+    assert owner_api.delete(f"/api/admin/brands/{aura.pk}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+
+
+def test_a_product_in_a_menu_cannot_be_deleted_until_its_item_is_removed(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    elbise = product("Elbise")
+    item("header", "product", product=elbise)
+
+    refused = owner_api.delete(f"/api/admin/products/{elbise.pk}")
+
+    assert refused.status_code == HTTPStatus.CONFLICT
+    assert refused.json()["code"] == "product_in_menu"
+    assert "1 menü öğesi" in refused.json()["message"]
+    MenuItem.objects.filter(product=elbise).delete()
+    assert owner_api.delete(f"/api/admin/products/{elbise.pk}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+
+
+def test_unreferenced_targets_still_delete(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    aura = catalog.create_brand("Aura")
+    elbise = product("Elbise")
+    item("header", "brand", brand=catalog.create_brand("Başka"))
+
+    assert owner_api.delete(f"/api/admin/brands/{aura.pk}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+    assert owner_api.delete(f"/api/admin/products/{elbise.pk}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+
+
+def test_the_menu_item_count_is_in_the_payloads_the_delete_dialog_reads(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    aura = catalog.create_brand("Aura")
+    elbise = product("Elbise")
+    giyim = catalog.create_category("Giyim")
+    unused = catalog.create_brand("Kullanılmayan")
+    clear("header")
+    for _ in range(2):
+        item("header", "brand", brand=aura)
+    item("header", "product", product=elbise)
+    item("header", "category", category=giyim)
+
+    brands = {b["id"]: b for b in owner_api.get("/api/admin/brands").json()}
+    assert brands[aura.pk]["menu_item_count"] == 2  # noqa: PLR2004
+    assert brands[unused.pk]["menu_item_count"] == 0
+    assert (
+        owner_api.get(f"/api/admin/products/{elbise.pk}").json()["menu_item_count"] == 1
+    )
+    cats = {c["id"]: c for c in owner_api.get("/api/admin/categories").json()}
+    assert cats[giyim.pk]["menu_item_count"] == 1
+
+
+def test_delete_product_itself_refuses_a_product_in_a_menu():
+    elbise = product("Elbise")
+    item("header", "product", product=elbise)
+
+    with pytest.raises(ConflictError) as refused:
+        catalog.delete_product(elbise)
+
+    assert refused.value.code == "product_in_menu"
+
+
+def test_removing_the_menu_item_lets_the_category_delete_succeed(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    giyim = catalog.create_category("Giyim")
+    item("header", "category", category=giyim)
+
+    assert owner_api.delete(f"/api/admin/categories/{giyim.pk}").status_code == (
+        HTTPStatus.CONFLICT
+    )
+    MenuItem.objects.filter(category=giyim).delete()
+    assert owner_api.delete(f"/api/admin/categories/{giyim.pk}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+
+
+def test_the_menu_item_counts_cost_one_query_per_list(api_for):  # noqa: F811
+    owner_api = api_for(staff_member("Owner"), enrol=True)
+    for n in range(4):
+        item("header", "brand", brand=catalog.create_brand(f"Marka {n}"))
+        item("header", "category", category=catalog.create_category(f"Kat {n}"))
+
+    for path in ("/api/admin/brands", "/api/admin/categories"):
+        with CaptureQueriesContext(connection) as ctx:
+            assert owner_api.get(path).status_code == HTTPStatus.OK
+        menu_queries = [q for q in ctx.captured_queries if "shop_menuitem" in q["sql"]]
+        assert len(menu_queries) == 1, path

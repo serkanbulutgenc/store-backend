@@ -612,6 +612,29 @@
         "title": "AuditLogQuery",
         "type": "object"
       },
+      "BrandOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "menu_item_count": {
+            "title": "Menu Item Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "menu_item_count"
+        ],
+        "title": "BrandOut",
+        "type": "object"
+      },
       "CarrierOut": {
         "properties": {
           "id": {
@@ -749,6 +772,10 @@
             "title": "Is Hidden",
             "type": "boolean"
           },
+          "menu_item_count": {
+            "title": "Menu Item Count",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -793,6 +820,7 @@
           "depth",
           "child_count",
           "product_count",
+          "menu_item_count",
           "sort_order",
           "is_hidden",
           "description",
@@ -4064,6 +4092,11 @@
             "title": "Low Stock Threshold",
             "type": "integer"
           },
+          "menu_item_count": {
+            "default": 0,
+            "title": "Menu Item Count",
+            "type": "integer"
+          },
           "old_price": {
             "anyOf": [
               {
@@ -6626,7 +6659,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/NamedOut"
+                    "$ref": "#/components/schemas/BrandOut"
                   },
                   "title": "Response",
                   "type": "array"
@@ -6684,7 +6717,7 @@
     },
     "/api/admin/brands/{brand_id}": {
       "delete": {
-        "description": "Owner only. Refused while Products use the Brand.",
+        "description": "Owner only. Refused while Products or Menu items use the Brand.",
         "operationId": "catalog_delete_brand",
         "parameters": [
           {
@@ -6998,7 +7031,7 @@
     },
     "/api/admin/categories/{category_id}": {
       "delete": {
-        "description": "Owner only. Refused while the Category has children or Products.",
+        "description": "Owner only. Refused while the Category has children, Products or Menu items.",
         "operationId": "catalog_delete_category",
         "parameters": [
           {
@@ -9266,7 +9299,7 @@
     },
     "/api/admin/products/{product_id}": {
       "delete": {
-        "description": "Owner only. Refused while the Product has Orders; archive it instead.",
+        "description": "Owner only. Refused while the Product has Orders or Menu items; archive it\ninstead.",
         "operationId": "catalog_delete_product",
         "parameters": [
           {

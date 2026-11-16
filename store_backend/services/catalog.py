@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from django.db import IntegrityError
 from django.db import transaction
+from django.db.models import Count
 from django.utils.text import slugify
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
@@ -40,6 +41,7 @@ from store_backend.services import audit
 from store_backend.services import catalog_policy
 from store_backend.services import shipping_admin
 from store_backend.services import shop_settings
+from store_backend.shop.models import MenuItem
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -334,10 +336,17 @@ def archive_product(product: Product) -> Product:
 
 @transaction.atomic
 def delete_product(product: Product) -> None:
-    """Hard delete; refused for a Product with Orders (archive it instead)."""
+    """Hard delete; refused for a Product with Orders or Menu items (archive it
+    instead)."""
     if has_orders(product):
         msg = "Siparişi olan ürün silinemez; arşivleyin."
         raise ConflictError(msg, code="product_has_orders")
+    if in_menus := product_menu_items(product):
+        msg = (
+            f"Bu ürüne {in_menus} menü öğesi bağlı; önce menüden kaldırın. "
+            "Arşivlemek de bir seçenek."
+        )
+        raise ConflictError(msg, code="product_in_menu")
     product.delete()
 
 
@@ -345,6 +354,11 @@ def order_line_count(product: Product) -> int:
     """Order lines that reference this Product or any of its Variants."""
     ids = [product.pk, *product.children.values_list("pk", flat=True)]
     return Line.objects.filter(product_id__in=ids).count()
+
+
+def product_menu_items(product: Product) -> int:
+    """How many Menu items point at this Product (ADR 0007)."""
+    return MenuItem.objects.filter(product=product).count()
 
 
 @transaction.atomic
@@ -773,6 +787,21 @@ def _rename(obj, name: str | None) -> None:
     obj.name = name
 
 
+def brand_menu_items(brand: Brand) -> int:
+    """How many Menu items point at this Brand (ADR 0007)."""
+    return MenuItem.objects.filter(brand=brand).count()
+
+
+def brand_menu_item_counts() -> dict[int, int]:
+    """Menu items pointing at each Brand, by Brand id (one query for a list)."""
+    return dict(
+        MenuItem.objects.filter(brand__isnull=False)
+        .values_list("brand_id")
+        .annotate(n=Count("pk"))
+        .values_list("brand_id", "n"),
+    )
+
+
 @transaction.atomic
 def brand_blockers(brand: Brand) -> int:
     """How many Products use this Brand (what blocks deleting it)."""
@@ -786,6 +815,9 @@ def delete_brand(actor: User, brand: Brand) -> None:
     if products := brand_blockers(brand):
         msg = f"Bu markayı {products} ürün kullanıyor; silinemez."
         raise ConflictError(msg, code="brand_in_use")
+    if in_menus := brand_menu_items(brand):
+        msg = f"Bu markaya {in_menus} menü öğesi bağlı; önce menüden kaldırın."
+        raise ConflictError(msg, code="brand_in_menu")
     audit.record(
         actor,
         audit.Action.BRAND_DELETED,

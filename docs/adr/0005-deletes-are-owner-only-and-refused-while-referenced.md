@@ -7,6 +7,7 @@ Every hard delete of store data (Category, Product, Variant, Brand, Supplier, Co
 - **Variant**: only when it has no Orders, and never the last Variant of a published Product.
 - **Brand and Supplier**: only when no Product uses them.
 - **Colour**: only when no Variant or photo uses it. An in-use Colour is deactivated instead (`is_active`).
+- **Menu items** ([ADR 0007](0007-menu-items-reference-their-target.md)): a Category, Product or Brand that a Menu item points to cannot be deleted; the 409 says how many Menu items block it, and the Owner removes the Menu item first.
 - Product classes, Attributes and photos keep the rules they already have.
 
 Why: Orders keep a stable history and a Product never loses its Category or Brand by accident. The Audit log records who deleted what, so a mistake can be traced; because the records are gone, the refusals do the protecting, not the log.
