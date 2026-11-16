@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING
 from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import Count
+from django.db.models import OuterRef
+from django.db.models import Subquery
+from django.db.models.functions import Coalesce
 from django.utils.text import slugify
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
@@ -359,6 +362,22 @@ def order_line_count(product: Product) -> int:
 def product_menu_items(product: Product) -> int:
     """How many Menu items point at this Product (ADR 0007)."""
     return MenuItem.objects.filter(product=product).count()
+
+
+def with_menu_item_count(products):
+    """Annotate Products with `menu_item_count`: Menu items pointing at each (ADR 0007).
+
+    A correlated subquery, so a list costs no extra query and a join in the caller's
+    filter cannot multiply the count.
+    """
+    pointing = (
+        MenuItem.objects.filter(product=OuterRef("pk"))
+        .order_by()
+        .values("product")
+        .annotate(n=Count("pk"))
+        .values("n")
+    )
+    return products.annotate(menu_item_count=Coalesce(Subquery(pointing), 0))
 
 
 @transaction.atomic

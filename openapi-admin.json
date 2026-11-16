@@ -3980,6 +3980,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "menu_item_count": {
+            "title": "Menu Item Count",
+            "type": "integer"
+          },
           "shelf_price": {
             "examples": [
               "349.90"
@@ -4016,7 +4020,8 @@
           "category",
           "shelf_price",
           "variant_count",
-          "stock_total"
+          "stock_total",
+          "menu_item_count"
         ],
         "title": "ProductListOut",
         "type": "object"
