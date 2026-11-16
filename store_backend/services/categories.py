@@ -28,6 +28,7 @@ from store_backend.catalog.models import CategoryProfile
 from store_backend.services import audit
 from store_backend.services import catalog
 from store_backend.services import media
+from store_backend.shop.models import MenuItem
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -248,6 +249,13 @@ def delete(actor: User, category: Category) -> None:
             "Gizlemek de bir seçenek."
         )
         raise ConflictError(msg, code="category_in_use")
+    in_menus = MenuItem.objects.filter(category=category).count()
+    if in_menus:
+        msg = (
+            f"Bu kategoriye {in_menus} menü öğesi bağlı; önce menüden kaldırın. "
+            "Gizlemek de bir seçenek."
+        )
+        raise ConflictError(msg, code="category_in_menu")
     profile = profile_of(category)
     media._schedule_names(profile.image_file_names())  # noqa: SLF001
     audit.record(

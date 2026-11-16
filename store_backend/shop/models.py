@@ -680,3 +680,75 @@ class Review(models.Model):
 
     def __str__(self) -> str:
         return f"{self.stars}★ by {self.user_id} on {self.product_id}"
+
+
+# --- menus (docs/adr/0007) -------------------------------------------------------
+
+# Built-in Storefront pages a Menu item may point to: key -> (label, path).
+MENU_BUILTIN_PAGES: dict[str, tuple[str, str]] = {
+    "home": ("Ana sayfa", "/"),
+    "order_tracking": ("Sipariş takibi", "/siparis-takip"),
+    "favorites": ("Favorilerim", "/hesap/favoriler"),
+    "basket": ("Sepet", "/sepet"),
+    "legal_search": ("Yasal sayfalarda ara", "/yasal"),
+}
+
+
+class Menu(models.Model):
+    """One of the two fixed navigation lists: no API creates or deletes a Menu."""
+
+    class Key(models.TextChoices):
+        HEADER = "header", "Üst menü"
+        FOOTER = "footer", "Alt menü"
+
+    key = models.CharField(max_length=20, choices=Key, unique=True)
+
+    def __str__(self) -> str:
+        return self.key
+
+
+class MenuItem(models.Model):
+    """One entry in a Menu. It points at its target by reference, so its label and link
+    follow the target; a Category is protected from deletion while an item points at it.
+    """
+
+    class Target(models.TextChoices):
+        CATEGORY = "category", "Kategori"
+        LEGAL_PAGE = "legal_page", "Yasal sayfa"
+        BUILTIN = "builtin", "Hazır sayfa"
+        URL = "url", "Özel bağlantı"
+        GROUP = "group", "Grup başlığı"
+
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name="items")
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+    position = models.PositiveIntegerField(default=0)
+    target_type = models.CharField(max_length=20, choices=Target)
+    category = models.ForeignKey(
+        "catalogue.Category",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    include_subcategories = models.BooleanField(default=False)
+    legal_page = models.CharField(max_length=40, blank=True)
+    builtin = models.CharField(max_length=40, blank=True)
+    url = models.CharField(max_length=500, blank=True)
+    label = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Overrides the target's own label; also names a group heading.",
+    )
+    is_hidden = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["position", "pk"]
+
+    def __str__(self) -> str:
+        return f"{self.menu_id}:{self.target_type}:{self.label}"
