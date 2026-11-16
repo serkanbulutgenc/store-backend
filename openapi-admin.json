@@ -1968,6 +1968,262 @@
         "title": "MeOut",
         "type": "object"
       },
+      "MenuIn": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MenuItemIn"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "MenuIn",
+        "type": "object"
+      },
+      "MenuItemIn": {
+        "description": "One item and the items under it. List order is Menu order.",
+        "properties": {
+          "builtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Builtin"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "children": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MenuItemIn"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "include_subcategories": {
+            "default": false,
+            "title": "Include Subcategories",
+            "type": "boolean"
+          },
+          "is_hidden": {
+            "default": false,
+            "title": "Is Hidden",
+            "type": "boolean"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "legal_page": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Page"
+          },
+          "target_type": {
+            "enum": [
+              "category",
+              "legal_page",
+              "builtin",
+              "url",
+              "group"
+            ],
+            "title": "Target Type",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "target_type"
+        ],
+        "title": "MenuItemIn",
+        "type": "object"
+      },
+      "MenuItemOut": {
+        "properties": {
+          "builtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Builtin"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/MenuItemOut"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "include_subcategories": {
+            "title": "Include Subcategories",
+            "type": "boolean"
+          },
+          "is_hidden": {
+            "title": "Is Hidden",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "legal_page": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Page"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "not_shown_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "hidden",
+                  "parent_not_shown",
+                  "target_not_public",
+                  "target_missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Shown Reason"
+          },
+          "target_label": {
+            "title": "Target Label",
+            "type": "string"
+          },
+          "target_type": {
+            "enum": [
+              "category",
+              "legal_page",
+              "builtin",
+              "url",
+              "group"
+            ],
+            "title": "Target Type",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "target_type",
+          "category_id",
+          "include_subcategories",
+          "legal_page",
+          "builtin",
+          "url",
+          "label",
+          "is_hidden",
+          "target_label",
+          "link",
+          "not_shown_reason",
+          "children"
+        ],
+        "title": "MenuItemOut",
+        "type": "object"
+      },
+      "MenuOut": {
+        "properties": {
+          "depth_limit": {
+            "title": "Depth Limit",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MenuItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "depth_limit",
+          "items"
+        ],
+        "title": "MenuOut",
+        "type": "object"
+      },
       "NameIn": {
         "properties": {
           "name": {
@@ -7427,6 +7683,90 @@
         "summary": "Get Me",
         "tags": [
           "staff"
+        ]
+      }
+    },
+    "/api/admin/menus/{key}": {
+      "get": {
+        "description": "The saved tree with hidden and non-public items, each flagged with why it is\nnot shown.",
+        "operationId": "menus_get_for_editing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Menu",
+        "tags": [
+          "menus"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole tree atomically. Live at once; written to the Audit log.",
+        "operationId": "menus_save",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Save Menu",
+        "tags": [
+          "menus"
         ]
       }
     },
