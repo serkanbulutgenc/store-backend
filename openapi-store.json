@@ -1117,6 +1117,80 @@
         "title": "LegalSearchHit",
         "type": "object"
       },
+      "MenuNode": {
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/MenuNode"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "external": {
+            "title": "External",
+            "type": "boolean"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "label",
+          "url",
+          "external",
+          "image_url",
+          "children"
+        ],
+        "title": "MenuNode",
+        "type": "object"
+      },
+      "MenusOut": {
+        "properties": {
+          "footer": {
+            "items": {
+              "$ref": "#/components/schemas/MenuNode"
+            },
+            "title": "Footer",
+            "type": "array"
+          },
+          "header": {
+            "items": {
+              "$ref": "#/components/schemas/MenuNode"
+            },
+            "title": "Header",
+            "type": "array"
+          }
+        },
+        "required": [
+          "header",
+          "footer"
+        ],
+        "title": "MenusOut",
+        "type": "object"
+      },
       "MyReviewOut": {
         "properties": {
           "body": {
@@ -4032,6 +4106,29 @@
         "summary": "Get Page Version",
         "tags": [
           "legal"
+        ]
+      }
+    },
+    "/api/store/menus": {
+      "get": {
+        "description": "Both menus, resolved: hidden and non-public items are left out.",
+        "operationId": "menus_get_public",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenusOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Menus",
+        "tags": [
+          "menus"
         ]
       }
     },
