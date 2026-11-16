@@ -1987,6 +1987,17 @@
       "MenuItemIn": {
         "description": "One item and the items under it. List order is Menu order.",
         "properties": {
+          "brand_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Id"
+          },
           "builtin": {
             "anyOf": [
               {
@@ -2043,9 +2054,22 @@
             ],
             "title": "Legal Page"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
           "target_type": {
             "enum": [
               "category",
+              "product",
+              "brand",
               "legal_page",
               "builtin",
               "url",
@@ -2074,6 +2098,17 @@
       },
       "MenuItemOut": {
         "properties": {
+          "brand_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Id"
+          },
           "builtin": {
             "anyOf": [
               {
@@ -2154,6 +2189,17 @@
             ],
             "title": "Not Shown Reason"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
           "target_label": {
             "title": "Target Label",
             "type": "string"
@@ -2161,6 +2207,8 @@
           "target_type": {
             "enum": [
               "category",
+              "product",
+              "brand",
               "legal_page",
               "builtin",
               "url",
@@ -2184,6 +2232,8 @@
         "required": [
           "target_type",
           "category_id",
+          "product_id",
+          "brand_id",
           "include_subcategories",
           "legal_page",
           "builtin",
@@ -2222,6 +2272,79 @@
           "items"
         ],
         "title": "MenuOut",
+        "type": "object"
+      },
+      "MenuTargetOut": {
+        "description": "A match for the builder's target picker; spread it into an item as it is.",
+        "properties": {
+          "brand_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "legal_page": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Page"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "target_label": {
+            "title": "Target Label",
+            "type": "string"
+          },
+          "target_type": {
+            "enum": [
+              "category",
+              "product",
+              "brand",
+              "legal_page"
+            ],
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_type",
+          "target_label",
+          "category_id",
+          "product_id",
+          "brand_id",
+          "legal_page"
+        ],
+        "title": "MenuTargetOut",
         "type": "object"
       },
       "NameIn": {
@@ -7683,6 +7806,49 @@
         "summary": "Get Me",
         "tags": [
           "staff"
+        ]
+      }
+    },
+    "/api/admin/menu-targets": {
+      "get": {
+        "description": "Categories, Legal pages, Products and Brands matching `q` by name.",
+        "operationId": "menus_search_targets",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MenuTargetOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Search Menu Targets",
+        "tags": [
+          "menus"
         ]
       }
     },

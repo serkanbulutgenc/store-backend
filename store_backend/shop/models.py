@@ -715,6 +715,8 @@ class MenuItem(models.Model):
     class Target(models.TextChoices):
         CATEGORY = "category", "Kategori"
         LEGAL_PAGE = "legal_page", "Yasal sayfa"
+        PRODUCT = "product", "Ürün"
+        BRAND = "brand", "Marka"
         BUILTIN = "builtin", "Hazır sayfa"
         URL = "url", "Özel bağlantı"
         GROUP = "group", "Grup başlığı"
@@ -737,6 +739,20 @@ class MenuItem(models.Model):
         related_name="+",
     )
     include_subcategories = models.BooleanField(default=False)
+    product = models.ForeignKey(
+        "catalogue.Product",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    brand = models.ForeignKey(
+        "store_catalog.Brand",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     legal_page = models.CharField(max_length=40, blank=True)
     builtin = models.CharField(max_length=40, blank=True)
     url = models.CharField(max_length=500, blank=True)
