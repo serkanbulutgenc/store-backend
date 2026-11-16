@@ -11,12 +11,15 @@ updates price and stock instead of duplicating.
 Columns (header names are case-insensitive; `,` `;` or tab separated, UTF-8):
 
     product_name*, category*, product_class*, colour*, size*, shelf_price_try*,
-    quantity*, brand, supplier, sku, kdv_class, notes
+    quantity*, brand, supplier, sku, kdv_class, description, notes
 
 `quantity` is the on-hand count to end up with; the difference goes through
 `stock.adjust`, so it is audited. `kdv_class` is empty for the Product class default
 or a percentage (0-100) overriding it. `category` is `Name` or a path such as
-`Parent > Child > Grandchild`, up to five levels. `notes` is ignored. Brands,
+`Parent > Child > Grandchild`, up to five levels. `description` is the Product's
+Markdown Description (at most 5000 characters; the first non-blank one among a
+Product's rows wins). Without the column, existing Descriptions are left alone; with
+it, a Product whose rows are all blank is cleared. `notes` is ignored. Brands,
 suppliers and categories that do not exist (every missing ancestor too) are created
 on confirm; colours are never created (a colour needs a swatch), sizes must be in the
 class's scheme, and Products are created as drafts.
@@ -64,7 +67,7 @@ REQUIRED = (
     "shelf_price_try",
     "quantity",
 )
-OPTIONAL = ("brand", "supplier", "sku", "kdv_class", "notes")
+OPTIONAL = ("brand", "supplier", "sku", "kdv_class", "description", "notes")
 MAX_KDV = Decimal(100)
 MAX_ERRORS_SHOWN = 20
 MAX_IMPORT_CATEGORY_DEPTH = catalog.MAX_CATEGORY_DEPTH
@@ -91,6 +94,7 @@ class Line:
     supplier: str
     sku: str
     kdv: Decimal | None
+    description: str | None = None  # None: the file has no description column
     variant: VariantProfile | None = None  # the matched existing Variant
     action: str = "create"
 
@@ -105,6 +109,7 @@ class ProductPlan:
     kdv: Decimal | None
     brand: str
     supplier: str
+    description: str | None = None
     product: Product | None = None  # the matched existing Product
     lines: list[Line] = field(default_factory=list)
 
@@ -180,7 +185,8 @@ def _read(raw: bytes) -> tuple[list[tuple[int, dict[str, str]]], list[RowError]]
             if len(cells) > len(header):
                 errors.append(RowError(number, "", "Satırda fazladan sütun var."))
                 continue
-            values = dict(zip(header, (c.strip() for c in cells), strict=False))
+            values = dict.fromkeys(header, "")
+            values.update(zip(header, (c.strip() for c in cells), strict=False))
             rows.append((number, values))
     except csv.Error:
         msg = "Dosya geçerli bir CSV değil."
@@ -310,6 +316,12 @@ def _parse_line(  # noqa: C901
         kdv = _decimal(get("kdv_class").rstrip("%"))
         if kdv is None or not 0 <= kdv <= MAX_KDV:
             bad("kdv_class", "KDV oranı boş veya 0 ile 100 arasında olmalı.")
+    description = values.get("description")  # raw: Markdown keeps its line breaks
+    if description is not None and len(description) > catalog.DESCRIPTION_MAX:
+        bad(
+            "description",
+            f"Açıklama en fazla {catalog.DESCRIPTION_MAX} karakter olabilir.",
+        )
     if len(errors) > before:
         return None
     return Line(
@@ -325,6 +337,7 @@ def _parse_line(  # noqa: C901
         supplier=get("supplier"),
         sku=get("sku"),
         kdv=kdv,
+        description=description,
     )
 
 
@@ -355,6 +368,8 @@ def _group(lines: list[Line], errors: list[RowError]) -> list[ProductPlan]:
             continue
         plan.brand = plan.brand or ln.brand
         plan.supplier = plan.supplier or ln.supplier
+        if ln.description is not None:
+            plan.description = plan.description or ln.description
         plan.lines.append(ln)
     for plan in groups.values():
         # The Product price is the most common line price (lowest on a tie), so row
@@ -595,6 +610,7 @@ def _apply_product(
             brand=brands.get(_key(p.brand)),
             supplier=suppliers.get(_key(p.supplier)),
             kdv_rate=p.kdv,
+            description=p.description or "",
         )
     else:
         changes: dict[str, object] = {}
@@ -602,6 +618,8 @@ def _apply_product(
             changes["shelf_price"] = p.price
         if p.kdv is not None and p.product.profile.kdv_rate != p.kdv:
             changes["kdv_rate"] = p.kdv
+        if p.description is not None and p.product.description != p.description:
+            changes["description"] = p.description
         if changes:
             catalog.update_product(actor, p.product, **changes)
     for ln in p.lines:

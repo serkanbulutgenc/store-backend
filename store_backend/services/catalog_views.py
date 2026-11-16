@@ -147,6 +147,7 @@ def product_dict(user: Any, product: Product) -> dict:
         "kdv_rate": catalog.kdv_rate_for(product),
         "low_stock_threshold": profile.low_stock_threshold,
         "desi": profile.desi,
+        "description": product.description or "",
         "variants": [variant_dict(v) for v in variants],
         "attribute_values": attributes.values_for(product),
         "cost_price": profile.cost_price,

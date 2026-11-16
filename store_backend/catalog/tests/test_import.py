@@ -363,3 +363,57 @@ def test_a_six_part_category_path_is_a_row_error_on_category(api_for, owner, col
         (2, "category"),
     ]
     assert Category.objects.count() == 0
+
+
+# --- description column ----------------------------------------------------------
+
+DESCRIPTION_HEADER = HEADER.rstrip("\n") + ",description\n"
+
+
+def with_description(*descriptions: str) -> bytes:
+    """The standard three rows, each ending in the given (CSV-quoted) description."""
+    rows = "".join(
+        line + "," + text + "\n"
+        for line, text in zip(ROWS.splitlines(), descriptions, strict=True)
+    )
+    return csv_bytes(rows, DESCRIPTION_HEADER)
+
+
+def parent_product() -> Product:
+    return Product.objects.get(structure=Product.PARENT)
+
+
+def test_import_sets_a_new_products_description_keeping_its_line_breaks(
+    owner,
+    colours,
+):
+    markdown = '"**Pamuklu**\n\n- yıkanabilir"'
+    catalog_import.run(owner, "a.csv", with_description(markdown, "", ""))
+
+    assert parent_product().description == "**Pamuklu**\n\n- yıkanabilir"
+
+
+def test_reimport_updates_clears_or_keeps_the_description(owner, colours):
+    catalog_import.run(owner, "a.csv", with_description("Eski", "", ""))
+    assert parent_product().description == "Eski"
+
+    catalog_import.run(owner, "b.csv", with_description("", "Yeni **metin**", ""))
+    assert parent_product().description == "Yeni **metin**"  # first non-blank row
+
+    catalog_import.run(owner, "c.csv", csv_bytes())  # no description column
+    assert parent_product().description == "Yeni **metin**"
+
+    catalog_import.run(owner, "d.csv", with_description("", "", ""))  # blank cells
+    assert parent_product().description == ""
+
+
+def test_an_over_long_description_is_a_row_error_and_writes_nothing(owner, colours):
+    too_long = "a" * (catalog.DESCRIPTION_MAX + 1)
+    with pytest.raises(UnprocessableError) as caught:
+        catalog_import.run(owner, "a.csv", with_description(too_long, "", ""))
+
+    assert "Satır 2, description" in caught.value.fields["file"][0]
+    assert Product.objects.count() == 0
+    just_fits = "a" * catalog.DESCRIPTION_MAX
+    catalog_import.run(owner, "b.csv", with_description(just_fits, "", ""))
+    assert parent_product().description == just_fits

@@ -1169,6 +1169,19 @@
         "title": "DeletionRequestOut",
         "type": "object"
       },
+      "DescriptionImageOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "DescriptionImageOut",
+        "type": "object"
+      },
       "ExpiringRow": {
         "properties": {
           "customer": {
@@ -3860,6 +3873,11 @@
             ],
             "title": "Cost Price"
           },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
           "desi": {
             "anyOf": [
               {
@@ -4070,6 +4088,10 @@
             ],
             "title": "Cost Price"
           },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
           "desi": {
             "anyOf": [
               {
@@ -4181,6 +4203,7 @@
           "kdv_rate",
           "low_stock_threshold",
           "desi",
+          "description",
           "variants",
           "attribute_values"
         ],
@@ -4225,6 +4248,17 @@
               }
             ],
             "title": "Cost Price"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "desi": {
             "anyOf": [
@@ -7497,6 +7531,55 @@
         "summary": "Get Customer",
         "tags": [
           "customers"
+        ]
+      }
+    },
+    "/api/admin/description-images": {
+      "post": {
+        "description": "One image for a Product Description (JPEG, PNG or WebP). Returns its URL to\nput in the Markdown; nothing is attached to a Product.",
+        "operationId": "catalog_upload_description_image",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionImageOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Description Image",
+        "tags": [
+          "catalog"
         ]
       }
     },

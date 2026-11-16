@@ -54,6 +54,7 @@ MIN_LONG_EDGE = 800
 WIDTHS = (400, 800, 1600)
 WEBP_QUALITY = 82
 MAX_ALT_LENGTH = 255
+DESCRIPTION_IMAGE_WIDTH = 1600
 
 _FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
 _HEIC_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
@@ -128,7 +129,11 @@ def _without_gps(img: Image.Image, fmt: str, data: bytes) -> tuple[bytes, str]:
     return buf.getvalue(), _FORMATS[out_fmt]
 
 
-def _inspect(data: bytes) -> tuple[bytes, str, int, int]:
+def _inspect(
+    data: bytes,
+    *,
+    min_long_edge: int = MIN_LONG_EDGE,
+) -> tuple[bytes, str, int, int]:
     """Validate an upload; return (bytes to store, extension, width, height) with
     the size taken after orientation.
     """
@@ -146,12 +151,43 @@ def _inspect(data: bytes) -> tuple[bytes, str, int, int]:
         raise _invalid(MSG_CORRUPT if _HEIC else MSG_HEIC) from None
     if fmt not in _FORMATS:
         raise _invalid(MSG_FORMAT)
-    if max(width, height) < MIN_LONG_EDGE:
+    if max(width, height) < min_long_edge:
         raise _invalid(MSG_SMALL)
     if orientation in _ROTATED_ORIENTATIONS:
         width, height = height, width
     data, extension = _without_gps(img, fmt, data)
     return data, extension, width, height
+
+
+# --- Description images ---------------------------------------------------------
+
+
+def _scaled_to_width(data: bytes, width: int) -> bytes:
+    """Re-encode in the same format, upright, no metadata, at most `width` wide."""
+    img = Image.open(io.BytesIO(data))
+    fmt = img.format
+    img = ImageOps.exif_transpose(img)
+    height = round(img.height * width / img.width)
+    img = img.resize((width, height), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, fmt, **({"quality": 85} if fmt in ("JPEG", "WEBP") else {}))
+    return buf.getvalue()
+
+
+def upload_description_image(file: UploadedFile) -> str:
+    """Store an image for a Product Description and return its public URL.
+
+    Stateless: no row, no derivatives, no audit entry. The file is named by us.
+    """
+    data, extension, width, _ = _inspect(
+        file.read(MAX_BYTES + 1),
+        min_long_edge=0,
+    )
+    if width > DESCRIPTION_IMAGE_WIDTH:
+        data = _scaled_to_width(data, DESCRIPTION_IMAGE_WIDTH)
+    name = f"description/{uuid.uuid4().hex}{extension}"
+    default_storage.save(name, ContentFile(data))
+    return media_url(name)
 
 
 # --- upload -------------------------------------------------------------------

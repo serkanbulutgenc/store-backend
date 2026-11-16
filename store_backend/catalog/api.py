@@ -249,6 +249,7 @@ class ProductIn(Schema):
     low_stock_threshold: int | None = None
     desi: int | None = None
     slug: str | None = None
+    description: str = ""
     # Owner only:
     supplier_id: int | None = None
     supplier_code: str = ""
@@ -265,6 +266,7 @@ class ProductPatch(Schema):
     low_stock_threshold: int | None = None
     desi: int | None = None
     slug: str | None = None
+    description: str | None = None
     # Owner only:
     supplier_id: int | None = None
     supplier_code: str | None = None
@@ -364,6 +366,7 @@ class ProductOut(Schema):
     kdv_rate: Money
     low_stock_threshold: int
     desi: int | None
+    description: str
     variants: list[VariantOut]
     attribute_values: list[AttributeValueIO]
     # Owner only; left out of the response for everyone else.
@@ -892,6 +895,7 @@ def create_product(request, data: ProductIn):
         low_stock_threshold=data.low_stock_threshold,
         desi=data.desi,
         slug=data.slug,
+        description=data.description,
     )
     return 201, views.product_dict(user, catalog.get_product(product.pk))
 
@@ -1119,6 +1123,23 @@ def upload_product_image(
     colour = catalog.ref(Colour, colour_id, "colour_id")
     image = media.upload(request.auth, product, file, colour=colour)
     return 201, views.image_dict(_image(image.pk))
+
+
+class DescriptionImageOut(Schema):
+    url: str
+
+
+@router.post(
+    "/description-images",
+    auth=requires(Perm.MANAGE_PRODUCT_PHOTOS),
+    operation_id="catalog_upload_description_image",
+    response={201: DescriptionImageOut},
+)
+def upload_description_image(request, file: File[UploadedFile]):
+    """One image for a Product Description (JPEG, PNG or WebP). Returns its URL to
+    put in the Markdown; nothing is attached to a Product.
+    """
+    return 201, {"url": media.upload_description_image(file)}
 
 
 @router.patch(

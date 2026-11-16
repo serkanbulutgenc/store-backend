@@ -215,6 +215,18 @@ def create_colour(name: str, hex_code: str, code: str | None = None) -> Colour:
 # --- products --------------------------------------------------------------
 
 
+DESCRIPTION_MAX = 5000
+
+
+def clean_description(value: object) -> str:
+    """A Product Description: Markdown text kept as written, within the length cap."""
+    text = str(value or "")
+    if len(text) > DESCRIPTION_MAX:
+        msg = f"Açıklama en fazla {DESCRIPTION_MAX} karakter olabilir."
+        raise _invalid("description", msg)
+    return text
+
+
 @transaction.atomic
 def create_product(  # noqa: PLR0913
     *,
@@ -231,6 +243,7 @@ def create_product(  # noqa: PLR0913
     low_stock_threshold: int | None = None,
     desi: int | None = None,
     slug: str | None = None,
+    description: str = "",
 ) -> Product:
     title = title.strip()
     if not title:
@@ -258,6 +271,7 @@ def create_product(  # noqa: PLR0913
         title=title,
         slug=final_slug,
         product_class=product_class,
+        description=clean_description(description),
         is_public=False,
     )
     # An unset threshold takes the Store settings default.
@@ -557,6 +571,7 @@ PRODUCT_FIELDS = frozenset(
         "low_stock_threshold",
         "desi",
         "slug",
+        "description",
     },
 )
 PRICE_FIELDS = ("shelf_price", "old_price", "cost_price")
@@ -591,6 +606,9 @@ def update_product(  # noqa: C901, PLR0912
             raise _invalid("title", "Ürün adı girin.")
         product.title = title
         product.save(update_fields=["title"])
+    if "description" in changes:
+        product.description = clean_description(changes["description"])
+        product.save(update_fields=["description"])
     if "category" in changes:
         set_category(product, changes["category"])
     for name in ("brand", "supplier", "supplier_code"):

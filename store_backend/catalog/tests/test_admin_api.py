@@ -355,3 +355,38 @@ def test_staff_cannot_set_a_product_desi_but_still_see_it(staff_api, owner_api, 
     assert staff_api.get(url).json()["desi"] == 5  # noqa: PLR2004
     other = staff_api.patch(url, {"title": "Yeni ad"})
     assert other.status_code == HTTPStatus.OK, other.content
+
+
+def test_staff_writes_a_product_description_and_reads_it_back(staff_api, seed):
+    url = f"{BASE}/products/{seed['product'].pk}"
+    text = "**Pamuklu** kumaş\n\n- yıkanabilir"
+
+    assert staff_api.get(url).json()["description"] == ""
+
+    patched = staff_api.patch(url, {"description": text})
+    assert patched.status_code == HTTPStatus.OK, patched.content
+    assert patched.json()["description"] == text
+    assert staff_api.get(url).json()["description"] == text
+
+    created = staff_api.post(
+        f"{BASE}/products",
+        new_product_body(seed, description="Yeni **ürün**"),
+    )
+    assert created.json()["description"] == "Yeni **ürün**"
+
+
+def test_a_product_description_is_capped_at_5000_characters(owner_api, seed):
+    url = f"{BASE}/products/{seed['product'].pk}"
+
+    at_cap = owner_api.patch(url, {"description": "a" * 5000})
+    assert at_cap.status_code == HTTPStatus.OK, at_cap.content
+
+    over = owner_api.patch(url, {"description": "a" * 5001})
+    assert over.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert owner_api.get(url).json()["description"] == "a" * 5000
+
+    created = owner_api.post(
+        f"{BASE}/products",
+        new_product_body(seed, description="a" * 5001),
+    )
+    assert created.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
