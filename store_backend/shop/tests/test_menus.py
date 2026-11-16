@@ -6,7 +6,10 @@ from importlib import import_module
 import pytest
 from django.apps import apps
 from django.test import Client
+from oscar.apps.catalogue.models import ProductClass
 
+from store_backend.catalog.models import ProductProfile
+from store_backend.catalog.models import ProductStatus
 from store_backend.services import catalog
 from store_backend.services import legal_pages
 from store_backend.shop.models import LEGAL_PAGES
@@ -50,6 +53,19 @@ def item(menu, target_type, parent=None, position=0, **fields):
 
 def clear(menu):
     MenuItem.objects.filter(menu__key=menu).delete()
+
+
+def product(title="Elbise", *, status=ProductStatus.PUBLISHED, brand=None):
+    made = catalog.create_product(
+        title=title,
+        product_class=ProductClass.objects.get(name="Giyim"),
+        category=catalog.create_category(f"{title} kategorisi"),
+        shelf_price="100.00",
+        brand=brand,
+    )
+    ProductProfile.objects.filter(product=made).update(status=status)
+    made.refresh_from_db()
+    return made
 
 
 # --- the seed ----------------------------------------------------------------------
@@ -252,3 +268,69 @@ def test_a_category_in_a_menu_cannot_be_deleted_until_its_item_is_removed(api_fo
     assert owner_api.delete(f"/api/admin/categories/{giyim.pk}").status_code == (
         HTTPStatus.NO_CONTENT
     )
+
+
+# --- Product and Brand targets -------------------------------------------------------
+
+
+def test_a_product_item_links_to_the_product_and_follows_its_title_and_slug():
+    elbise = product("Elbise")
+    clear("header")
+    item("header", "product", product=elbise)
+
+    assert tree(menus()["header"]) == [("Elbise", f"/urun/{elbise.profile.slug}", [])]
+
+    elbise.title = "Midi Elbise"
+    elbise.save()
+    ProductProfile.objects.filter(product=elbise).update(slug="midi-elbise")
+
+    assert tree(menus()["header"]) == [("Midi Elbise", "/urun/midi-elbise", [])]
+
+
+def test_archiving_a_product_removes_it_from_the_menu_without_editing_the_menu():
+    elbise = product("Elbise")
+    clear("header")
+    item("header", "product", product=elbise)
+    item("header", "builtin", position=1, builtin="home")
+    before = list(MenuItem.objects.values_list("pk", flat=True))
+
+    catalog.archive_product(elbise)
+
+    assert [n["label"] for n in menus()["header"]] == ["Ana sayfa"]
+    assert list(MenuItem.objects.values_list("pk", flat=True)) == before
+
+
+def test_a_draft_product_is_left_out_of_the_menu():
+    draft = product("Taslak", status=ProductStatus.DRAFT)
+    clear("header")
+    item("header", "product", product=draft)
+    item("header", "builtin", position=1, builtin="home")
+
+    assert [n["label"] for n in menus()["header"]] == ["Ana sayfa"]
+
+
+def test_a_brand_item_links_to_the_listing_filtered_by_brand_and_follows_its_name():
+    aura = catalog.create_brand("Aura")
+    product("Elbise", brand=aura)
+    clear("header")
+    item("header", "brand", brand=aura)
+
+    assert tree(menus()["header"]) == [("Aura", f"/ara?brand={aura.pk}", [])]
+
+    aura.name = "Aura Home"
+    aura.save()
+
+    assert tree(menus()["header"]) == [("Aura Home", f"/ara?brand={aura.pk}", [])]
+
+
+def test_a_brand_without_a_published_product_is_left_out_of_the_menu():
+    aura = catalog.create_brand("Aura")
+    elbise = product("Elbise", brand=aura)
+    clear("header")
+    item("header", "brand", brand=aura)
+    item("header", "builtin", position=1, builtin="home")
+    assert [n["label"] for n in menus()["header"]] == ["Aura", "Ana sayfa"]
+
+    catalog.archive_product(elbise)
+
+    assert [n["label"] for n in menus()["header"]] == ["Ana sayfa"]

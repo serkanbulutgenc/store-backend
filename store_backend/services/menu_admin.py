@@ -12,14 +12,24 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from django.db import transaction
+from django.db.models import F
+from django.db.models import Func
+from django.db.models import Value
+from django.db.models.functions import Lower
 from oscar.apps.catalogue.models import Category
+from oscar.apps.catalogue.models import Product
 
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import Brand
+from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services import categories
 from store_backend.services import legal_pages
 from store_backend.services.menus import DEPTH_LIMIT
+from store_backend.services.menus import brand_is_public
+from store_backend.services.menus import product_page
+from store_backend.services.search import fold
 from store_backend.shop.models import LEGAL_PAGES
 from store_backend.shop.models import MENU_BUILTIN_PAGES
 from store_backend.shop.models import Menu
@@ -61,6 +71,25 @@ def _menu(key: str) -> Menu:
     return menu
 
 
+def _product_target(item: MenuItem) -> tuple[str, str | None, Reason]:
+    product = Product.objects.select_related("profile").get(pk=item.product_id)
+    page = product_page(product)
+    if page is None:
+        return "", None, "target_missing"
+    public = page.status == ProductStatus.PUBLISHED
+    return (
+        product.title,
+        f"/urun/{page.slug}",
+        "" if public else "target_not_public",
+    )
+
+
+def _brand_target(item: MenuItem) -> tuple[str, str | None, Reason]:
+    brand = Brand.objects.get(pk=item.brand_id)
+    reason = "" if brand_is_public(brand.pk) else "target_not_public"
+    return brand.name, f"/ara?brand={brand.pk}", reason
+
+
 def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: PLR0911
     """The target's own label, its URL, and why the Storefront would leave the item
     out for the target's sake ("" when the target is public)."""
@@ -75,6 +104,10 @@ def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: PLR0911
             f"/kategori/{category.slug}",
             "" if public else ("target_not_public"),
         )
+    if item.target_type == kind.PRODUCT:
+        return _product_target(item)
+    if item.target_type == kind.BRAND:
+        return _brand_target(item)
     if item.target_type == kind.LEGAL_PAGE:
         slug = (
             legal_pages.slug_of(item.legal_page)
@@ -111,6 +144,8 @@ def _node(
     return {
         "target_type": item.target_type,
         "category_id": item.category_id,
+        "product_id": item.product_id,
+        "brand_id": item.brand_id,
         "include_subcategories": item.include_subcategories,
         "legal_page": item.legal_page or None,
         "builtin": item.builtin or None,
@@ -162,10 +197,25 @@ def check_url(url: str, path: str) -> str:
     return cleaned
 
 
-def _check_target(node: dict, path: str, known_categories: set[int]) -> None:
+_REFERENCES = (
+    (MenuItem.Target.CATEGORY, "category_id", "Kategori bulunamadı."),
+    (MenuItem.Target.PRODUCT, "product_id", "Ürün bulunamadı."),
+    (MenuItem.Target.BRAND, "brand_id", "Marka bulunamadı."),
+)
+
+
+def _check_known(kind: str, node: dict, path: str, known: dict[str, set[int]]) -> None:
+    for target, field, message in _REFERENCES:
+        if kind == target and node[field] not in known[field]:
+            raise _reject(message, f"{path}.{field}", code="menu_unknown_target")
+
+
+def _check_target(node: dict, path: str, known: dict[str, set[int]]) -> None:
     kind = node["target_type"]
     filled = {
         "category_id": node["category_id"] is not None,
+        "product_id": node["product_id"] is not None,
+        "brand_id": node["brand_id"] is not None,
         "legal_page": bool(node["legal_page"]),
         "builtin": bool(node["builtin"]),
         # An empty URL on a URL item is a bad URL, not a missing target.
@@ -175,6 +225,8 @@ def _check_target(node: dict, path: str, known_categories: set[int]) -> None:
     }
     owns = {
         MenuItem.Target.CATEGORY: "category_id",
+        MenuItem.Target.PRODUCT: "product_id",
+        MenuItem.Target.BRAND: "brand_id",
         MenuItem.Target.LEGAL_PAGE: "legal_page",
         MenuItem.Target.BUILTIN: "builtin",
         MenuItem.Target.URL: "url",
@@ -193,9 +245,7 @@ def _check_target(node: dict, path: str, known_categories: set[int]) -> None:
     if node["include_subcategories"] and kind != MenuItem.Target.CATEGORY:
         msg = "Alt kategoriler yalnızca kategori öğelerine eklenebilir."
         raise _reject(msg, f"{path}.include_subcategories", code="menu_target_mismatch")
-    if kind == MenuItem.Target.CATEGORY and node["category_id"] not in known_categories:
-        msg = "Kategori bulunamadı."
-        raise _reject(msg, f"{path}.category_id", code="menu_unknown_target")
+    _check_known(kind, node, path, known)
     if kind == MenuItem.Target.LEGAL_PAGE and node["legal_page"] not in LEGAL_PAGES:
         msg = "Yasal sayfa bulunamadı."
         raise _reject(msg, f"{path}.legal_page", code="menu_unknown_target")
@@ -224,6 +274,24 @@ def _has_legal_index(nodes: list[dict]) -> bool:
     return False
 
 
+def _known_targets(nodes: list[dict]) -> dict[str, set[int]]:
+    """Which of the referenced Categories, Products and Brands exist."""
+    # Only a Product with a page of its own can be linked: not a variant.
+    models = {
+        "category_id": Category.objects,
+        "product_id": Product.objects.filter(profile__isnull=False),
+        "brand_id": Brand.objects,
+    }
+    return {
+        field: set(
+            rows.filter(
+                pk__in={n[field] for n in nodes if n[field] is not None},
+            ).values_list("pk", flat=True),
+        )
+        for field, rows in models.items()
+    }
+
+
 def validate(key: str, nodes: list[dict]) -> None:
     """Raise a 422 naming the first broken rule; `nodes` is cleaned in place."""
     limit = DEPTH_LIMIT[key]
@@ -234,12 +302,7 @@ def validate(key: str, nodes: list[dict]) -> None:
     if key == Menu.Key.HEADER and not nodes:
         msg = "Üst menü boş kaydedilemez."
         raise _reject(msg, "items", code="menu_header_empty")
-    ids = {
-        n["category_id"]
-        for n, _, _ in flat
-        if n["target_type"] == MenuItem.Target.CATEGORY and n["category_id"] is not None
-    }
-    known = set(Category.objects.filter(pk__in=ids).values_list("pk", flat=True))
+    known = _known_targets([n for n, _, _ in flat])
     for node, path, depth in flat:
         if depth > limit:
             msg = f"Bu menü en fazla {limit} seviye olabilir."
@@ -262,6 +325,8 @@ def _snapshot(nodes: list[dict]) -> list[dict]:
     keep = (
         "target_type",
         "category_id",
+        "product_id",
+        "brand_id",
         "include_subcategories",
         "legal_page",
         "builtin",
@@ -282,6 +347,8 @@ def _create(menu: Menu, nodes: list[dict], parent: MenuItem | None) -> None:
             position=position,
             target_type=node["target_type"],
             category_id=node["category_id"],
+            product_id=node["product_id"],
+            brand_id=node["brand_id"],
             include_subcategories=node["include_subcategories"],
             legal_page=node["legal_page"] or "",
             builtin=node["builtin"] or "",
@@ -319,3 +386,63 @@ def _raw(menu: Menu) -> list[dict]:
     for item in menu.items.all():
         by_parent.setdefault(item.parent_id, []).append(item)
     return [_node(i, by_parent, "") for i in by_parent.get(None, [])]
+
+
+# --- the target picker --------------------------------------------------------------
+
+PICK_LIMIT = 10
+
+
+# `search.fold` as SQL: Turkish letters to plain ones first (Postgres lowercases "İ"
+# to a two-codepoint string outside a Turkish locale), then lowercase.
+_FROM, _TO = "İIıŞşĞğÜüÖöÇçÂâÎîÛû", "iiissgguuooccaaiiuu"
+
+
+def _folded(column: str) -> Lower:
+    return Lower(Func(F(column), Value(_FROM), Value(_TO), function="translate"))
+
+
+def _match(target_type: str, label: str, **reference: Any) -> dict[str, Any]:
+    return {
+        "category_id": None,
+        "product_id": None,
+        "brand_id": None,
+        "legal_page": None,
+        "target_type": target_type,
+        "target_label": label,
+        **reference,
+    }
+
+
+def search_targets(q: str) -> list[dict[str, Any]]:
+    """Categories, Legal pages, Products and Brands whose name matches `q`, shaped
+    like the item fields so the builder can drop a result into the tree as it is.
+    Every match is returned, public or not: the builder's read flags the latter."""
+    folded = fold(q)
+    if not folded:
+        return []
+    found = [
+        _match("category", c.name, category_id=c.pk)
+        for c in Category.objects.alias(f=_folded("name")).filter(f__contains=folded)[
+            :PICK_LIMIT
+        ]
+    ]
+    found.extend(
+        _match("legal_page", v.title, legal_page=v.page)
+        for v in legal_pages.current_all()
+        if folded in fold(v.title)
+    )
+    found.extend(
+        _match("product", p.title, product_id=p.pk)
+        for p in Product.objects.alias(f=_folded("title")).filter(
+            f__contains=folded,
+            parent__isnull=True,
+        )[:PICK_LIMIT]
+    )
+    found.extend(
+        _match("brand", b.name, brand_id=b.pk)
+        for b in Brand.objects.alias(f=_folded("name")).filter(f__contains=folded)[
+            :PICK_LIMIT
+        ]
+    )
+    return found

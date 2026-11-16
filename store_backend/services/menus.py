@@ -8,6 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ObjectDoesNotExist
+
+from store_backend.catalog.models import ProductProfile
+from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
 from store_backend.services import categories
 from store_backend.services import legal_pages
@@ -17,10 +21,28 @@ from store_backend.shop.models import MenuItem
 
 if TYPE_CHECKING:
     from oscar.apps.catalogue.models import Category
+    from oscar.apps.catalogue.models import Product
 
 
 # How many levels each Menu nests: the Header three, the Footer two.
 DEPTH_LIMIT = {Menu.Key.HEADER: 3, Menu.Key.FOOTER: 2}
+
+
+def brand_is_public(brand_id: int) -> bool:
+    """A Brand is public while at least one published Product carries it."""
+    return ProductProfile.objects.filter(
+        brand_id=brand_id,
+        status=ProductStatus.PUBLISHED,
+    ).exists()
+
+
+def product_page(product: Product) -> ProductProfile | None:
+    """The Product's Storefront page, or None for a Product without one (a variant,
+    or a row whose profile is gone): there is nothing to link to."""
+    try:
+        return product.profile
+    except ObjectDoesNotExist:
+        return None
 
 
 def _category_node(category: Category, label: str = "") -> dict:
@@ -53,7 +75,16 @@ def _leaf(item: MenuItem) -> dict | None:
     if item.target_type == MenuItem.Target.CATEGORY:
         category = categories.visible().filter(pk=item.category_id).first()
         return None if category is None else _category_node(category, item.label)
-    if item.target_type == MenuItem.Target.LEGAL_PAGE:
+    if item.target_type == MenuItem.Target.PRODUCT:
+        profile = product_page(item.product)
+        if profile is None or profile.status != ProductStatus.PUBLISHED:
+            return None
+        label, url = item.product.title, f"/urun/{profile.slug}"
+    elif item.target_type == MenuItem.Target.BRAND:
+        if not brand_is_public(item.brand_id):
+            return None
+        label, url = item.brand.name, f"/ara?brand={item.brand_id}"
+    elif item.target_type == MenuItem.Target.LEGAL_PAGE:
         label = legal_pages.current(item.legal_page).title
         url: str | None = f"/yasal/{legal_pages.slug_of(item.legal_page)}"
     elif item.target_type == MenuItem.Target.BUILTIN:
@@ -99,7 +130,7 @@ def public() -> dict[str, list[dict]]:
     result: dict[str, list[dict]] = {key: [] for key in Menu.Key.values}
     for menu in Menu.objects.all():
         by_parent: dict[int | None, list[MenuItem]] = {}
-        for item in menu.items.select_related("category"):
+        for item in menu.items.select_related("category", "product__profile", "brand"):
             by_parent.setdefault(item.parent_id, []).append(item)
         for item in by_parent.get(None, []):
             node = _resolve(item, by_parent, DEPTH_LIMIT[menu.key])

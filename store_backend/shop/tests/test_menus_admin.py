@@ -7,10 +7,15 @@ from http import HTTPStatus
 
 import pytest
 from django.test import Client
+from oscar.apps.catalogue.models import Product
+from oscar.apps.catalogue.models import ProductClass
 
+from store_backend.catalog.models import ProductProfile
+from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services import catalog
 from store_backend.services import menu_admin
+from store_backend.shop.models import LEGAL_PAGES
 from store_backend.shop.models import Menu
 from store_backend.shop.models import MenuItem
 from store_backend.staff.models import AuditEntry
@@ -46,6 +51,26 @@ def group(label="Grup", *children, **fields):
 
 def category(pk, **fields):
     return {"target_type": "category", "category_id": pk, **fields}
+
+
+def product_item(pk, **fields):
+    return {"target_type": "product", "product_id": pk, **fields}
+
+
+def brand_item(pk, **fields):
+    return {"target_type": "brand", "brand_id": pk, **fields}
+
+
+def make_product(title="Elbise", *, status=ProductStatus.PUBLISHED, brand=None):
+    made = catalog.create_product(
+        title=title,
+        product_class=ProductClass.objects.get(name="Giyim"),
+        category=catalog.create_category(f"{title} kategorisi"),
+        shelf_price="100.00",
+        brand=brand,
+    )
+    ProductProfile.objects.filter(product=made).update(status=status)
+    return made
 
 
 def builtin(page, **fields):
@@ -382,6 +407,8 @@ def test_a_failure_while_writing_rolls_the_whole_save_back(boss, monkeypatch):
     monkeypatch.setattr(MenuItem.objects, "create", flaky)
     node = {
         "category_id": None,
+        "product_id": None,
+        "brand_id": None,
         "include_subcategories": False,
         "legal_page": None,
         "url": None,
@@ -430,3 +457,169 @@ def test_the_audit_entry_for_the_first_save_holds_the_seeded_tree_as_before(boss
 
     assert len(entry.before["items"]) == 9
     assert [i["builtin"] for i in entry.after["items"]] == ["legal_search"]
+
+
+# --- Product and Brand targets -------------------------------------------------------
+
+
+def test_the_owner_saves_product_and_brand_items_and_the_public_menu_shows_them(boss):
+    aura = catalog.create_brand("Aura")
+    elbise = make_product("Elbise", brand=aura)
+
+    saved = boss.put(
+        HEADER,
+        {"items": [product_item(elbise.pk), brand_item(aura.pk, label="Aura Mağaza")]},
+    )
+
+    assert saved.status_code == HTTPStatus.OK, saved.content
+    shown = [(n["label"], n["url"]) for n in public()["header"]]
+    assert shown == [
+        ("Elbise", f"/urun/{elbise.profile.slug}"),
+        ("Aura Mağaza", f"/ara?brand={aura.pk}"),
+    ]
+
+
+def test_unknown_product_and_brand_ids_are_rejected(boss):
+    aura = catalog.create_brand("Aura")
+    missing = aura.pk + 1000
+
+    for bad in (product_item(missing), brand_item(missing)):
+        assert rule(boss.put(HEADER, {"items": [bad]})) == "menu_unknown_target"
+
+
+def a_variant_of(parent):
+    return Product.objects.create(structure=Product.CHILD, parent=parent)
+
+
+def a_product_without_a_page():
+    made = make_product("Sayfasız")
+    ProductProfile.objects.filter(product=made).delete()
+    return Product.objects.get(pk=made.pk)
+
+
+def test_only_a_product_with_a_page_can_be_a_menu_target(boss):
+    elbise = make_product("Elbise")
+    variant = a_variant_of(elbise)
+    orphan = a_product_without_a_page()
+
+    for bad in (product_item(variant.pk), product_item(orphan.pk)):
+        assert rule(boss.put(HEADER, {"items": [bad]})) == "menu_unknown_target"
+
+
+def test_reading_a_menu_whose_product_lost_its_page_flags_it_instead_of_failing(boss):
+    elbise = make_product("Elbise")
+    boss.put(HEADER, {"items": [product_item(elbise.pk), builtin("home")]})
+    ProductProfile.objects.filter(product=elbise).delete()
+
+    response = boss.get(HEADER)
+
+    assert response.status_code == HTTPStatus.OK, response.content
+    assert response.json()["items"][0]["not_shown_reason"] == "target_missing"
+    assert [n["label"] for n in public()["header"]] == ["Ana sayfa"]
+
+
+def test_a_product_item_cannot_also_carry_a_brand(boss):
+    aura = catalog.create_brand("Aura")
+    elbise = make_product("Elbise", brand=aura)
+    both = product_item(elbise.pk, brand_id=aura.pk)
+
+    assert rule(boss.put(HEADER, {"items": [both]})) == "menu_target_mismatch"
+
+
+def test_reading_flags_a_non_public_product_or_brand_with_the_reason(boss):
+    aura = catalog.create_brand("Aura")
+    archived = make_product("Eski", brand=aura)
+    catalog.archive_product(archived)
+    live = make_product("Yeni")
+    boss.put(
+        HEADER,
+        {
+            "items": [
+                product_item(archived.pk),
+                product_item(live.pk),
+                brand_item(aura.pk),
+            ],
+        },
+    )
+
+    items = boss.get(HEADER).json()["items"]
+
+    assert [(i["target_label"], i["not_shown_reason"]) for i in items] == [
+        ("Eski", "target_not_public"),
+        ("Yeni", None),
+        ("Aura", "target_not_public"),
+    ]
+    assert [n["label"] for n in public()["header"]] == ["Yeni"]
+
+
+# --- the target picker ---------------------------------------------------------------
+
+TARGETS = "/api/admin/menu-targets"
+
+
+def picked(client, q):
+    response = client.get(f"{TARGETS}?q={q}")
+    assert response.status_code == HTTPStatus.OK, response.content
+    return [
+        (
+            r["target_type"],
+            r["target_label"],
+            r[
+                {
+                    "category": "category_id",
+                    "product": "product_id",
+                    "brand": "brand_id",
+                    "legal_page": "legal_page",
+                }[r["target_type"]]
+            ],
+        )
+        for r in response.json()
+    ]
+
+
+def test_the_picker_finds_categories_products_brands_and_legal_pages_by_name(boss):
+    giyim = catalog.create_category("Aura Giyim")
+    aura = catalog.create_brand("Aura Home")
+    elbise = make_product("Aura Elbise", brand=aura)
+    catalog.create_category("Ayakkabı")
+
+    found = picked(boss, "aura")
+
+    assert ("category", "Aura Giyim", giyim.pk) in found
+    assert ("brand", "Aura Home", aura.pk) in found
+    assert ("product", "Aura Elbise", elbise.pk) in found
+    assert not any(label == "Ayakkabı" for _, label, _ in found)
+
+    legal = picked(boss, "gizlilik")
+    assert [t for t, _, _ in legal] == ["legal_page"]
+    assert legal[0][2] in LEGAL_PAGES
+
+
+def test_a_picker_result_can_be_saved_as_a_menu_item_as_it_is(boss):
+    aura = catalog.create_brand("Aura Home")
+    make_product("Aura Elbise", brand=aura)
+    result = next(
+        r for r in boss.get(f"{TARGETS}?q=aura").json() if r["target_type"] == "brand"
+    )
+
+    saved = boss.put(HEADER, {"items": [{**result}]})
+
+    assert saved.status_code == HTTPStatus.OK, saved.content
+    assert (
+        MenuItem.objects.get(menu__key="header").label == ""
+    )  # still follows the Brand's own name
+
+
+def test_staff_cannot_use_the_picker(staff):
+    assert staff.get(f"{TARGETS}?q=a").status_code == HTTPStatus.FORBIDDEN
+
+
+def test_the_picker_ignores_case_and_turkish_diacritics_for_every_target_type(boss):
+    ipek = catalog.create_category("İpek Giyim")
+    sik = catalog.create_brand("Şık Home")
+    canta = make_product("Çanta", brand=sik)
+
+    assert ("category", "İpek Giyim", ipek.pk) in picked(boss, "ipek")
+    assert ("brand", "Şık Home", sik.pk) in picked(boss, "SIK")
+    assert ("product", "Çanta", canta.pk) in picked(boss, "canta")
+    assert ("product", "Çanta", canta.pk) in picked(boss, "ÇANTA")
