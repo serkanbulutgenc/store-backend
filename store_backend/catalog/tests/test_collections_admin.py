@@ -17,6 +17,7 @@ from store_backend.services import catalog
 from store_backend.staff.models import AuditEntry
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
 from store_backend.staff.tests.conftest import owner  # noqa: F401
+from store_backend.staff.tests.conftest import staff_member
 from store_backend.staff.tests.conftest import staff_user  # noqa: F401
 
 pytestmark = pytest.mark.django_db
@@ -55,20 +56,26 @@ def audited(action):
     return AuditEntry.objects.filter(action=action).count()
 
 
+def staff_draft(staff, **fields):
+    response = staff.post(COLLECTIONS, {"name": "Personel taslağı", **fields})
+    assert response.status_code == HTTPStatus.CREATED, response.content
+    return response.json()
+
+
+def action(client, made, name, data=None):
+    return client.post(f"{COLLECTIONS}/{made['id']}/{name}", data)
+
+
 # --- who may use it ------------------------------------------------------------------
 
 
-def test_staff_cannot_use_collections_yet(staff, boss):
+def test_staff_cannot_publish_unpublish_approve_reject_or_delete(staff, boss):
     made = create(boss)
-    assert staff.get(COLLECTIONS).status_code == HTTPStatus.FORBIDDEN
-    assert staff.post(COLLECTIONS, {"name": "X"}).status_code == HTTPStatus.FORBIDDEN
-    for action in ("publish", "unpublish"):
-        url = f"{COLLECTIONS}/{made['id']}/{action}"
-        assert staff.post(url).status_code == HTTPStatus.FORBIDDEN
-    assert staff.delete(f"{COLLECTIONS}/{made['id']}").status_code == (
-        HTTPStatus.FORBIDDEN
-    )
-    assert Collection.objects.count() == 1
+    base = f"{COLLECTIONS}/{made['id']}"
+    for action in ("publish", "unpublish", "approve", "reject"):
+        assert staff.post(f"{base}/{action}").status_code == HTTPStatus.FORBIDDEN
+    assert staff.delete(base).status_code == HTTPStatus.FORBIDDEN
+    assert Collection.objects.get().status == "draft"
 
 
 # --- create and read -----------------------------------------------------------------
@@ -261,3 +268,191 @@ def test_deleting_a_product_drops_it_from_its_collections(boss):
 
     kept = boss.get(f"{COLLECTIONS}/{made['id']}").json()
     assert [p["id"] for p in kept["products"]] == [b.pk]
+
+
+# --- Staff drafts and the approval flow ----------------------------------------------
+
+
+def test_staff_create_edit_and_list_drafts_including_other_peoples(staff, boss):
+    mine = staff_draft(staff)
+    theirs = create(boss, name="Sahibin taslağı")
+
+    edited = staff.patch(f"{COLLECTIONS}/{theirs['id']}", {"name": "Düzeltildi"})
+    assert edited.status_code == HTTPStatus.OK
+    assert edited.json()["name"] == "Düzeltildi"
+    assert (
+        staff.patch(f"{COLLECTIONS}/{mine['id']}", {"description": "x"}).status_code
+        == HTTPStatus.OK
+    )
+    listed = staff.get(COLLECTIONS)
+    assert {row["id"] for row in listed.json()} == {mine["id"], theirs["id"]}
+    assert staff.get(f"{COLLECTIONS}/{mine['id']}").status_code == HTTPStatus.OK
+
+
+def test_staff_submit_a_draft_and_it_waits_for_the_owner(
+    staff,
+    boss,
+    staff_user,  # noqa: F811
+):
+    made = staff_draft(staff)
+
+    submitted = action(staff, made, "submit")
+
+    assert submitted.status_code == HTTPStatus.OK
+    body = submitted.json()
+    assert body["status"] == "pending_approval"
+    assert body["submitted_by"]["id"] == staff_user.pk
+    assert body["submitted_at"] is not None
+    assert audited("collection_submitted") == 1
+    waiting = boss.get(f"{COLLECTIONS}?status=pending_approval").json()
+    assert [row["id"] for row in waiting] == [made["id"]]
+
+
+def test_only_a_draft_can_be_submitted(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+    assert action(staff, made, "submit").status_code == HTTPStatus.CONFLICT
+
+    other = create(boss)
+    action(boss, other, "publish")
+    assert action(staff, other, "submit").status_code == HTTPStatus.CONFLICT
+    action(boss, other, "unpublish")
+    assert action(staff, other, "submit").status_code == HTTPStatus.CONFLICT
+    assert audited("collection_submitted") == 1
+
+
+def test_staff_cannot_edit_a_pending_published_or_unpublished_collection(staff, boss):
+    pending = staff_draft(staff, name="Bekleyen")
+    action(staff, pending, "submit")
+    live = create(boss, name="Yayında")
+    action(boss, live, "publish")
+    off = create(boss, name="Kapalı")
+    action(boss, off, "publish")
+    action(boss, off, "unpublish")
+
+    for made in (pending, live, off):
+        response = staff.patch(f"{COLLECTIONS}/{made['id']}", {"name": "Değişti"})
+        assert response.status_code in {HTTPStatus.CONFLICT, HTTPStatus.FORBIDDEN}
+    assert not Collection.objects.filter(name="Değişti").exists()
+    assert Collection.objects.get(name="Yayında").status == "published"
+
+
+def test_staff_withdraw_their_own_submission_back_to_draft(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+
+    withdrawn = action(staff, made, "withdraw")
+
+    assert withdrawn.status_code == HTTPStatus.OK
+    assert withdrawn.json()["status"] == "draft"
+    assert audited("collection_withdrawn") == 1
+    assert staff.patch(f"{COLLECTIONS}/{made['id']}", {"name": "Yeni"}).status_code == (
+        HTTPStatus.OK
+    )
+
+
+def test_staff_cannot_withdraw_someone_elses_submission_or_a_draft(
+    staff,
+    boss,
+    api_for,  # noqa: F811
+):
+    made = staff_draft(staff)
+    assert action(staff, made, "withdraw").status_code == HTTPStatus.CONFLICT
+    action(staff, made, "submit")
+
+    colleague = api_for(staff_member("Staff"))
+    assert action(colleague, made, "withdraw").status_code == HTTPStatus.FORBIDDEN
+    assert Collection.objects.get().status == "pending_approval"
+
+
+def test_the_owner_approves_a_pending_collection_which_publishes_it(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+
+    approved = action(boss, made, "approve")
+
+    assert approved.status_code == HTTPStatus.OK
+    assert approved.json()["status"] == "published"
+    assert approved.json()["published_at"] is not None
+    assert audited("collection_approved") == 1
+
+
+def test_the_owner_edits_a_pending_collection_and_approval_publishes_the_edit(
+    staff,
+    boss,
+):
+    a = make_product("A")
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+
+    edited = boss.patch(
+        f"{COLLECTIONS}/{made['id']}",
+        {"name": "Sahibin düzeltmesi", "product_ids": [a.pk]},
+    )
+    assert edited.json()["status"] == "pending_approval"
+    approved = action(boss, made, "approve").json()
+
+    assert approved["name"] == "Sahibin düzeltmesi"
+    assert [p["id"] for p in approved["products"]] == [a.pk]
+
+
+def test_the_owner_rejects_with_a_reason_the_submitter_can_read(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+
+    rejected = action(boss, made, "reject", {"reason": "Kapak görseli eksik"})
+
+    assert rejected.status_code == HTTPStatus.OK
+    assert rejected.json()["status"] == "draft"
+    seen = staff.get(f"{COLLECTIONS}/{made['id']}").json()
+    assert seen["rejection_reason"] == "Kapak görseli eksik"
+    assert audited("collection_rejected") == 1
+    entry = AuditEntry.objects.get(action="collection_rejected")
+    assert entry.after["reason"] == "Kapak görseli eksik"
+
+
+def test_a_rejection_reason_is_optional_and_clears_on_resubmission(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+    assert action(boss, made, "reject").json()["rejection_reason"] == ""
+
+    action(staff, made, "submit")
+    action(boss, made, "reject", {"reason": "Olmadı"})
+    assert staff.get(f"{COLLECTIONS}/{made['id']}").json()["rejection_reason"]
+    resubmitted = action(staff, made, "submit").json()
+    assert resubmitted["rejection_reason"] == ""
+
+
+def test_approve_and_reject_only_apply_to_pending_collections(boss, staff):
+    made = staff_draft(staff)
+    assert action(boss, made, "approve").status_code == HTTPStatus.CONFLICT
+    assert action(boss, made, "reject").status_code == HTTPStatus.CONFLICT
+    action(boss, made, "publish")
+    assert action(boss, made, "approve").status_code == HTTPStatus.CONFLICT
+    assert audited("collection_approved") == 0
+
+
+def test_a_pending_collection_cannot_be_published_unpublished_around_approval(
+    staff,
+    boss,
+):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+    assert action(boss, made, "publish").status_code == HTTPStatus.CONFLICT
+    assert action(boss, made, "unpublish").status_code == HTTPStatus.CONFLICT
+
+
+def test_an_overlong_rejection_reason_is_refused(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+    response = action(boss, made, "reject", {"reason": "x" * 501})
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert Collection.objects.get().status == "pending_approval"
+
+
+def test_the_owner_can_delete_a_pending_collection(staff, boss):
+    made = staff_draft(staff)
+    action(staff, made, "submit")
+    assert boss.delete(f"{COLLECTIONS}/{made['id']}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )

@@ -1001,6 +1001,10 @@
             ],
             "title": "Published At"
           },
+          "rejection_reason": {
+            "title": "Rejection Reason",
+            "type": "string"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1008,11 +1012,34 @@
           "status": {
             "enum": [
               "draft",
+              "pending_approval",
               "published",
               "unpublished"
             ],
             "title": "Status",
             "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "visible_product_count": {
             "title": "Visible Product Count",
@@ -1026,6 +1053,9 @@
           "description",
           "status",
           "published_at",
+          "submitted_by",
+          "submitted_at",
+          "rejection_reason",
           "products",
           "visible_product_count"
         ],
@@ -1156,6 +1186,10 @@
             ],
             "title": "Published At"
           },
+          "rejection_reason": {
+            "title": "Rejection Reason",
+            "type": "string"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1163,11 +1197,34 @@
           "status": {
             "enum": [
               "draft",
+              "pending_approval",
               "published",
               "unpublished"
             ],
             "title": "Status",
             "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1177,6 +1234,9 @@
           "description",
           "status",
           "published_at",
+          "submitted_by",
+          "submitted_at",
+          "rejection_reason",
           "product_count"
         ],
         "title": "CollectionRowOut",
@@ -3806,6 +3866,24 @@
         "title": "PaymentMethod",
         "type": "string"
       },
+      "PersonOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PersonOut",
+        "type": "object"
+      },
       "ProductClassIn": {
         "properties": {
           "default_desi": {
@@ -4826,6 +4904,17 @@
         ],
         "title": "RefundMethod",
         "type": "string"
+      },
+      "RejectIn": {
+        "properties": {
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "RejectIn",
+        "type": "object"
       },
       "ReturnAdminOut": {
         "properties": {
@@ -7551,6 +7640,7 @@
                 {
                   "enum": [
                     "draft",
+                    "pending_approval",
                     "published",
                     "unpublished"
                   ],
@@ -7737,6 +7827,43 @@
         ]
       }
     },
+    "/api/admin/collections/{collection_id}/approve": {
+      "post": {
+        "operationId": "collections_approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Approve Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
     "/api/admin/collections/{collection_id}/publish": {
       "post": {
         "operationId": "collections_publish",
@@ -7774,6 +7901,90 @@
         ]
       }
     },
+    "/api/admin/collections/{collection_id}/reject": {
+      "post": {
+        "operationId": "collections_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reject Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/submit": {
+      "post": {
+        "operationId": "collections_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Submit Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
     "/api/admin/collections/{collection_id}/unpublish": {
       "post": {
         "operationId": "collections_unpublish",
@@ -7806,6 +8017,44 @@
           }
         ],
         "summary": "Unpublish Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/withdraw": {
+      "post": {
+        "description": "Back to draft; only the Staff user who submitted it.",
+        "operationId": "collections_withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Withdraw Collection",
         "tags": [
           "collections"
         ]

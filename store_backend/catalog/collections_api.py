@@ -1,4 +1,4 @@
-"""The Owner's Collection management API (GLOSSARY: Collection)."""
+"""The Collection management API: Staff draft and submit, the Owner approves."""
 
 from __future__ import annotations
 
@@ -14,7 +14,16 @@ from store_backend.staff.permissions import Perm
 
 router = Router(tags=["collections"])
 
-Status = Literal["draft", "published", "unpublished"]
+Status = Literal["draft", "pending_approval", "published", "unpublished"]
+
+
+class PersonOut(Schema):
+    id: int
+    name: str
+
+
+class RejectIn(Schema):
+    reason: str = ""
 
 
 class CollectionIn(Schema):
@@ -41,6 +50,9 @@ class CollectionRowOut(Schema):
     description: str
     status: Status
     published_at: datetime | None
+    submitted_by: PersonOut | None
+    submitted_at: datetime | None
+    rejection_reason: str
     product_count: int
 
 
@@ -58,13 +70,16 @@ class CollectionOut(Schema):
     description: str
     status: Status
     published_at: datetime | None
+    submitted_by: PersonOut | None
+    submitted_at: datetime | None
+    rejection_reason: str
     products: list[CollectionProductOut]
     visible_product_count: int
 
 
 @router.get(
     "/collections",
-    auth=requires(Perm.MANAGE_COLLECTIONS),
+    auth=requires(Perm.EDIT_COLLECTIONS),
     operation_id="collections_list",
     response=list[CollectionRowOut],
 )
@@ -74,7 +89,7 @@ def list_collections(request, status: Status | None = None):
 
 @router.post(
     "/collections",
-    auth=requires(Perm.MANAGE_COLLECTIONS),
+    auth=requires(Perm.EDIT_COLLECTIONS),
     operation_id="collections_create",
     response={201: CollectionOut},
 )
@@ -85,7 +100,7 @@ def create_collection(request, data: CollectionIn):
 
 @router.get(
     "/collections/{collection_id}",
-    auth=requires(Perm.MANAGE_COLLECTIONS),
+    auth=requires(Perm.EDIT_COLLECTIONS),
     operation_id="collections_get",
     response=CollectionOut,
 )
@@ -95,7 +110,7 @@ def get_collection(request, collection_id: int):
 
 @router.patch(
     "/collections/{collection_id}",
-    auth=requires(Perm.MANAGE_COLLECTIONS),
+    auth=requires(Perm.EDIT_COLLECTIONS),
     operation_id="collections_edit",
     response=CollectionOut,
 )
@@ -106,6 +121,49 @@ def edit_collection(request, collection_id: int, data: CollectionPatch):
             del changes[required]  # null means "leave it", like leaving it out
     edited = collection_admin.edit(request.auth, collection_id, **changes)
     return collection_admin.view(edited)
+
+
+@router.post(
+    "/collections/{collection_id}/submit",
+    auth=requires(Perm.EDIT_COLLECTIONS),
+    operation_id="collections_submit",
+    response=CollectionOut,
+)
+def submit_collection(request, collection_id: int):
+    return collection_admin.view(collection_admin.submit(request.auth, collection_id))
+
+
+@router.post(
+    "/collections/{collection_id}/withdraw",
+    auth=requires(Perm.EDIT_COLLECTIONS),
+    operation_id="collections_withdraw",
+    response=CollectionOut,
+)
+def withdraw_collection(request, collection_id: int):
+    """Back to draft; only the Staff user who submitted it."""
+    return collection_admin.view(collection_admin.withdraw(request.auth, collection_id))
+
+
+@router.post(
+    "/collections/{collection_id}/approve",
+    auth=requires(Perm.MANAGE_COLLECTIONS),
+    operation_id="collections_approve",
+    response=CollectionOut,
+)
+def approve_collection(request, collection_id: int):
+    return collection_admin.view(collection_admin.approve(request.auth, collection_id))
+
+
+@router.post(
+    "/collections/{collection_id}/reject",
+    auth=requires(Perm.MANAGE_COLLECTIONS),
+    operation_id="collections_reject",
+    response=CollectionOut,
+)
+def reject_collection(request, collection_id: int, data: RejectIn):
+    return collection_admin.view(
+        collection_admin.reject(request.auth, collection_id, data.reason),
+    )
 
 
 @router.post(

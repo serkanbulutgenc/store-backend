@@ -32,6 +32,7 @@ class Perm(StrEnum):
     MANAGE_BRANDS = "manage_brands"
     VIEW_CUSTOMERS = "view_customers"
     MANAGE_INVOICES = "manage_invoices"
+    EDIT_COLLECTIONS = "edit_collections"  # draft, edit, submit, withdraw (ADR 0008)
     # Owner only
     MANAGE_SETTINGS = "manage_settings"
     MANAGE_STAFF_USERS = "manage_staff_users"
@@ -52,7 +53,7 @@ class Perm(StrEnum):
     DELETE_CATALOGUE = "delete_catalogue"  # hard deletes (ADR 0005)
     MANAGE_VOUCHERS = "manage_vouchers"  # create, edit, deactivate, delete
     MANAGE_MENUS = "manage_menus"  # read and save the Header and Footer menus
-    MANAGE_COLLECTIONS = "manage_collections"  # create, edit, publish Collections
+    MANAGE_COLLECTIONS = "manage_collections"  # publish, unpublish, approve, reject
 
     @property
     def label(self) -> str:
