@@ -162,13 +162,16 @@ def _inspect(
 # --- Description images ---------------------------------------------------------
 
 
-def _scaled_to_width(data: bytes, width: int) -> bytes:
-    """Re-encode in the same format, upright, no metadata, at most `width` wide."""
+def _stripped_and_scaled(data: bytes, max_width: int) -> bytes:
+    """Re-encode in the same format, upright, with no metadata at all, and at most
+    `max_width` wide.
+    """
     img = Image.open(io.BytesIO(data))
     fmt = img.format
     img = ImageOps.exif_transpose(img)
-    height = round(img.height * width / img.width)
-    img = img.resize((width, height), Image.Resampling.LANCZOS)
+    if img.width > max_width:
+        height = round(img.height * max_width / img.width)
+        img = img.resize((max_width, height), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, fmt, **({"quality": 85} if fmt in ("JPEG", "WEBP") else {}))
     return buf.getvalue()
@@ -179,12 +182,11 @@ def upload_description_image(file: UploadedFile) -> str:
 
     Stateless: no row, no derivatives, no audit entry. The file is named by us.
     """
-    data, extension, width, _ = _inspect(
+    data, extension, _, _ = _inspect(
         file.read(MAX_BYTES + 1),
         min_long_edge=0,
     )
-    if width > DESCRIPTION_IMAGE_WIDTH:
-        data = _scaled_to_width(data, DESCRIPTION_IMAGE_WIDTH)
+    data = _stripped_and_scaled(data, DESCRIPTION_IMAGE_WIDTH)
     name = f"description/{uuid.uuid4().hex}{extension}"
     default_storage.save(name, ContentFile(data))
     return media_url(name)

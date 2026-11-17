@@ -393,7 +393,10 @@ def test_import_sets_a_new_products_description_keeping_its_line_breaks(
     assert parent_product().description == "**Pamuklu**\n\n- yıkanabilir"
 
 
-def test_reimport_updates_clears_or_keeps_the_description(owner, colours):
+def test_reimport_updates_or_keeps_the_description_and_blank_never_clears(
+    owner,
+    colours,
+):
     catalog_import.run(owner, "a.csv", with_description("Eski", "", ""))
     assert parent_product().description == "Eski"
 
@@ -404,7 +407,18 @@ def test_reimport_updates_clears_or_keeps_the_description(owner, colours):
     assert parent_product().description == "Yeni **metin**"
 
     catalog_import.run(owner, "d.csv", with_description("", "", ""))  # blank cells
-    assert parent_product().description == ""
+    assert parent_product().description == "Yeni **metin**"
+
+
+def test_rows_of_one_product_with_different_descriptions_are_a_row_error(
+    owner,
+    colours,
+):
+    with pytest.raises(UnprocessableError) as caught:
+        catalog_import.run(owner, "a.csv", with_description("Bir", "İki", ""))
+
+    assert "Satır 3, description" in caught.value.fields["file"][0]
+    assert Product.objects.count() == 0
 
 
 def test_an_over_long_description_is_a_row_error_and_writes_nothing(owner, colours):
