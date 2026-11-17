@@ -2396,6 +2396,17 @@
             "title": "Children",
             "type": "array"
           },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
           "include_subcategories": {
             "default": false,
             "title": "Include Subcategories",
@@ -2438,6 +2449,7 @@
               "category",
               "product",
               "brand",
+              "collection",
               "legal_page",
               "builtin",
               "url",
@@ -2505,6 +2517,17 @@
             },
             "title": "Children",
             "type": "array"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
           },
           "include_subcategories": {
             "title": "Include Subcategories",
@@ -2577,6 +2600,7 @@
               "category",
               "product",
               "brand",
+              "collection",
               "legal_page",
               "builtin",
               "url",
@@ -2602,6 +2626,7 @@
           "category_id",
           "product_id",
           "brand_id",
+          "collection_id",
           "include_subcategories",
           "legal_page",
           "builtin",
@@ -2667,6 +2692,17 @@
             ],
             "title": "Category Id"
           },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
           "legal_page": {
             "anyOf": [
               {
@@ -2698,6 +2734,7 @@
               "category",
               "product",
               "brand",
+              "collection",
               "legal_page"
             ],
             "title": "Target Type",
@@ -2710,6 +2747,7 @@
           "category_id",
           "product_id",
           "brand_id",
+          "collection_id",
           "legal_page"
         ],
         "title": "MenuTargetOut",
@@ -8824,7 +8862,7 @@
     },
     "/api/admin/menu-targets": {
       "get": {
-        "description": "Categories, Legal pages, Products and Brands matching `q` by name.",
+        "description": "Categories, Legal pages, Products, Brands, Collections matching `q` by name.",
         "operationId": "menus_search_targets",
         "parameters": [
           {
