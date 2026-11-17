@@ -1,8 +1,9 @@
-"""The Owner's Collection management: create, edit, publish, unpublish and delete.
+"""Collection management: create, edit, submit, approve, publish, unpublish, delete.
 
 A Collection is a hand-picked, hand-ordered list of Products (see GLOSSARY.md). Editing
 replaces the whole product list in one transaction, so a rejected edit changes nothing.
-Staff access and pending changes arrive in later slices (ADR 0008).
+Staff edit drafts and submit them; the Owner approves or rejects (ADR 0008). Staff
+edits to a published Collection (pending changes) arrive in a later slice.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from django.utils import timezone
 from oscar.apps.catalogue.models import Product
 
 from store_backend.api.errors import ConflictError
+from store_backend.api.errors import ForbiddenError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Collection
@@ -23,6 +25,7 @@ from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services.catalog import slugify_tr
+from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
     from typing import NoReturn
@@ -32,6 +35,12 @@ if TYPE_CHECKING:
 NAME_MAX = 200
 DESCRIPTION_MAX = 500
 PRODUCTS_MAX = 200
+REASON_MAX = 500
+
+
+def _is_owner(actor: User) -> bool:
+    """Whether `actor` may publish; Staff hold only `edit_collections`."""
+    return actor.has_perm(Perm.MANAGE_COLLECTIONS.permission_name)
 
 
 def _refuse(field: str, message: str) -> NoReturn:
@@ -100,7 +109,11 @@ def _clean_product_ids(product_ids: list[int]) -> list[int]:
 
 
 def _get(collection_id: int) -> Collection:
-    collection = Collection.objects.filter(pk=collection_id).first()
+    collection = (
+        Collection.objects.select_related("submitted_by")
+        .filter(pk=collection_id)
+        .first()
+    )
     if collection is None:
         raise NotFoundError
     return collection
@@ -122,6 +135,12 @@ def _product_row(place: CollectionProduct) -> dict[str, Any]:
     }
 
 
+def _person(user: User | None) -> dict[str, Any] | None:
+    if user is None:
+        return None
+    return {"id": user.pk, "name": user.name or user.email}
+
+
 def _base(collection: Collection) -> dict[str, Any]:
     return {
         "id": collection.pk,
@@ -130,6 +149,9 @@ def _base(collection: Collection) -> dict[str, Any]:
         "description": collection.description,
         "status": collection.status,
         "published_at": collection.published_at,
+        "submitted_by": _person(collection.submitted_by),
+        "submitted_at": collection.submitted_at,
+        "rejection_reason": collection.rejection_reason,
     }
 
 
@@ -153,7 +175,7 @@ def get(collection_id: int) -> dict[str, Any]:
 def listing(status: str | None = None) -> list[dict[str, Any]]:
     if status is not None and status not in CollectionStatus.values:
         _refuse("status", "Bilinmeyen durum.")
-    queryset = Collection.objects.all()
+    queryset = Collection.objects.select_related("submitted_by")
     if status:
         queryset = queryset.filter(status=status)
     return [
@@ -216,12 +238,22 @@ def create(
     return collection
 
 
+def _refuse_staff_edit(collection: Collection) -> NoReturn:
+    if collection.status == CollectionStatus.PENDING:
+        msg = "Onay bekleyen koleksiyon düzenlenemez; önce geri çekin."
+        raise ConflictError(msg, code="collection_state")
+    msg = "Yayındaki ya da kaldırılan koleksiyonu yalnızca sahip düzenleyebilir."
+    raise ForbiddenError(msg, code="collection_owner_only")
+
+
 @transaction.atomic
 def edit(actor: User, collection_id: int, **changes: Any) -> Collection:
     """Change the fields given; leave the rest. `product_ids` replaces the list."""
     collection = Collection.objects.select_for_update().filter(pk=collection_id).first()
     if collection is None:
         raise NotFoundError
+    if not _is_owner(actor) and collection.status != CollectionStatus.DRAFT:
+        _refuse_staff_edit(collection)
     before = _snapshot(collection)
     if "name" in changes:
         collection.name = _clean_name(changes["name"])
@@ -254,6 +286,8 @@ def _move(  # noqa: PLR0913
     to: CollectionStatus,
     action: audit.Action,
     summary: str,
+    only_submitter: bool = False,
+    reason: str = "",
 ) -> Collection:
     with transaction.atomic():
         collection = (
@@ -264,10 +298,19 @@ def _move(  # noqa: PLR0913
         if collection.status not in allowed_from:
             msg = f"Koleksiyon bu durumdayken yapılamaz: {collection.status}."
             raise ConflictError(msg, code="collection_state")
+        if only_submitter and collection.submitted_by_id != actor.pk:
+            msg = "Yalnızca gönderen kişi geri çekebilir."
+            raise ForbiddenError(msg, code="collection_not_submitter")
         before = collection.status
         collection.status = to
         if to == CollectionStatus.PUBLISHED:
             collection.published_at = timezone.now()
+        if action == audit.Action.COLLECTION_SUBMITTED:
+            collection.submitted_by = actor
+            collection.submitted_at = timezone.now()
+            collection.rejection_reason = ""
+        if action == audit.Action.COLLECTION_REJECTED:
+            collection.rejection_reason = reason
         collection.save()
         audit.record(
             actor,
@@ -275,9 +318,65 @@ def _move(  # noqa: PLR0913
             target=collection,
             summary=f"{summary}: {collection.name}",
             before={"status": before},
-            after={"status": to.value},
+            after={
+                "status": to.value,
+                **({"reason": reason} if reason else {}),
+            },
         )
     return collection
+
+
+def submit(actor: User, collection_id: int) -> Collection:
+    """Draft to pending approval, for the Owner to approve or reject."""
+    return _move(
+        actor,
+        collection_id,
+        allowed_from=(CollectionStatus.DRAFT,),
+        to=CollectionStatus.PENDING,
+        action=audit.Action.COLLECTION_SUBMITTED,
+        summary="Koleksiyon onaya gönderildi",
+    )
+
+
+def withdraw(actor: User, collection_id: int) -> Collection:
+    """Pending approval back to draft, by whoever submitted it."""
+    return _move(
+        actor,
+        collection_id,
+        allowed_from=(CollectionStatus.PENDING,),
+        to=CollectionStatus.DRAFT,
+        action=audit.Action.COLLECTION_WITHDRAWN,
+        summary="Koleksiyon onaydan geri çekildi",
+        only_submitter=True,
+    )
+
+
+def approve(actor: User, collection_id: int) -> Collection:
+    """Pending approval to published, with whatever the Owner has edited since."""
+    return _move(
+        actor,
+        collection_id,
+        allowed_from=(CollectionStatus.PENDING,),
+        to=CollectionStatus.PUBLISHED,
+        action=audit.Action.COLLECTION_APPROVED,
+        summary="Koleksiyon onaylandı ve yayınlandı",
+    )
+
+
+def reject(actor: User, collection_id: int, reason: str = "") -> Collection:
+    """Pending approval back to draft; the optional reason is shown to the submitter."""
+    reason = reason.strip()
+    if len(reason) > REASON_MAX:
+        _refuse("reason", f"Gerekçe en fazla {REASON_MAX} karakter olabilir.")
+    return _move(
+        actor,
+        collection_id,
+        allowed_from=(CollectionStatus.PENDING,),
+        to=CollectionStatus.DRAFT,
+        action=audit.Action.COLLECTION_REJECTED,
+        summary="Koleksiyon reddedildi",
+        reason=reason,
+    )
 
 
 def publish(actor: User, collection_id: int) -> Collection:

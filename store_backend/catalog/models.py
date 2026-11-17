@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.core.validators import MaxValueValidator
@@ -504,6 +505,7 @@ class AttributeValue(models.Model):
 
 class CollectionStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
+    PENDING = "pending_approval", "Pending approval"
     PUBLISHED = "published", "Published"
     UNPUBLISHED = "unpublished", "Unpublished"
 
@@ -521,6 +523,16 @@ class Collection(models.Model):
         default=CollectionStatus.DRAFT,
     )
     published_at = models.DateTimeField(null=True, blank=True)
+    # Set while pending approval; kept after a rejection so the submitter sees why.
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     products = models.ManyToManyField(
