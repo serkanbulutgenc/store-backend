@@ -5,6 +5,7 @@ version: 2
 updates:
   # Update GitHub actions in workflows
   - package-ecosystem: 'github-actions'
+    target-branch: 'dev'
     directory: '/'
     # Every weekday
     schedule:
@@ -16,6 +17,7 @@ updates:
 
   # Enable version updates for Docker
   - package-ecosystem: 'docker'
+    target-branch: 'dev'
     # Look for a `Dockerfile` in the `compose/local/django` directory
     directories:
       - 'compose/local/django/'
@@ -36,6 +38,7 @@ updates:
 
 
   - package-ecosystem: 'docker'
+    target-branch: 'dev'
     # Look for a `Dockerfile` in the listed directories
     directories:
       - 'compose/local/node/'
@@ -49,6 +52,7 @@ updates:
 
   # Enable version updates for Docker Compose files
   - package-ecosystem: 'docker-compose'
+    target-branch: 'dev'
     directories:
       - '/'
     # Every weekday
@@ -57,6 +61,7 @@ updates:
 
   # Enable version updates for Python/uv
   - package-ecosystem: 'uv'
+    target-branch: 'dev'
     # Look for a `pyproject.toml` in the `root` directory
     directory: '/'
     # Every weekday
