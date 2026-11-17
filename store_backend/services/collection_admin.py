@@ -2,8 +2,9 @@
 
 A Collection is a hand-picked, hand-ordered list of Products (see GLOSSARY.md). Editing
 replaces the whole product list in one transaction, so a rejected edit changes nothing.
-Staff edit drafts and submit them; the Owner approves or rejects (ADR 0008). Staff
-edits to a published Collection (pending changes) arrive in a later slice.
+Staff edit drafts and submit them; the Owner approves or rejects (ADR 0008). A Staff
+edit to a published Collection is held as a pending change (at most one) until the
+Owner approves or rejects it; the live version is untouched meanwhile.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from store_backend.api.errors import ForbiddenError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Collection
+from store_backend.catalog.models import CollectionChange
 from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import ProductStatus
@@ -155,12 +157,48 @@ def _base(collection: Collection) -> dict[str, Any]:
     }
 
 
+def _change_view(collection: Collection) -> dict[str, Any] | None:
+    change = getattr(collection, "pending_change", None)
+    if change is None:
+        return None
+    products = {
+        p.pk: p
+        for p in Product.objects.filter(pk__in=change.product_ids).select_related(
+            "profile",
+        )
+    }
+    rows = []
+    for pk in change.product_ids:
+        product = products.get(pk)
+        if product is None:
+            continue  # deleted since; approval will refuse until the change is fixed
+        profile = getattr(product, "profile", None)
+        rows.append(
+            {
+                "id": pk,
+                "title": product.title,
+                "slug": profile.slug if profile else None,
+                "status": profile.status if profile else ProductStatus.DRAFT.value,
+            },
+        )
+    return {
+        "name": change.name,
+        "slug": change.slug,
+        "description": change.description,
+        "products": rows,
+        "submitted_by": _person(change.submitted_by),
+        "submitted_at": change.submitted_at,
+        "updated_at": change.updated_at,
+    }
+
+
 def view(collection: Collection) -> dict[str, Any]:
     """The Collection with its Products in order. `visible_product_count` is how many
     of them a Shopper would see: the approver is warned when it is zero."""
     rows = [_product_row(place) for place in _places(collection)]
     return {
         **_base(collection),
+        "pending_change": _change_view(collection),
         "products": rows,
         "visible_product_count": sum(
             row["status"] == ProductStatus.PUBLISHED for row in rows
@@ -175,11 +213,15 @@ def get(collection_id: int) -> dict[str, Any]:
 def listing(status: str | None = None) -> list[dict[str, Any]]:
     if status is not None and status not in CollectionStatus.values:
         _refuse("status", "Bilinmeyen durum.")
-    queryset = Collection.objects.select_related("submitted_by")
+    queryset = Collection.objects.select_related("submitted_by", "pending_change")
     if status:
         queryset = queryset.filter(status=status)
     return [
-        {**_base(collection), "product_count": collection.places.count()}
+        {
+            **_base(collection),
+            "product_count": collection.places.count(),
+            "has_pending_change": hasattr(collection, "pending_change"),
+        }
         for collection in queryset
     ]
 
@@ -242,28 +284,110 @@ def _refuse_staff_edit(collection: Collection) -> NoReturn:
     if collection.status == CollectionStatus.PENDING:
         msg = "Onay bekleyen koleksiyon düzenlenemez; önce geri çekin."
         raise ConflictError(msg, code="collection_state")
-    msg = "Yayındaki ya da kaldırılan koleksiyonu yalnızca sahip düzenleyebilir."
+    msg = "Kaldırılan koleksiyonu yalnızca sahip düzenleyebilir."
     raise ForbiddenError(msg, code="collection_owner_only")
+
+
+def _clean_changes(
+    changes: dict[str, Any],
+    *,
+    ignore: int,
+) -> dict[str, Any]:
+    """Validate the fields given; the result has only those keys."""
+    cleaned: dict[str, Any] = {}
+    if "name" in changes:
+        cleaned["name"] = _clean_name(changes["name"])
+    if "description" in changes:
+        cleaned["description"] = _clean_description(changes["description"])
+    if "slug" in changes:
+        cleaned["slug"] = _clean_slug(changes["slug"], ignore=ignore)
+    if "product_ids" in changes:
+        cleaned["product_ids"] = _clean_product_ids(changes["product_ids"])
+    return cleaned
+
+
+def _stage_change(
+    actor: User,
+    collection: Collection,
+    cleaned: dict[str, Any],
+) -> None:
+    """Hold a Staff edit of a published Collection: create the one pending change, or
+    amend it. The live Collection is not touched."""
+    change = getattr(collection, "pending_change", None)
+    before = _change_snapshot(change) if change else None
+    if change is None:
+        change = CollectionChange(
+            collection=collection,
+            name=collection.name,
+            slug=collection.slug,
+            description=collection.description,
+            product_ids=[place.product_id for place in _places(collection)],
+        )
+    for field, value in cleaned.items():
+        setattr(change, field, value)
+    change.submitted_by = actor
+    change.save()
+    collection.pending_change = change
+    collection.rejection_reason = ""
+    collection.save(update_fields=["rejection_reason", "updated_at"])
+    audit.record(
+        actor,
+        audit.Action.COLLECTION_CHANGE_SUBMITTED,
+        target=collection,
+        summary=(
+            f"Koleksiyon değişikliği "
+            f"{'güncellendi' if before else 'onaya gönderildi'}: {collection.name}"
+        ),
+        before=before,
+        after=_change_snapshot(change),
+    )
+
+
+def _change_snapshot(change: CollectionChange) -> dict[str, Any]:
+    return {
+        "name": change.name,
+        "slug": change.slug,
+        "description": change.description,
+        "product_ids": list(change.product_ids),
+    }
+
+
+def _locked(collection_id: int) -> Collection:
+    collection = (
+        Collection.objects.select_for_update(of=("self",))
+        .select_related("pending_change", "submitted_by")
+        .filter(pk=collection_id)
+        .first()
+    )
+    if collection is None:
+        raise NotFoundError
+    return collection
 
 
 @transaction.atomic
 def edit(actor: User, collection_id: int, **changes: Any) -> Collection:
-    """Change the fields given; leave the rest. `product_ids` replaces the list."""
-    collection = Collection.objects.select_for_update().filter(pk=collection_id).first()
-    if collection is None:
-        raise NotFoundError
-    if not _is_owner(actor) and collection.status != CollectionStatus.DRAFT:
+    """Change the fields given; leave the rest. `product_ids` replaces the list.
+
+    The Owner edits any Collection directly, except a published one that has a pending
+    change (approve or reject that first). Staff edit drafts directly; their edit of a
+    published Collection becomes, or amends, its pending change."""
+    collection = _locked(collection_id)
+    published = collection.status == CollectionStatus.PUBLISHED
+    if _is_owner(actor):
+        if published and hasattr(collection, "pending_change"):
+            msg = "Bekleyen bir değişiklik var; önce onaylayın veya reddedin."
+            raise ConflictError(msg, code="collection_has_pending_change")
+    elif published:
+        cleaned = _clean_changes(changes, ignore=collection.pk)
+        _stage_change(actor, collection, cleaned)
+        return _get(collection_id)
+    elif collection.status != CollectionStatus.DRAFT:
         _refuse_staff_edit(collection)
     before = _snapshot(collection)
-    if "name" in changes:
-        collection.name = _clean_name(changes["name"])
-    if "description" in changes:
-        collection.description = _clean_description(changes["description"])
-    if "slug" in changes:
-        collection.slug = _clean_slug(changes["slug"], ignore=collection.pk)
-    ids = None
-    if "product_ids" in changes:
-        ids = _clean_product_ids(changes["product_ids"])
+    cleaned = _clean_changes(changes, ignore=collection.pk)
+    ids = cleaned.pop("product_ids", None)
+    for field, value in cleaned.items():
+        setattr(collection, field, value)
     collection.save()
     if ids is not None:
         _set_products(collection, ids)
@@ -276,6 +400,83 @@ def edit(actor: User, collection_id: int, **changes: Any) -> Collection:
         after=_snapshot(collection),
     )
     return collection
+
+
+@transaction.atomic
+def edit_change(actor: User, collection_id: int, **changes: Any) -> Collection:
+    """The Owner amends a pending change before approving it."""
+    collection = _locked(collection_id)
+    change = getattr(collection, "pending_change", None)
+    if change is None:
+        msg = "Bekleyen bir değişiklik yok."
+        raise ConflictError(msg, code="collection_no_pending_change")
+    before = _change_snapshot(change)
+    for field, value in _clean_changes(changes, ignore=collection.pk).items():
+        setattr(change, field, value)
+    change.save()
+    audit.record(
+        actor,
+        audit.Action.COLLECTION_CHANGE_SUBMITTED,
+        target=collection,
+        summary=f"Bekleyen değişiklik düzenlendi: {collection.name}",
+        before=before,
+        after=_change_snapshot(change),
+    )
+    return collection
+
+
+def _has_change(collection_id: int) -> bool:
+    return CollectionChange.objects.filter(
+        collection_id=collection_id,
+        collection__status=CollectionStatus.PUBLISHED,
+    ).exists()
+
+
+@transaction.atomic
+def _approve_change(actor: User, collection_id: int) -> Collection:
+    collection = _locked(collection_id)
+    change = collection.pending_change
+    # Revalidate: a slug or Product may have gone since Staff made the edit.
+    cleaned = _clean_changes(_change_snapshot(change), ignore=collection.pk)
+    before = _snapshot(collection)
+    ids = cleaned.pop("product_ids")
+    for field, value in cleaned.items():
+        setattr(collection, field, value)
+    collection.rejection_reason = ""
+    collection.save()
+    _set_products(collection, ids)
+    change.delete()
+    audit.record(
+        actor,
+        audit.Action.COLLECTION_CHANGE_APPROVED,
+        target=collection,
+        summary=f"Koleksiyon değişikliği onaylandı: {collection.name}",
+        before=before,
+        after=_snapshot(collection),
+    )
+    return _get(collection_id)
+
+
+@transaction.atomic
+def _reject_change(actor: User, collection_id: int, reason: str) -> Collection:
+    collection = _locked(collection_id)
+    change = collection.pending_change
+    dropped = _change_snapshot(change)
+    # The change is gone, so its submitter reads the reason on the Collection.
+    collection.submitted_by = change.submitted_by
+    collection.submitted_at = change.updated_at
+    collection.rejection_reason = reason
+    collection.save()
+    change.delete()
+    audit.record(
+        actor,
+        audit.Action.COLLECTION_CHANGE_REJECTED,
+        target=collection,
+        summary=f"Koleksiyon değişikliği reddedildi: {collection.name}",
+        before=dropped,
+        after={"reason": reason} if reason else None,
+    )
+    return _get(collection_id)
 
 
 def _move(  # noqa: PLR0913
@@ -352,7 +553,10 @@ def withdraw(actor: User, collection_id: int) -> Collection:
 
 
 def approve(actor: User, collection_id: int) -> Collection:
-    """Pending approval to published, with whatever the Owner has edited since."""
+    """Pending approval to published, with whatever the Owner has edited since. For a
+    published Collection, applies its pending change instead."""
+    if _has_change(collection_id):
+        return _approve_change(actor, collection_id)
     return _move(
         actor,
         collection_id,
@@ -364,10 +568,13 @@ def approve(actor: User, collection_id: int) -> Collection:
 
 
 def reject(actor: User, collection_id: int, reason: str = "") -> Collection:
-    """Pending approval back to draft; the optional reason is shown to the submitter."""
+    """Pending approval back to draft; the optional reason is shown to the submitter.
+    For a published Collection, drops its pending change instead."""
     reason = reason.strip()
     if len(reason) > REASON_MAX:
         _refuse("reason", f"Gerekçe en fazla {REASON_MAX} karakter olabilir.")
+    if _has_change(collection_id):
+        return _reject_change(actor, collection_id, reason)
     return _move(
         actor,
         collection_id,
@@ -393,6 +600,9 @@ def publish(actor: User, collection_id: int) -> Collection:
 
 def unpublish(actor: User, collection_id: int) -> Collection:
     """Published to unpublished: off the Storefront, kept."""
+    if _has_change(collection_id):
+        msg = "Bekleyen bir değişiklik var; önce onaylayın veya reddedin."
+        raise ConflictError(msg, code="collection_has_pending_change")
     return _move(
         actor,
         collection_id,

@@ -10,6 +10,7 @@ from oscar.apps.catalogue.models import Product
 from oscar.apps.catalogue.models import ProductClass
 
 from store_backend.catalog.models import Collection
+from store_backend.catalog.models import CollectionChange
 from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
@@ -321,7 +322,7 @@ def test_only_a_draft_can_be_submitted(staff, boss):
     assert audited("collection_submitted") == 1
 
 
-def test_staff_cannot_edit_a_pending_published_or_unpublished_collection(staff, boss):
+def test_staff_cannot_edit_a_pending_or_unpublished_collection(staff, boss):
     pending = staff_draft(staff, name="Bekleyen")
     action(staff, pending, "submit")
     live = create(boss, name="Yayında")
@@ -330,11 +331,12 @@ def test_staff_cannot_edit_a_pending_published_or_unpublished_collection(staff, 
     action(boss, off, "publish")
     action(boss, off, "unpublish")
 
-    for made in (pending, live, off):
+    for made in (pending, off):
         response = staff.patch(f"{COLLECTIONS}/{made['id']}", {"name": "Değişti"})
         assert response.status_code in {HTTPStatus.CONFLICT, HTTPStatus.FORBIDDEN}
     assert not Collection.objects.filter(name="Değişti").exists()
     assert Collection.objects.get(name="Yayında").status == "published"
+    assert not CollectionChange.objects.exists()
 
 
 def test_staff_withdraw_their_own_submission_back_to_draft(staff, boss):
@@ -456,3 +458,173 @@ def test_the_owner_can_delete_a_pending_collection(staff, boss):
     assert boss.delete(f"{COLLECTIONS}/{made['id']}").status_code == (
         HTTPStatus.NO_CONTENT
     )
+
+
+# --- pending changes on published Collections ----------------------------------------
+
+
+@pytest.fixture
+def live(boss):
+    a, b = make_product("A"), make_product("B")
+    made = create(boss, name="Yayında", description="Eski", product_ids=[a.pk])
+    action(boss, made, "publish")
+    made["a"], made["b"] = a.pk, b.pk
+    return made
+
+
+def edit_live(client, made, **fields):
+    return client.patch(f"{COLLECTIONS}/{made['id']}", fields)
+
+
+def test_a_staff_edit_of_a_published_collection_is_held_as_a_pending_change(
+    staff,
+    boss,
+    live,
+    staff_user,  # noqa: F811
+):
+    response = edit_live(staff, live, name="Yeni ad", product_ids=[live["b"]])
+
+    assert response.status_code == HTTPStatus.OK
+    body = response.json()
+    assert body["name"] == "Yayında"  # the live version is unchanged
+    assert [p["id"] for p in body["products"]] == [live["a"]]
+    change = body["pending_change"]
+    assert change["name"] == "Yeni ad"
+    assert change["description"] == "Eski"  # untouched fields carry over
+    assert [p["id"] for p in change["products"]] == [live["b"]]
+    assert change["submitted_by"]["id"] == staff_user.pk
+    assert body["status"] == "published"
+    assert audited("collection_change_submitted") == 1
+    row = boss.get(COLLECTIONS).json()[0]
+    assert row["has_pending_change"] is True
+
+
+def test_a_second_staff_edit_amends_the_one_pending_change(staff, live):
+    edit_live(staff, live, name="Birinci")
+    second = edit_live(staff, live, description="İkinci").json()
+
+    assert second["pending_change"]["name"] == "Birinci"
+    assert second["pending_change"]["description"] == "İkinci"
+    assert CollectionChange.objects.count() == 1
+    assert audited("collection_change_submitted") == 2
+
+
+def test_a_staff_edit_that_is_invalid_stages_nothing(staff, live):
+    response = edit_live(staff, live, name="  ")
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert not CollectionChange.objects.exists()
+
+
+def test_the_owner_approves_a_pending_change_which_goes_live(staff, boss, live):
+    edit_live(staff, live, name="Yeni ad", product_ids=[live["b"], live["a"]])
+
+    approved = action(boss, live, "approve")
+
+    assert approved.status_code == HTTPStatus.OK
+    body = approved.json()
+    assert body["name"] == "Yeni ad"
+    assert [p["id"] for p in body["products"]] == [live["b"], live["a"]]
+    assert body["pending_change"] is None
+    assert body["status"] == "published"
+    assert not CollectionChange.objects.exists()
+    assert audited("collection_change_approved") == 1
+
+
+def test_the_owner_rejects_a_pending_change_and_the_live_version_stays(
+    staff,
+    boss,
+    live,
+):
+    edit_live(staff, live, name="Yeni ad")
+
+    rejected = action(boss, live, "reject", {"reason": "Ad uygun değil"})
+
+    assert rejected.status_code == HTTPStatus.OK
+    body = rejected.json()
+    assert body["name"] == "Yayında"
+    assert body["status"] == "published"
+    assert body["pending_change"] is None
+    assert not CollectionChange.objects.exists()
+    assert audited("collection_change_rejected") == 1
+    seen = staff.get(f"{COLLECTIONS}/{live['id']}").json()
+    assert seen["rejection_reason"] == "Ad uygun değil"
+
+
+def test_a_new_staff_edit_clears_the_old_rejection_reason(staff, boss, live):
+    edit_live(staff, live, name="Bir")
+    action(boss, live, "reject", {"reason": "Olmadı"})
+
+    edited = edit_live(staff, live, name="İki").json()
+
+    assert edited["rejection_reason"] == ""
+
+
+def test_the_owner_cannot_edit_the_live_collection_while_a_change_is_pending(
+    staff,
+    boss,
+    live,
+):
+    edit_live(staff, live, name="Yeni ad")
+
+    response = edit_live(boss, live, name="Sahibin adı")
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json()["code"] == "collection_has_pending_change"
+    assert Collection.objects.get().name == "Yayında"
+    # after approving or rejecting, the Owner edits directly again
+    action(boss, live, "reject")
+    assert edit_live(boss, live, name="Sahibin adı").status_code == HTTPStatus.OK
+
+
+def test_the_owner_cannot_unpublish_while_a_change_is_pending(staff, boss, live):
+    edit_live(staff, live, name="Yeni ad")
+    response = action(boss, live, "unpublish")
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert Collection.objects.get().status == "published"
+
+
+def test_the_owner_edits_a_pending_change_before_approving_it(staff, boss, live):
+    edit_live(staff, live, name="Personel adı")
+
+    response = boss.patch(
+        f"{COLLECTIONS}/{live['id']}/pending-change",
+        {"description": "Sahibin açıklaması"},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["pending_change"]["description"] == "Sahibin açıklaması"
+    approved = action(boss, live, "approve").json()
+    assert approved["name"] == "Personel adı"
+    assert approved["description"] == "Sahibin açıklaması"
+
+
+def test_editing_a_pending_change_needs_one_and_the_owner(staff, boss, live):
+    url = f"{COLLECTIONS}/{live['id']}/pending-change"
+    assert boss.patch(url, {"name": "X"}).status_code == HTTPStatus.CONFLICT
+    edit_live(staff, live, name="Y")
+    assert staff.patch(url, {"name": "X"}).status_code == HTTPStatus.FORBIDDEN
+
+
+def test_approval_refuses_a_change_whose_slug_was_taken_meanwhile(staff, boss, live):
+    edit_live(staff, live, slug="ortak-adres")
+    create(boss, name="Başkası", slug="ortak-adres")
+
+    response = action(boss, live, "approve")
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert Collection.objects.get(pk=live["id"]).slug != "ortak-adres"
+    assert CollectionChange.objects.count() == 1
+
+
+def test_a_staff_edit_of_an_unpublished_collection_is_still_refused(staff, boss, live):
+    action(boss, live, "unpublish")
+    assert edit_live(staff, live, name="X").status_code == HTTPStatus.FORBIDDEN
+    assert not CollectionChange.objects.exists()
+
+
+def test_deleting_a_collection_drops_its_pending_change(staff, boss, live):
+    edit_live(staff, live, name="Yeni ad")
+    assert boss.delete(f"{COLLECTIONS}/{live['id']}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+    assert not CollectionChange.objects.exists()

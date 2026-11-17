@@ -548,6 +548,32 @@ class Collection(models.Model):
         return self.name
 
 
+class CollectionChange(models.Model):
+    """A Staff edit to a published Collection, held until the Owner approves it
+    (ADR 0008). At most one per Collection; the live Collection stays as it is."""
+
+    collection = models.OneToOneField(
+        Collection,
+        on_delete=models.CASCADE,
+        related_name="pending_change",
+    )
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200)
+    description = models.CharField(max_length=500, blank=True)
+    product_ids = models.JSONField(default=list)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"change of {self.collection_id}"
+
+
 class CollectionProduct(models.Model):
     """A Product's place in a Collection. Deleting a Product just drops its places."""
 
