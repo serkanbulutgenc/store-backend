@@ -865,6 +865,16 @@
             "title": "Description",
             "type": "string"
           },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ProductCardOut"
@@ -885,6 +895,7 @@
           "name",
           "slug",
           "description",
+          "image",
           "items"
         ],
         "title": "CollectionPageOut",

@@ -251,6 +251,7 @@ class CollectionPageOut(Schema):
     name: str
     slug: str
     description: str
+    image: CardImageOut | None
     items: list[ProductCardOut]
 
 
