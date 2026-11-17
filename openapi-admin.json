@@ -982,6 +982,16 @@
             "title": "Name",
             "type": "string"
           },
+          "pending_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingChangeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "products": {
             "items": {
               "$ref": "#/components/schemas/CollectionProductOut"
@@ -1056,6 +1066,7 @@
           "submitted_by",
           "submitted_at",
           "rejection_reason",
+          "pending_change",
           "products",
           "visible_product_count"
         ],
@@ -1162,6 +1173,10 @@
             "title": "Description",
             "type": "string"
           },
+          "has_pending_change": {
+            "title": "Has Pending Change",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -1237,6 +1252,7 @@
           "submitted_by",
           "submitted_at",
           "rejection_reason",
+          "has_pending_change",
           "product_count"
         ],
         "title": "CollectionRowOut",
@@ -3865,6 +3881,61 @@
         ],
         "title": "PaymentMethod",
         "type": "string"
+      },
+      "PendingChangeOut": {
+        "description": "A Staff edit of a published Collection, waiting for the Owner.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionProductOut"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "description",
+          "products",
+          "submitted_by",
+          "submitted_at",
+          "updated_at"
+        ],
+        "title": "PendingChangeOut",
+        "type": "object"
       },
       "PersonOut": {
         "properties": {
@@ -7859,6 +7930,54 @@
           }
         ],
         "summary": "Approve Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/pending-change": {
+      "patch": {
+        "description": "The Owner amends a pending change before approving it.",
+        "operationId": "collections_edit_pending_change",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Pending Change",
         "tags": [
           "collections"
         ]

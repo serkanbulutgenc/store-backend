@@ -53,6 +53,7 @@ class CollectionRowOut(Schema):
     submitted_by: PersonOut | None
     submitted_at: datetime | None
     rejection_reason: str
+    has_pending_change: bool
     product_count: int
 
 
@@ -61,6 +62,18 @@ class CollectionProductOut(Schema):
     title: str
     slug: str | None
     status: Literal["draft", "published", "archived"]
+
+
+class PendingChangeOut(Schema):
+    """A Staff edit of a published Collection, waiting for the Owner."""
+
+    name: str
+    slug: str
+    description: str
+    products: list[CollectionProductOut]
+    submitted_by: PersonOut | None
+    submitted_at: datetime
+    updated_at: datetime
 
 
 class CollectionOut(Schema):
@@ -73,8 +86,17 @@ class CollectionOut(Schema):
     submitted_by: PersonOut | None
     submitted_at: datetime | None
     rejection_reason: str
+    pending_change: PendingChangeOut | None
     products: list[CollectionProductOut]
     visible_product_count: int
+
+
+def _given(data: CollectionPatch) -> dict:
+    changes = data.model_dump(exclude_unset=True)
+    for required in ("name", "description", "product_ids"):
+        if required in changes and changes[required] is None:
+            del changes[required]  # null means "leave it", like leaving it out
+    return changes
 
 
 @router.get(
@@ -115,11 +137,20 @@ def get_collection(request, collection_id: int):
     response=CollectionOut,
 )
 def edit_collection(request, collection_id: int, data: CollectionPatch):
-    changes = data.model_dump(exclude_unset=True)
-    for required in ("name", "description", "product_ids"):
-        if required in changes and changes[required] is None:
-            del changes[required]  # null means "leave it", like leaving it out
-    edited = collection_admin.edit(request.auth, collection_id, **changes)
+    edited = collection_admin.edit(request.auth, collection_id, **_given(data))
+    return collection_admin.view(edited)
+
+
+@router.patch(
+    "/collections/{collection_id}/pending-change",
+    auth=requires(Perm.MANAGE_COLLECTIONS),
+    operation_id="collections_edit_pending_change",
+    response=CollectionOut,
+)
+def edit_pending_change(request, collection_id: int, data: CollectionPatch):
+    """The Owner amends a pending change before approving it."""
+    changes = _given(data)
+    edited = collection_admin.edit_change(request.auth, collection_id, **changes)
     return collection_admin.view(edited)
 
 
