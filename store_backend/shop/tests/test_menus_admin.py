@@ -10,6 +10,9 @@ from django.test import Client
 from oscar.apps.catalogue.models import Product
 from oscar.apps.catalogue.models import ProductClass
 
+from store_backend.catalog.models import Collection
+from store_backend.catalog.models import CollectionProduct
+from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
@@ -409,6 +412,7 @@ def test_a_failure_while_writing_rolls_the_whole_save_back(boss, monkeypatch):
         "category_id": None,
         "product_id": None,
         "brand_id": None,
+        "collection_id": None,
         "include_subcategories": False,
         "legal_page": None,
         "url": None,
@@ -569,6 +573,7 @@ def picked(client, q):
                     "category": "category_id",
                     "product": "product_id",
                     "brand": "brand_id",
+                    "collection": "collection_id",
                     "legal_page": "legal_page",
                 }[r["target_type"]]
             ],
@@ -623,3 +628,122 @@ def test_the_picker_ignores_case_and_turkish_diacritics_for_every_target_type(bo
     assert ("brand", "Şık Home", sik.pk) in picked(boss, "SIK")
     assert ("product", "Çanta", canta.pk) in picked(boss, "canta")
     assert ("product", "Çanta", canta.pk) in picked(boss, "ÇANTA")
+
+
+# --- Collection targets --------------------------------------------------------------
+
+
+def collection_item(pk, **fields):
+    return {"target_type": "collection", "collection_id": pk, **fields}
+
+
+def make_collection(name="Editörün seçimi", *products, status="published"):
+    collection = Collection.objects.create(
+        name=name,
+        slug=name.lower().replace(" ", "-").replace("ö", "o").replace("ü", "u"),
+        status=status,
+    )
+    for position, product in enumerate(products):
+        CollectionProduct.objects.create(
+            collection=collection,
+            product=product,
+            position=position,
+        )
+    return collection
+
+
+def test_the_owner_saves_a_collection_item_and_the_public_menu_shows_it(boss):
+    collection = make_collection("Sonbahar", make_product("Elbise"))
+
+    saved = boss.put(
+        HEADER,
+        {"items": [collection_item(collection.pk, label="Sonbahar Seçkisi")]},
+    )
+
+    assert saved.status_code == HTTPStatus.OK, saved.content
+    assert saved.json()["items"][0]["collection_id"] == collection.pk
+    assert saved.json()["items"][0]["link"] == "/collections/sonbahar"
+    assert [(i["label"], i["url"]) for i in public()["header"]] == [
+        ("Sonbahar Seçkisi", "/collections/sonbahar"),
+    ]
+
+
+def test_an_unknown_collection_id_is_rejected(boss):
+    missing = Collection.objects.count() + 999
+
+    saved = boss.put(HEADER, {"items": [collection_item(missing)]})
+
+    assert rule(saved) == "menu_unknown_target"
+
+
+def test_a_collection_item_cannot_also_carry_another_target(boss):
+    collection = make_collection("Sonbahar", make_product("Elbise"))
+    both = collection_item(collection.pk, category_id=catalog.create_category("X").pk)
+
+    assert rule(boss.put(HEADER, {"items": [both]})) == "menu_target_mismatch"
+    assert rule(boss.put(HEADER, {"items": [collection_item(None)]})) == (
+        "menu_target_mismatch"
+    )
+
+
+@pytest.mark.parametrize("status", ["draft", "unpublished"])
+def test_reading_flags_a_collection_that_is_not_published(boss, status):
+    collection = make_collection("Sonbahar", make_product("Elbise"), status=status)
+    boss.put(HEADER, {"items": [collection_item(collection.pk), LEGAL_INDEX]})
+
+    (flagged, _) = boss.get(HEADER).json()["items"]
+
+    assert flagged["not_shown_reason"] == "target_not_public"
+    assert flagged["target_label"] == "Sonbahar"
+    assert "Sonbahar" not in [i["label"] for i in public()["header"]]
+
+
+def test_reading_flags_a_collection_without_visible_products(boss):
+    empty = make_collection("Bos")
+    hidden = make_collection(
+        "Gizli urunler",
+        make_product("Eski", status=ProductStatus.ARCHIVED),
+    )
+    boss.put(
+        HEADER,
+        {"items": [collection_item(empty.pk), collection_item(hidden.pk)]},
+    )
+
+    items = boss.get(HEADER).json()["items"]
+
+    assert [i["not_shown_reason"] for i in items] == ["target_not_public"] * 2
+
+
+def test_the_picker_finds_collections_by_name(boss):
+    collection = make_collection("Sonbahar Seçkisi", make_product("Elbise"))
+    draft = make_collection("Sonbahar Taslak", status=CollectionStatus.DRAFT)
+
+    found = picked(boss, "sonbahar")
+
+    assert ("collection", "Sonbahar Seçkisi", collection.pk) in found
+    assert ("collection", "Sonbahar Taslak", draft.pk) in found
+
+
+def test_a_collection_in_a_menu_cannot_be_deleted_until_its_item_is_removed(boss):
+    collection = make_collection("Sonbahar", make_product("Elbise"))
+    boss.put(HEADER, {"items": [collection_item(collection.pk)]})
+    boss.put(
+        FOOTER,
+        {"items": [collection_item(collection.pk), LEGAL_INDEX]},
+    )
+
+    refused = boss.delete(f"/api/admin/collections/{collection.pk}")
+
+    assert refused.status_code == HTTPStatus.CONFLICT
+    assert refused.json()["code"] == "collection_in_menu"
+    assert "2 menü öğesi" in refused.json()["message"]
+    assert Collection.objects.filter(pk=collection.pk).exists()
+    assert not AuditEntry.objects.filter(action="collection_deleted").exists()
+
+    boss.put(HEADER, {"items": [builtin("home")]})
+    boss.put(FOOTER, {"items": [LEGAL_INDEX]})
+
+    assert boss.delete(f"/api/admin/collections/{collection.pk}").status_code == (
+        HTTPStatus.NO_CONTENT
+    )
+    assert not Collection.objects.filter(pk=collection.pk).exists()

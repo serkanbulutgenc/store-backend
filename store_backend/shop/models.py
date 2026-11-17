@@ -717,6 +717,7 @@ class MenuItem(models.Model):
         LEGAL_PAGE = "legal_page", "Yasal sayfa"
         PRODUCT = "product", "Ürün"
         BRAND = "brand", "Marka"
+        COLLECTION = "collection", "Koleksiyon"
         BUILTIN = "builtin", "Hazır sayfa"
         URL = "url", "Özel bağlantı"
         GROUP = "group", "Grup başlığı"
@@ -748,6 +749,13 @@ class MenuItem(models.Model):
     )
     brand = models.ForeignKey(
         "store_catalog.Brand",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    collection = models.ForeignKey(
+        "store_catalog.Collection",
         null=True,
         blank=True,
         on_delete=models.PROTECT,

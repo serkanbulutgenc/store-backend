@@ -27,6 +27,7 @@ from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services.catalog import slugify_tr
+from store_backend.shop.models import MenuItem
 from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
@@ -617,6 +618,12 @@ def unpublish(actor: User, collection_id: int) -> Collection:
 def delete(actor: User, collection_id: int) -> None:
     """Remove a Collection in any state. Its Products are never touched."""
     collection = _get(collection_id)
+    if in_menus := MenuItem.objects.filter(collection=collection).count():
+        msg = (
+            f"Bu koleksiyona {in_menus} menü öğesi bağlı; önce menüden kaldırın. "
+            "Yayından kaldırmak da bir seçenek."
+        )
+        raise ConflictError(msg, code="collection_in_menu")
     audit.record(
         actor,
         audit.Action.COLLECTION_DELETED,
