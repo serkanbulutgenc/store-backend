@@ -978,6 +978,16 @@
             "title": "Id",
             "type": "integer"
           },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1067,6 +1077,7 @@
           "submitted_at",
           "rejection_reason",
           "pending_change",
+          "image",
           "products",
           "visible_product_count"
         ],
@@ -1346,6 +1357,53 @@
           }
         },
         "title": "ColourPatch",
+        "type": "object"
+      },
+      "CoverImageOut": {
+        "description": "The cover image: `processing` until its derivatives exist.",
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          },
+          "derivatives": {
+            "items": {
+              "$ref": "#/components/schemas/ImageDerivativeOut"
+            },
+            "title": "Derivatives",
+            "type": "array"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "original_url": {
+            "title": "Original Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "alt_text",
+          "original_url",
+          "width",
+          "height",
+          "derivatives",
+          "error"
+        ],
+        "title": "CoverImageOut",
         "type": "object"
       },
       "CustomerDetail": {
@@ -1677,6 +1735,19 @@
         "title": "HomeReturnRow",
         "type": "object"
       },
+      "ImageAltIn": {
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alt_text"
+        ],
+        "title": "ImageAltIn",
+        "type": "object"
+      },
       "ImageDerivativeOut": {
         "properties": {
           "url": {
@@ -1709,6 +1780,17 @@
           "ids"
         ],
         "title": "ImageOrderIn",
+        "type": "object"
+      },
+      "ImageUploadIn": {
+        "properties": {
+          "alt_text": {
+            "default": "",
+            "title": "Alt Text",
+            "type": "string"
+          }
+        },
+        "title": "ImageUploadIn",
         "type": "object"
       },
       "ImportCountsOut": {
@@ -7968,6 +8050,151 @@
           }
         ],
         "summary": "Approve Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/image": {
+      "delete": {
+        "operationId": "collections_delete_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Collection Image",
+        "tags": [
+          "collections"
+        ]
+      },
+      "patch": {
+        "description": "Change the cover image's alt text.",
+        "operationId": "collections_edit_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageAltIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Collection Image",
+        "tags": [
+          "collections"
+        ]
+      },
+      "post": {
+        "description": "One cover image (JPEG, PNG or WebP), replacing any existing one; derivatives\nare made in the background. Staff may on a draft; on a published Collection only\nthe Owner, and not while it has a pending change.",
+        "operationId": "collections_upload_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "default": "",
+                    "title": "Alt Text",
+                    "type": "string"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Collection Image",
         "tags": [
           "collections"
         ]

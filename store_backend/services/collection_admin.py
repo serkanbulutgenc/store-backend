@@ -9,9 +9,12 @@ Owner approves or rejects it; the live version is untouched meanwhile.
 
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING
 from typing import Any
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
 from oscar.apps.catalogue.models import Product
@@ -20,18 +23,22 @@ from store_backend.api.errors import ConflictError
 from store_backend.api.errors import ForbiddenError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionChange
 from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
+from store_backend.services import media
 from store_backend.services.catalog import slugify_tr
 from store_backend.shop.models import MenuItem
 from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
     from typing import NoReturn
+
+    from django.core.files.uploadedfile import UploadedFile
 
     from store_backend.users.models import User
 
@@ -193,6 +200,20 @@ def _change_view(collection: Collection) -> dict[str, Any] | None:
     }
 
 
+def image_view(collection: Collection) -> dict[str, Any] | None:
+    if not collection.image_original:
+        return None
+    return {
+        "status": collection.image_status,
+        "alt_text": collection.image_alt,
+        "original_url": media.media_url(collection.image_original),
+        "width": collection.image_width,
+        "height": collection.image_height,
+        "derivatives": collection.image_derivative_urls(),
+        "error": collection.image_error,
+    }
+
+
 def view(collection: Collection) -> dict[str, Any]:
     """The Collection with its Products in order. `visible_product_count` is how many
     of them a Shopper would see: the approver is warned when it is zero."""
@@ -200,6 +221,7 @@ def view(collection: Collection) -> dict[str, Any]:
     return {
         **_base(collection),
         "pending_change": _change_view(collection),
+        "image": image_view(collection),
         "products": rows,
         "visible_product_count": sum(
             row["status"] == ProductStatus.PUBLISHED for row in rows
@@ -631,4 +653,157 @@ def delete(actor: User, collection_id: int) -> None:
         summary=f"Koleksiyon silindi: {collection.name}",
         before=_snapshot(collection),
     )
+    media._schedule_names(collection.image_file_names())  # noqa: SLF001
     collection.delete()
+
+
+# --- cover image --------------------------------------------------------------------
+
+MAX_ALT = 255
+
+
+def _guard_image_edit(actor: User, collection: Collection) -> None:
+    """Who may change the cover image now. The Owner may, except while a published
+    Collection has a pending change. Staff may on a draft only: on a published
+    Collection the image is not part of a pending change, so it is the Owner's."""
+    published = collection.status == CollectionStatus.PUBLISHED
+    if _is_owner(actor):
+        if published and hasattr(collection, "pending_change"):
+            msg = "Bekleyen bir değişiklik var; önce onaylayın veya reddedin."
+            raise ConflictError(msg, code="collection_has_pending_change")
+        return
+    if collection.status == CollectionStatus.DRAFT:
+        return
+    if published:
+        msg = "Yayındaki koleksiyonun kapak görselini yalnızca sahip değiştirebilir."
+        raise ForbiddenError(msg, code="collection_owner_only")
+    _refuse_staff_edit(collection)
+
+
+def _clean_alt(alt: str) -> str:
+    cleaned = alt.strip()
+    if len(cleaned) > MAX_ALT:
+        _refuse("alt_text", f"En fazla {MAX_ALT} karakter olabilir.")
+    return cleaned
+
+
+def _audit_image(actor: User, collection: Collection, summary: str) -> None:
+    audit.record(
+        actor,
+        audit.Action.COLLECTION_EDITED,
+        target=collection,
+        summary=f"{summary}: {collection.name}",
+    )
+
+
+@transaction.atomic
+def upload_image(
+    actor: User,
+    collection_id: int,
+    file: UploadedFile,
+    alt_text: str = "",
+) -> Collection:
+    """Validate and store a cover image (JPEG, PNG or WebP), replacing any old one;
+    derivatives follow in the background. The old files go after the usual grace
+    period."""
+    collection = _locked(collection_id)
+    _guard_image_edit(actor, collection)
+    alt = _clean_alt(alt_text)
+    data = file.read(media.MAX_BYTES + 1)
+    data, extension, width, height = media._inspect(data)  # noqa: SLF001
+    old = collection.image_file_names()
+    name = f"collections/{uuid.uuid4().hex}{extension}"
+    default_storage.save(name, ContentFile(data))
+    collection.image_original = name
+    collection.image_width = width
+    collection.image_height = height
+    collection.image_status = CategoryProfile.ImageStatus.PROCESSING
+    collection.image_derivatives = []
+    collection.image_alt = alt
+    collection.image_error = ""
+    try:
+        collection.save()
+        media._schedule_names(old)  # noqa: SLF001
+        _audit_image(actor, collection, "Koleksiyon kapak görseli yüklendi")
+    except Exception:
+        default_storage.delete(name)
+        raise
+    transaction.on_commit(lambda: _enqueue_image(collection_id))
+    return collection
+
+
+def _enqueue_image(collection_id: int) -> None:
+    from store_backend.catalog.tasks import process_collection_image  # noqa: PLC0415
+
+    process_collection_image.delay(collection_id)
+
+
+@transaction.atomic
+def set_image_alt(actor: User, collection_id: int, alt_text: str) -> Collection:
+    collection = _locked(collection_id)
+    _guard_image_edit(actor, collection)
+    if not collection.image_original:
+        msg = "Kapak görseli yok."
+        raise ConflictError(msg, code="collection_no_image")
+    collection.image_alt = _clean_alt(alt_text)
+    collection.save(update_fields=["image_alt", "updated_at"])
+    _audit_image(actor, collection, "Koleksiyon kapak görseli açıklaması değişti")
+    return collection
+
+
+@transaction.atomic
+def remove_image(actor: User, collection_id: int) -> Collection:
+    collection = _locked(collection_id)
+    _guard_image_edit(actor, collection)
+    if not collection.image_original:
+        return collection
+    media._schedule_names(collection.image_file_names())  # noqa: SLF001
+    collection.image_original = ""
+    collection.image_width = collection.image_height = 0
+    collection.image_status = CategoryProfile.ImageStatus.NONE
+    collection.image_derivatives = []
+    collection.image_alt = ""
+    collection.image_error = ""
+    collection.save()
+    _audit_image(actor, collection, "Koleksiyon kapak görseli kaldırıldı")
+    return collection
+
+
+def process_image(collection_id: int) -> None:
+    """Make the derivatives of a Collection's cover image. Never raises; a failure
+    marks the image failed and leaves the original in place."""
+    collection = Collection.objects.filter(pk=collection_id).first()
+    if collection is None or not collection.image_original:
+        return
+    original = collection.image_original
+    written: list[str] = []
+    try:
+        derivatives, width, height = media.make_derivatives(
+            original,
+            "collections",
+            written,
+        )
+    except Exception as exc:  # noqa: BLE001
+        media.logger.exception(
+            "Collection %s image could not be processed",
+            collection_id,
+        )
+        media._schedule_names(written)  # noqa: SLF001
+        Collection.objects.filter(pk=collection_id, image_original=original).update(
+            image_status=CategoryProfile.ImageStatus.FAILED,
+            image_error=f"{type(exc).__name__}: {exc}"[:500],
+            image_derivatives=[],
+        )
+        return
+    updated = Collection.objects.filter(
+        pk=collection_id,
+        image_original=original,  # not replaced or removed while we worked
+    ).update(
+        image_status=CategoryProfile.ImageStatus.READY,
+        image_error="",
+        image_derivatives=derivatives,
+        image_width=width,
+        image_height=height,
+    )
+    if not updated:
+        media._schedule_names(written)  # noqa: SLF001

@@ -540,12 +540,40 @@ class Collection(models.Model):
         through="CollectionProduct",
         related_name="+",
     )
+    # The cover image: same pipeline and derivative sizes as a Category's, kept as
+    # columns because a Collection has at most one. Not part of a pending change: only
+    # the Owner changes it on a published Collection.
+    image_original = models.CharField(max_length=255, blank=True)
+    image_width = models.PositiveIntegerField(default=0)
+    image_height = models.PositiveIntegerField(default=0)
+    image_status = models.CharField(
+        max_length=16,
+        choices=CategoryProfile.ImageStatus.choices,
+        blank=True,
+        default="",
+    )
+    image_derivatives = models.JSONField(default=list, blank=True)
+    image_alt = models.CharField(max_length=255, blank=True)
+    image_error = models.TextField(blank=True)
 
     class Meta:
         ordering = ["name", "pk"]
 
     def __str__(self) -> str:
         return self.name
+
+    def image_file_names(self) -> list[str]:
+        if not self.image_original:
+            return []
+        return [self.image_original, *(d["name"] for d in self.image_derivatives)]
+
+    def image_derivative_urls(self) -> list[dict]:
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        return [
+            {"width": d["width"], "url": media_url(d["name"])}
+            for d in self.image_derivatives
+        ]
 
 
 class CollectionChange(models.Model):

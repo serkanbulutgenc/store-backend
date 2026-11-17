@@ -13,6 +13,7 @@ from django.db.models import Exists
 from django.db.models import OuterRef
 
 from store_backend.api.errors import NotFoundError
+from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import CollectionStatus
@@ -70,6 +71,19 @@ def _visible_products(collection: Collection) -> list[ProductProfile]:
     ]
 
 
+def cover_image(collection: Collection) -> dict | None:
+    """The cover image once its derivatives are ready, else None."""
+    if collection.image_status != CategoryProfile.ImageStatus.READY:
+        return None
+    sizes = collection.image_derivative_urls()
+    if not sizes:
+        return None
+    return {
+        "alt": collection.image_alt or collection.name,
+        "sizes": sorted(sizes, key=lambda s: s["width"]),
+    }
+
+
 def page(slug: str) -> dict:
     """What a Collection page shows. A Collection that is not published, or has no
     visible Product, is not found."""
@@ -90,6 +104,7 @@ def page(slug: str) -> dict:
         "name": collection.name,
         "slug": collection.slug,
         "description": collection.description,
+        "image": cover_image(collection),
         "items": [
             browse.product_card(
                 p,

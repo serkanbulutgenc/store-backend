@@ -5,8 +5,11 @@ from __future__ import annotations
 from datetime import datetime  # noqa: TC003
 from typing import Literal
 
+from ninja import File
+from ninja import Form
 from ninja import Router
 from ninja import Schema
+from ninja.files import UploadedFile  # noqa: TC002
 
 from store_backend.api.permissions import requires
 from store_backend.services import collection_admin
@@ -41,6 +44,31 @@ class CollectionPatch(Schema):
     slug: str | None = None
     description: str | None = None
     product_ids: list[int] | None = None
+
+
+class ImageDerivativeOut(Schema):
+    width: int
+    url: str
+
+
+class CoverImageOut(Schema):
+    """The cover image: `processing` until its derivatives exist."""
+
+    status: str
+    alt_text: str
+    original_url: str
+    width: int
+    height: int
+    derivatives: list[ImageDerivativeOut]
+    error: str
+
+
+class ImageAltIn(Schema):
+    alt_text: str
+
+
+class ImageUploadIn(Schema):
+    alt_text: str = ""
 
 
 class CollectionRowOut(Schema):
@@ -87,6 +115,7 @@ class CollectionOut(Schema):
     submitted_at: datetime | None
     rejection_reason: str
     pending_change: PendingChangeOut | None
+    image: CoverImageOut | None
     products: list[CollectionProductOut]
     visible_product_count: int
 
@@ -229,3 +258,51 @@ def delete_collection(request, collection_id: int):
     """A hard delete: Owner-only (ADR 0005). Never touches the Products."""
     collection_admin.delete(request.auth, collection_id)
     return 204, None
+
+
+@router.post(
+    "/collections/{collection_id}/image",
+    auth=requires(Perm.EDIT_COLLECTIONS),
+    operation_id="collections_upload_image",
+    response=CollectionOut,
+)
+def upload_collection_image(
+    request,
+    collection_id: int,
+    file: File[UploadedFile],
+    data: Form[ImageUploadIn],
+):
+    """One cover image (JPEG, PNG or WebP), replacing any existing one; derivatives
+    are made in the background. Staff may on a draft; on a published Collection only
+    the Owner, and not while it has a pending change."""
+    made = collection_admin.upload_image(
+        request.auth,
+        collection_id,
+        file,
+        data.alt_text,
+    )
+    return collection_admin.view(made)
+
+
+@router.patch(
+    "/collections/{collection_id}/image",
+    auth=requires(Perm.EDIT_COLLECTIONS),
+    operation_id="collections_edit_image",
+    response=CollectionOut,
+)
+def edit_collection_image(request, collection_id: int, data: ImageAltIn):
+    """Change the cover image's alt text."""
+    edited = collection_admin.set_image_alt(request.auth, collection_id, data.alt_text)
+    return collection_admin.view(edited)
+
+
+@router.delete(
+    "/collections/{collection_id}/image",
+    auth=requires(Perm.EDIT_COLLECTIONS),
+    operation_id="collections_delete_image",
+    response=CollectionOut,
+)
+def delete_collection_image(request, collection_id: int):
+    return collection_admin.view(
+        collection_admin.remove_image(request.auth, collection_id),
+    )
