@@ -63,6 +63,11 @@ class Action(StrEnum):
     VOUCHER_ACTIVATED = "voucher_activated"
     VOUCHER_DELETED = "voucher_deleted"
     MENU_SAVED = "menu_saved"
+    COLLECTION_CREATED = "collection_created"
+    COLLECTION_EDITED = "collection_edited"
+    COLLECTION_PUBLISHED = "collection_published"
+    COLLECTION_UNPUBLISHED = "collection_unpublished"
+    COLLECTION_DELETED = "collection_deleted"
 
 
 def record(  # noqa: PLR0913

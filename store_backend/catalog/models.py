@@ -500,3 +500,62 @@ class AttributeValue(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product_id} {self.attribute_id}"
+
+
+class CollectionStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PUBLISHED = "published", "Published"
+    UNPUBLISHED = "unpublished", "Unpublished"
+
+
+class Collection(models.Model):
+    """A named, hand-picked and hand-ordered list of Products shown on the Storefront
+    (see GLOSSARY.md). Flat, unlike the Category tree; a Product can be in many."""
+
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
+    description = models.CharField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=CollectionStatus,
+        default=CollectionStatus.DRAFT,
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    products = models.ManyToManyField(
+        Product,
+        through="CollectionProduct",
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["name", "pk"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class CollectionProduct(models.Model):
+    """A Product's place in a Collection. Deleting a Product just drops its places."""
+
+    collection = models.ForeignKey(
+        Collection,
+        on_delete=models.CASCADE,
+        related_name="places",
+    )
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="+")
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                "collection",
+                "product",
+                name="catalog_collection_product_once",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.collection_id}:{self.product_id}"
