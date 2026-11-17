@@ -44,11 +44,11 @@ from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import attributes
 from store_backend.services import categories
-from store_backend.services.order_ops import STATUS_CANCELLED
-from store_backend.services.order_ops import STATUS_RETURNED
 from store_backend.services import reviews
 from store_backend.services import search
 from store_backend.services import stock
+from store_backend.services.order_ops import STATUS_CANCELLED
+from store_backend.services.order_ops import STATUS_RETURNED
 from store_backend.shop.models import Review
 from store_backend.shop.models import ReviewStatus
 
@@ -140,7 +140,7 @@ def published() -> QuerySet[ProductProfile]:
     )
 
 
-def _pool(
+def _pool(  # noqa: C901
     f: Filters,
     *,
     skip: str | None = None,
@@ -387,7 +387,7 @@ def photos_by_product(parent_ids: list[int]) -> dict[int, list[ProductPhoto]]:
     return out
 
 
-def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:
+def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # noqa: PLR0911
     sold_out_last = Exists(
         _variants(in_stock=True).filter(parent=OuterRef("product_id")),
     )
