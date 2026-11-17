@@ -8,6 +8,8 @@ on:
     branches: ['main']
     tags: ['v*']
     paths-ignore: ['docs/**']
+  # The Release workflow dispatches this on the new tag (a tag pushed with GITHUB_TOKEN starts nothing).
+  workflow_dispatch:
 
 concurrency:
   group: publish-${{ github.ref }}
