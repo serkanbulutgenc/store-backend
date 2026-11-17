@@ -35,7 +35,8 @@ class SessionTokenMiddleware:
         token = request.headers.get(TOKEN_HEADER)
         if token and not request.path.startswith(ALLAUTH_PREFIX):
             authenticated = authenticate_by_x_session_token(token)
-            if authenticated is not None and authenticated[0].is_active:
-                request.user = authenticated[0]
+            user = authenticated.user if authenticated is not None else None
+            if user is not None and user.is_active:
+                request.user = user
                 request.authenticated_by_session_token = True  # type: ignore[attr-defined]
         return self.get_response(request)
