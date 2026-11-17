@@ -17,9 +17,9 @@ Columns (header names are case-insensitive; `,` `;` or tab separated, UTF-8):
 `stock.adjust`, so it is audited. `kdv_class` is empty for the Product class default
 or a percentage (0-100) overriding it. `category` is `Name` or a path such as
 `Parent > Child > Grandchild`, up to five levels. `description` is the Product's
-Markdown Description (at most 5000 characters; the first non-blank one among a
-Product's rows wins). Without the column, existing Descriptions are left alone; with
-it, a Product whose rows are all blank is cleared. `notes` is ignored. Brands,
+Markdown Description (at most 5000 characters; a Product's rows that fill it in must
+agree). A blank or missing description never clears an existing one: edit it in the
+Dashboard instead. `notes` is ignored. Brands,
 suppliers and categories that do not exist (every missing ancestor too) are created
 on confirm; colours are never created (a colour needs a swatch), sizes must be in the
 class's scheme, and Products are created as drafts.
@@ -368,8 +368,17 @@ def _group(lines: list[Line], errors: list[RowError]) -> list[ProductPlan]:
             continue
         plan.brand = plan.brand or ln.brand
         plan.supplier = plan.supplier or ln.supplier
-        if ln.description is not None:
-            plan.description = plan.description or ln.description
+        if ln.description and ln.description.strip():
+            if plan.description and plan.description != ln.description:
+                errors.append(
+                    RowError(
+                        ln.row,
+                        "description",
+                        "Aynı ürünün satırlarında açıklama aynı olmalı.",
+                    ),
+                )
+                continue
+            plan.description = ln.description
         plan.lines.append(ln)
     for plan in groups.values():
         # The Product price is the most common line price (lowest on a tie), so row
@@ -618,7 +627,7 @@ def _apply_product(
             changes["shelf_price"] = p.price
         if p.kdv is not None and p.product.profile.kdv_rate != p.kdv:
             changes["kdv_rate"] = p.kdv
-        if p.description is not None and p.product.description != p.description:
+        if p.description and p.product.description != p.description:
             changes["description"] = p.description
         if changes:
             catalog.update_product(actor, p.product, **changes)
