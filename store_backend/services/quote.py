@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+from store_backend.services import campaign_pricing
 from store_backend.services import catalog
 from store_backend.services import pricing
 from store_backend.services import shipping
@@ -67,9 +68,11 @@ class Quote:
 
 
 def _snapshots(lines: list[BasketLine]) -> dict[int, pricing.LineSnapshot]:
+    """Each line at the price in force now: the Campaign price where one applies."""
+    prices = campaign_pricing.unit_prices(line.product for line in lines)
     return {
         line.pk: pricing.line_snapshot(
-            unit_price=catalog.shelf_price_for(line.product),
+            unit_price=prices[line.product_id],
             quantity=line.quantity,
             kdv_rate=catalog.kdv_rate_for(line.product),
         )

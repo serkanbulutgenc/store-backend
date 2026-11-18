@@ -483,6 +483,27 @@
             "title": "Line Total",
             "type": "string"
           },
+          "previous_unit_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The price last seen, when `price_changed`.",
+            "title": "Previous Unit Price"
+          },
+          "price_changed": {
+            "description": "The price differs from the one the Shopper last saw on this line.",
+            "title": "Price Changed",
+            "type": "boolean"
+          },
           "problem": {
             "anyOf": [
               {
@@ -539,6 +560,7 @@
           "image",
           "quantity",
           "unit_price",
+          "price_changed",
           "line_total",
           "available",
           "is_hygiene"

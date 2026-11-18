@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from store_backend.catalog.models import Campaign
 from store_backend.services import campaign_admin
+from store_backend.services import catalog
 from store_backend.services.pricing import HUNDRED
 from store_backend.services.pricing import kurus
 
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 
     from django.db.models import Expression
     from django.db.models import QuerySet
+    from oscar.apps.catalogue.models import Product
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,31 @@ class Winner:
 def discounted(shelf: Decimal, percentage: Decimal) -> Decimal:
     """`shelf` (KDV-inclusive) less `percentage`, rounded half-up to kuruş."""
     return kurus(shelf * (HUNDRED - percentage) / HUNDRED)
+
+
+def unit_prices(
+    variants: Iterable[Product],
+    *,
+    now: datetime | None = None,
+) -> dict[int, Decimal]:
+    """What each Variant costs right now, KDV-inclusive and in whole kuruş: its
+    effective Shelf price less the winning Campaign on its Product, if any. Basket,
+    quote and checkout price through this, so they never disagree with the Storefront.
+    The Variants need `variant_profile` and `parent__profile` loaded."""
+    variants = list(variants)
+    won = winners({v.parent_id for v in variants}, now=now)
+    prices = {}
+    for variant in variants:
+        shelf = kurus(catalog.shelf_price_for(variant))
+        winner = won.get(variant.parent_id)
+        prices[variant.pk] = (
+            shelf if winner is None else discounted(shelf, winner.percentage)
+        )
+    return prices
+
+
+def unit_price(variant: Product, *, now: datetime | None = None) -> Decimal:
+    return unit_prices([variant], now=now)[variant.pk]
 
 
 def active(now: datetime | None = None) -> QuerySet[Campaign]:
@@ -118,6 +145,8 @@ __all__ = [
     "discounted",
     "discounted_sql",
     "percentage_sql",
+    "unit_price",
+    "unit_prices",
     "winner_dict",
     "winners",
 ]
