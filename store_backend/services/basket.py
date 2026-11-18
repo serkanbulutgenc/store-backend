@@ -19,6 +19,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
+from store_backend.services import campaign_pricing
 from store_backend.services import catalog
 from store_backend.services import pricing
 from store_backend.services import stock
@@ -83,7 +84,16 @@ def add(basket: Basket, variant_id: int, quantity: int) -> None:
         msg = f"Bir üründen en fazla {MAX_QUANTITY} adet alınabilir."
         raise ConflictError(msg, code="quantity_limit", fields={"quantity": [msg]})
     _check_stock(variant, wanted)
-    basket.add_product(variant, quantity)
+    line, _ = basket.add_product(variant, quantity)
+    _stamp(line, campaign_pricing.unit_price(variant))
+
+
+def _stamp(line, unit: Decimal) -> None:
+    """Record the unit price the Shopper saw, so a later change can be flagged."""
+    rate = catalog.kdv_rate_for(line.product)
+    line.price_incl_tax = unit
+    line.price_excl_tax = pricing.split_kdv(unit, rate)[0]
+    line.save(update_fields=["price_incl_tax", "price_excl_tax"])
 
 
 def _line(basket: Basket, line_id: int):
@@ -106,6 +116,8 @@ def set_quantity(basket: Basket, line_id: int, quantity: int) -> None:
         _check_stock(_purchasable_variant(line.product_id), quantity)
     line.quantity = quantity
     line.save(update_fields=["quantity"])
+    # Changing a line is the Shopper seeing its current price.
+    _stamp(line, campaign_pricing.unit_price(line.product))
 
 
 def remove(basket: Basket, line_id: int) -> None:
@@ -123,12 +135,19 @@ def _problem(variant: Product | None, quantity: int, available: int) -> str | No
 
 
 def _items_total(basket: Basket) -> Decimal:
-    lines = basket.lines.select_related("product") if basket.id else []
+    lines = (
+        list(
+            basket.lines.select_related(
+                "product__variant_profile",
+                "product__parent__profile",
+            ),
+        )
+        if basket.id
+        else []
+    )
+    prices = campaign_pricing.unit_prices(line.product for line in lines)
     return sum(
-        (
-            pricing.kurus(catalog.shelf_price_for(line.product)) * line.quantity
-            for line in lines
-        ),
+        (prices[line.product_id] * line.quantity for line in lines),
         pricing.ZERO,
     )
 
@@ -214,6 +233,7 @@ def view(basket: Basket) -> dict:
     parent_ids = list({line.product.parent_id for line in lines})
     photos = browse.photos_by_product(parent_ids)
     records = stock.records_for([line.product_id for line in lines])
+    prices = campaign_pricing.unit_prices(line.product for line in lines)
     out = []
     subtotal = pricing.ZERO
     for line in lines:
@@ -222,7 +242,9 @@ def view(basket: Basket) -> dict:
         parent = variant.parent
         published = parent.profile.status == ProductStatus.PUBLISHED
         available = stock.units(records.get(variant.pk))
-        unit = pricing.kurus(catalog.shelf_price_for(variant))
+        unit = prices[variant.pk]
+        seen = line.price_incl_tax
+        changed = seen is not None and pricing.kurus(seen) != unit
         total = unit * line.quantity
         subtotal += total
         coloured = [
@@ -245,6 +267,8 @@ def view(basket: Basket) -> dict:
                 "image": browse.card_image(coloured or photos[parent.pk]),
                 "quantity": line.quantity,
                 "unit_price": unit,
+                "price_changed": changed,
+                "previous_unit_price": pricing.kurus(seen) if changed else None,
                 "line_total": total,
                 "available": available,
                 "is_hygiene": parent.product_class.profile.is_hygiene,

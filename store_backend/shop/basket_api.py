@@ -32,7 +32,14 @@ class BasketLineOut(Schema):
     size: str
     image: CardImageOut | None
     quantity: int
-    unit_price: Money  # KDV-inclusive, whole kuruş
+    unit_price: Money  # KDV-inclusive, whole kuruş; the Campaign price if one applies
+    price_changed: bool = Field(
+        description="The price differs from the one the Shopper last saw on this line.",
+    )
+    previous_unit_price: Money | None = Field(
+        None,
+        description="The price last seen, when `price_changed`.",
+    )
     line_total: Money
     available: int
     is_hygiene: bool
