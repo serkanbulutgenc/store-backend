@@ -27,6 +27,7 @@ from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import VariantProfile
 from store_backend.services import audit
 from store_backend.services.pricing import kurus
+from store_backend.shop.models import OrderLineSnapshot
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -223,9 +224,13 @@ def _switch(actor: User, campaign_id: int, *, on: bool) -> Campaign:
 
 
 def orders_using(campaign: Campaign) -> int:
-    """How many Orders were bought under `campaign`. Orders do not carry a Campaign
-    yet (the Order slice adds it), so none do; delete's refusal is already wired."""
-    return 0
+    """How many Orders were bought under `campaign`: those with a line it priced."""
+    return (
+        OrderLineSnapshot.objects.filter(campaign=campaign)
+        .values("line__order_id")
+        .distinct()
+        .count()
+    )
 
 
 @transaction.atomic

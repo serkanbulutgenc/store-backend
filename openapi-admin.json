@@ -3705,8 +3705,55 @@
         "title": "OrderInvoiceDetailsPatch",
         "type": "object"
       },
+      "OrderLineCampaignOut": {
+        "description": "The Campaign that priced the line, as it was when the Shopper bought.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "percentage": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Percentage",
+            "type": "string"
+          },
+          "shelf_unit_price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shelf Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "percentage",
+          "shelf_unit_price"
+        ],
+        "title": "OrderLineCampaignOut",
+        "type": "object"
+      },
       "OrderLineOut": {
         "properties": {
+          "campaign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderLineCampaignOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "colour": {
             "title": "Colour",
             "type": "string"
@@ -3751,7 +3798,8 @@
           "size",
           "quantity",
           "unit_price",
-          "line_total"
+          "line_total",
+          "campaign"
         ],
         "title": "OrderLineOut",
         "type": "object"
