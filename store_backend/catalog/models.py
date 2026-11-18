@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.core.validators import MaxValueValidator
@@ -500,3 +501,127 @@ class AttributeValue(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product_id} {self.attribute_id}"
+
+
+class CollectionStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PENDING = "pending_approval", "Pending approval"
+    PUBLISHED = "published", "Published"
+    UNPUBLISHED = "unpublished", "Unpublished"
+
+
+class Collection(models.Model):
+    """A named, hand-picked and hand-ordered list of Products shown on the Storefront
+    (see GLOSSARY.md). Flat, unlike the Category tree; a Product can be in many."""
+
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
+    description = models.CharField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=CollectionStatus,
+        default=CollectionStatus.DRAFT,
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    # Set while pending approval; kept after a rejection so the submitter sees why.
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    products = models.ManyToManyField(
+        Product,
+        through="CollectionProduct",
+        related_name="+",
+    )
+    # The cover image: same pipeline and derivative sizes as a Category's, kept as
+    # columns because a Collection has at most one. Not part of a pending change: only
+    # the Owner changes it on a published Collection.
+    image_original = models.CharField(max_length=255, blank=True)
+    image_width = models.PositiveIntegerField(default=0)
+    image_height = models.PositiveIntegerField(default=0)
+    image_status = models.CharField(
+        max_length=16,
+        choices=CategoryProfile.ImageStatus.choices,
+        blank=True,
+        default="",
+    )
+    image_derivatives = models.JSONField(default=list, blank=True)
+    image_alt = models.CharField(max_length=255, blank=True)
+    image_error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["name", "pk"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def image_file_names(self) -> list[str]:
+        if not self.image_original:
+            return []
+        return [self.image_original, *(d["name"] for d in self.image_derivatives)]
+
+    def image_derivative_urls(self) -> list[dict]:
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        return [
+            {"width": d["width"], "url": media_url(d["name"])}
+            for d in self.image_derivatives
+        ]
+
+
+class CollectionChange(models.Model):
+    """A Staff edit to a published Collection, held until the Owner approves it
+    (ADR 0008). At most one per Collection; the live Collection stays as it is."""
+
+    collection = models.OneToOneField(
+        Collection,
+        on_delete=models.CASCADE,
+        related_name="pending_change",
+    )
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200)
+    description = models.CharField(max_length=500, blank=True)
+    product_ids = models.JSONField(default=list)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"change of {self.collection_id}"
+
+
+class CollectionProduct(models.Model):
+    """A Product's place in a Collection. Deleting a Product just drops its places."""
+
+    collection = models.ForeignKey(
+        Collection,
+        on_delete=models.CASCADE,
+        related_name="places",
+    )
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="+")
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                "collection",
+                "product",
+                name="catalog_collection_product_once",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.collection_id}:{self.product_id}"

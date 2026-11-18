@@ -22,9 +22,11 @@ from oscar.apps.catalogue.models import Product
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Brand
+from store_backend.catalog.models import Collection
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services import categories
+from store_backend.services import collections
 from store_backend.services import legal_pages
 from store_backend.services.menus import DEPTH_LIMIT
 from store_backend.services.menus import brand_is_public
@@ -90,7 +92,13 @@ def _brand_target(item: MenuItem) -> tuple[str, str | None, Reason]:
     return brand.name, f"/ara?brand={brand.pk}", reason
 
 
-def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: PLR0911
+def _collection_target(item: MenuItem) -> tuple[str, str | None, Reason]:
+    collection = Collection.objects.get(pk=item.collection_id)
+    reason = "" if collections.is_public(collection) else "target_not_public"
+    return collection.name, collections.path(collection), reason
+
+
+def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: C901, PLR0911
     """The target's own label, its URL, and why the Storefront would leave the item
     out for the target's sake ("" when the target is public)."""
     kind = MenuItem.Target
@@ -108,6 +116,8 @@ def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: PLR0911
         return _product_target(item)
     if item.target_type == kind.BRAND:
         return _brand_target(item)
+    if item.target_type == kind.COLLECTION:
+        return _collection_target(item)
     if item.target_type == kind.LEGAL_PAGE:
         slug = (
             legal_pages.slug_of(item.legal_page)
@@ -146,6 +156,7 @@ def _node(
         "category_id": item.category_id,
         "product_id": item.product_id,
         "brand_id": item.brand_id,
+        "collection_id": item.collection_id,
         "include_subcategories": item.include_subcategories,
         "legal_page": item.legal_page or None,
         "builtin": item.builtin or None,
@@ -201,6 +212,7 @@ _REFERENCES = (
     (MenuItem.Target.CATEGORY, "category_id", "Kategori bulunamadı."),
     (MenuItem.Target.PRODUCT, "product_id", "Ürün bulunamadı."),
     (MenuItem.Target.BRAND, "brand_id", "Marka bulunamadı."),
+    (MenuItem.Target.COLLECTION, "collection_id", "Koleksiyon bulunamadı."),
 )
 
 
@@ -216,6 +228,7 @@ def _check_target(node: dict, path: str, known: dict[str, set[int]]) -> None:
         "category_id": node["category_id"] is not None,
         "product_id": node["product_id"] is not None,
         "brand_id": node["brand_id"] is not None,
+        "collection_id": node["collection_id"] is not None,
         "legal_page": bool(node["legal_page"]),
         "builtin": bool(node["builtin"]),
         # An empty URL on a URL item is a bad URL, not a missing target.
@@ -227,6 +240,7 @@ def _check_target(node: dict, path: str, known: dict[str, set[int]]) -> None:
         MenuItem.Target.CATEGORY: "category_id",
         MenuItem.Target.PRODUCT: "product_id",
         MenuItem.Target.BRAND: "brand_id",
+        MenuItem.Target.COLLECTION: "collection_id",
         MenuItem.Target.LEGAL_PAGE: "legal_page",
         MenuItem.Target.BUILTIN: "builtin",
         MenuItem.Target.URL: "url",
@@ -275,12 +289,13 @@ def _has_legal_index(nodes: list[dict]) -> bool:
 
 
 def _known_targets(nodes: list[dict]) -> dict[str, set[int]]:
-    """Which of the referenced Categories, Products and Brands exist."""
+    """Which of the referenced Categories, Products, Brands and Collections exist."""
     # Only a Product with a page of its own can be linked: not a variant.
     models = {
         "category_id": Category.objects,
         "product_id": Product.objects.filter(profile__isnull=False),
         "brand_id": Brand.objects,
+        "collection_id": Collection.objects,
     }
     return {
         field: set(
@@ -327,6 +342,7 @@ def _snapshot(nodes: list[dict]) -> list[dict]:
         "category_id",
         "product_id",
         "brand_id",
+        "collection_id",
         "include_subcategories",
         "legal_page",
         "builtin",
@@ -349,6 +365,7 @@ def _create(menu: Menu, nodes: list[dict], parent: MenuItem | None) -> None:
             category_id=node["category_id"],
             product_id=node["product_id"],
             brand_id=node["brand_id"],
+            collection_id=node["collection_id"],
             include_subcategories=node["include_subcategories"],
             legal_page=node["legal_page"] or "",
             builtin=node["builtin"] or "",
@@ -407,6 +424,7 @@ def _match(target_type: str, label: str, **reference: Any) -> dict[str, Any]:
         "category_id": None,
         "product_id": None,
         "brand_id": None,
+        "collection_id": None,
         "legal_page": None,
         "target_type": target_type,
         "target_label": label,
@@ -415,9 +433,10 @@ def _match(target_type: str, label: str, **reference: Any) -> dict[str, Any]:
 
 
 def search_targets(q: str) -> list[dict[str, Any]]:
-    """Categories, Legal pages, Products and Brands whose name matches `q`, shaped
-    like the item fields so the builder can drop a result into the tree as it is.
-    Every match is returned, public or not: the builder's read flags the latter."""
+    """Categories, Legal pages, Products, Brands and Collections whose name matches
+    `q`, shaped like the item fields so the builder can drop a result into the tree as
+    it is. Every match is returned, public or not: the builder's read flags the
+    latter."""
     folded = fold(q)
     if not folded:
         return []
@@ -444,5 +463,11 @@ def search_targets(q: str) -> list[dict[str, Any]]:
         for b in Brand.objects.alias(f=_folded("name")).filter(f__contains=folded)[
             :PICK_LIMIT
         ]
+    )
+    found.extend(
+        _match("collection", c.name, collection_id=c.pk)
+        for c in Collection.objects.alias(f=_folded("name")).filter(
+            f__contains=folded,
+        )[:PICK_LIMIT]
     )
     return found
