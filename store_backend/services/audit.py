@@ -75,6 +75,11 @@ class Action(StrEnum):
     COLLECTION_PUBLISHED = "collection_published"
     COLLECTION_UNPUBLISHED = "collection_unpublished"
     COLLECTION_DELETED = "collection_deleted"
+    CAMPAIGN_CREATED = "campaign_created"
+    CAMPAIGN_EDITED = "campaign_edited"
+    CAMPAIGN_ACTIVATED = "campaign_activated"
+    CAMPAIGN_DEACTIVATED = "campaign_deactivated"
+    CAMPAIGN_DELETED = "campaign_deleted"
 
 
 def record(  # noqa: PLR0913
