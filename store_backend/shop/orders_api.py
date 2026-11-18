@@ -78,6 +78,15 @@ class OrderRow(Schema):
         return sum(line.quantity for line in obj.lines.all())
 
 
+class OrderLineCampaignOut(Schema):
+    """The Campaign that priced the line, as it was when the Shopper bought."""
+
+    id: int
+    name: str
+    percentage: Money
+    shelf_unit_price: Money
+
+
 class OrderLineOut(Schema):
     sku: str
     title: str
@@ -86,6 +95,7 @@ class OrderLineOut(Schema):
     quantity: int
     unit_price: Money
     line_total: Money
+    campaign: OrderLineCampaignOut | None
 
 
 class OrderShippingOut(Schema):
@@ -247,9 +257,23 @@ def _lines(order) -> list[dict]:
             "quantity": line.quantity,
             "unit_price": line.unit_price_incl_tax,
             "line_total": line.line_price_incl_tax,
+            "campaign": _campaign(line),
         }
         for line in sorted(order.lines.all(), key=lambda row: row.pk)
     ]
+
+
+def _campaign(line) -> dict | None:
+    """From the line's own frozen snapshot, so later edits never change it."""
+    snap = line.kdv_snapshot
+    if snap.campaign_id is None:
+        return None
+    return {
+        "id": snap.campaign_id,
+        "name": snap.campaign_name,
+        "percentage": snap.campaign_percentage,
+        "shelf_unit_price": snap.shelf_unit_price,
+    }
 
 
 def _voucher(order) -> dict | None:

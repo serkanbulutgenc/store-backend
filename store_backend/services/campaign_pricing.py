@@ -49,25 +49,42 @@ def discounted(shelf: Decimal, percentage: Decimal) -> Decimal:
     return kurus(shelf * (HUNDRED - percentage) / HUNDRED)
 
 
+@dataclass(frozen=True)
+class Priced:
+    """What a Variant costs right now and why: `unit` is KDV-inclusive whole kuruş, the
+    `shelf` price less the `winner`'s percentage, or the Shelf price if none."""
+
+    unit: Decimal
+    shelf: Decimal
+    winner: Winner | None
+
+
+def priced(
+    variants: Iterable[Product],
+    *,
+    now: datetime | None = None,
+) -> dict[int, Priced]:
+    """Each Variant's price right now, with the Campaign behind it. Basket, quote and
+    checkout price through this, so they never disagree with the Storefront. The
+    Variants need `variant_profile` and `parent__profile` loaded."""
+    variants = list(variants)
+    won = winners({v.parent_id for v in variants}, now=now)
+    out = {}
+    for variant in variants:
+        shelf = kurus(catalog.shelf_price_for(variant))
+        winner = won.get(variant.parent_id)
+        unit = shelf if winner is None else discounted(shelf, winner.percentage)
+        out[variant.pk] = Priced(unit, shelf, winner)
+    return out
+
+
 def unit_prices(
     variants: Iterable[Product],
     *,
     now: datetime | None = None,
 ) -> dict[int, Decimal]:
-    """What each Variant costs right now, KDV-inclusive and in whole kuruş: its
-    effective Shelf price less the winning Campaign on its Product, if any. Basket,
-    quote and checkout price through this, so they never disagree with the Storefront.
-    The Variants need `variant_profile` and `parent__profile` loaded."""
-    variants = list(variants)
-    won = winners({v.parent_id for v in variants}, now=now)
-    prices = {}
-    for variant in variants:
-        shelf = kurus(catalog.shelf_price_for(variant))
-        winner = won.get(variant.parent_id)
-        prices[variant.pk] = (
-            shelf if winner is None else discounted(shelf, winner.percentage)
-        )
-    return prices
+    """Just the price of each Variant, from `priced`."""
+    return {pk: p.unit for pk, p in priced(variants, now=now).items()}
 
 
 def unit_price(variant: Product, *, now: datetime | None = None) -> Decimal:
@@ -140,11 +157,13 @@ def discounted_sql(shelf: Expression, percentage: Expression):
 
 
 __all__ = [
+    "Priced",
     "Winner",
     "active",
     "discounted",
     "discounted_sql",
     "percentage_sql",
+    "priced",
     "unit_price",
     "unit_prices",
     "winner_dict",

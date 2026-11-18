@@ -313,6 +313,24 @@ class OrderLineSnapshot(_KdvSnapshot):
     )
     quantity = models.PositiveIntegerField()
     unit_price_incl = _money()
+    # The Campaign that priced the line, frozen with it (ADR 0009): the link for the
+    # Owner's reporting, and the name, percentage and Shelf price as they were then.
+    # PROTECT: a Campaign an Order used is never deleted (ADR 0005).
+    campaign = models.ForeignKey(
+        "store_catalog.Campaign",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    campaign_name = models.CharField(max_length=200, blank=True)
+    campaign_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    shelf_unit_price = _money(null=True, blank=True)
 
     def __str__(self) -> str:
         return f"KDV snapshot of line {self.line_id}"
