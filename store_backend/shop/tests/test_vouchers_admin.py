@@ -252,7 +252,7 @@ def test_the_list_shows_the_newest_voucher_first_with_its_redemptions(boss):
     response = boss.get(VOUCHERS)
 
     assert response.status_code == HTTPStatus.OK
-    rows = response.json()
+    rows = response.json()["items"]
     assert [(r["code"], r["redemptions"]) for r in rows] == [
         ("SON", 0),
         ("ORTA", 0),
@@ -284,7 +284,7 @@ def test_a_voucher_has_one_status_and_the_first_that_applies_wins(boss):
         offer.status = ConditionalOffer.SUSPENDED
         offer.save()
 
-    rows = boss.get(VOUCHERS).json()
+    rows = boss.get(VOUCHERS).json()["items"]
 
     assert {r["code"]: r["status"] for r in rows} == {
         "AKTIF": "active",
@@ -305,12 +305,28 @@ def test_the_list_can_be_narrowed_to_one_status(boss):
     def codes(**query):
         response = boss.get(VOUCHERS, data=query)
         assert response.status_code == HTTPStatus.OK, response.content
-        return [row["code"] for row in response.json()]
+        return [row["code"] for row in response.json()["items"]]
 
     assert codes(status="active") == ["AKTIF2", "AKTIF1"]
     assert codes(status="expired") == ["BITMIS"]
     assert codes(status="scheduled") == []
     assert codes() == ["BITMIS", "AKTIF2", "AKTIF1"]
+
+
+def test_the_list_is_paged_and_the_total_counts_the_narrowed_list(boss):
+    past = {"starts_at": "2020-01-01T00:00:00Z", "ends_at": "2021-01-01T00:00:00Z"}
+    for code, limits in (("AAA1", {}), ("AAA2", {}), ("AAA3", {}), ("BBB1", past)):
+        assert boss.post(VOUCHERS, {**ten_percent(code), **limits}).status_code == 201
+
+    def page(**query):
+        response = boss.get(VOUCHERS, data=query)
+        assert response.status_code == HTTPStatus.OK, response.content
+        body = response.json()
+        return [r["code"] for r in body["items"]], body["total"], body["page"]
+
+    assert page(page=1, page_size=3) == (["BBB1", "AAA3", "AAA2"], 4, 1)
+    assert page(page=2, page_size=3) == (["AAA1"], 4, 2)
+    assert page(status="active", page=2, page_size=2) == (["AAA1"], 3, 2)
 
 
 def test_an_unknown_status_filter_is_refused_naming_the_field(boss):
@@ -591,7 +607,7 @@ def test_deleting_an_unused_voucher_removes_it_and_is_audited(boss, owner, shop)
     basket = guest.get("/api/store/basket")
     assert basket.status_code == HTTPStatus.OK, basket.content
     assert basket.json()["voucher"] is None
-    assert boss.get(VOUCHERS).json() == []
+    assert boss.get(VOUCHERS).json()["items"] == []
 
 
 def test_a_redeemed_voucher_cannot_be_deleted_and_the_refusal_names_the_count(boss):

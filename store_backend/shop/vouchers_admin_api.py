@@ -8,8 +8,10 @@ from typing import Literal
 
 from ninja import Router
 from ninja import Schema
+from ninja.pagination import paginate
 
 from store_backend.api.money import Money  # noqa: TC001
+from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
 from store_backend.services import voucher_admin
 from store_backend.staff.permissions import Perm
@@ -60,6 +62,7 @@ class VoucherAdminOut(Schema):
     operation_id="vouchers_list",
     response=list[VoucherAdminOut],
 )
+@paginate(PageOffsetPagination)
 def list_vouchers(request, status: str | None = None):
     return voucher_admin.listing(status)
 
