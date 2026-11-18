@@ -41,6 +41,8 @@ class ProductCardOut(Schema):
     title: str
     price: Money
     old_price: Money | None
+    shelf_price: Money | None
+    campaign_percentage: Decimal | None
     sold_out: bool
     image: CardImageOut | None
     colours: list[SwatchOut]
@@ -218,6 +220,7 @@ class PageVariantOut(Schema):
     colour: SwatchOut
     size: str
     price: Money
+    shelf_price: Money | None
     available: int
     in_stock: bool
     remaining: int | None

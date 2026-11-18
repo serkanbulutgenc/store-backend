@@ -9,6 +9,7 @@ from typing import Any
 
 from store_backend.catalog.sizes import sizes_for
 from store_backend.services import attributes
+from store_backend.services import campaign_pricing
 from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import categories
@@ -156,11 +157,19 @@ def product_dict(user: Any, product: Product) -> dict:
         else {"id": supplier.pk, "name": supplier.name, "code": supplier.code},
         "supplier_code": profile.supplier_code,
         "menu_item_count": catalog.product_menu_items(product),
+        "campaign": campaign_pricing.winner_dict(
+            campaign_pricing.winners([product.pk]).get(product.pk),
+        ),
     }
     return catalog_policy.omit_owner_fields(user, payload)
 
 
-def list_dict(p: Product) -> dict:
+def list_context(rows: list[Product]) -> dict[int, campaign_pricing.Winner]:
+    """What a page of list rows needs, looked up once for the page."""
+    return campaign_pricing.winners([p.pk for p in rows])
+
+
+def list_dict(p: Product, winners: dict[int, campaign_pricing.Winner]) -> dict:
     children = list(p.children.all())
     categories = list(p.categories.all())
     return {
@@ -175,6 +184,7 @@ def list_dict(p: Product) -> dict:
             r.num_in_stock for c in children for r in c.stockrecords.all()
         ),
         "menu_item_count": p.menu_item_count,
+        "campaign": campaign_pricing.winner_dict(winners.get(p.pk)),
     }
 
 
