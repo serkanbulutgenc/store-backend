@@ -341,6 +341,12 @@ class VariantOut(Schema):
     is_low_stock: bool
 
 
+class WinningCampaignOut(Schema):
+    id: int
+    name: str
+    percentage: Money
+
+
 class ProductListOut(Schema):
     id: int
     title: str
@@ -351,6 +357,7 @@ class ProductListOut(Schema):
     variant_count: int
     stock_total: int
     menu_item_count: int  # Menu items that block deleting it (ADR 0007)
+    campaign: WinningCampaignOut | None  # the Campaign pricing it right now
 
 
 class ProductOut(Schema):
@@ -374,6 +381,7 @@ class ProductOut(Schema):
     supplier: SupplierOut | None = None
     supplier_code: str | None = None
     menu_item_count: int = 0  # Menu items that block deleting it (ADR 0007)
+    campaign: WinningCampaignOut | None = None  # the Campaign pricing it right now
 
 
 class LowStockOut(Schema):
@@ -822,16 +830,18 @@ def list_products(
     if category_id:
         qs = qs.filter(categories__pk=category_id)
     qs = apply_ordering(qs, ordering or "-id", allowed=PRODUCT_ORDERING)
-    return MappedRows(qs, views.list_dict)
+    return MappedRows(qs, views.list_dict, views.list_context)
 
 
 class MappedRows:
     """Queryset-like wrapper: pagination counts and slices the queryset, then each
     row of the slice is mapped to its response dict."""
 
-    def __init__(self, qs, fn) -> None:
+    def __init__(self, qs, fn, context=None) -> None:
         self.qs = qs
         self.fn = fn
+        # Looks up, once for the slice, what each row's `fn` also needs.
+        self.context = context
 
     def all(self) -> MappedRows:
         return self
@@ -840,7 +850,11 @@ class MappedRows:
         return self.qs.count()
 
     def __getitem__(self, item):
-        return [self.fn(row) for row in self.qs[item]]
+        rows = list(self.qs[item])
+        if self.context is None:
+            return [self.fn(row) for row in rows]
+        extra = self.context(rows)
+        return [self.fn(row, extra) for row in rows]
 
 
 @router.get(

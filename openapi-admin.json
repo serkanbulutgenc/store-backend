@@ -4974,6 +4974,16 @@
       },
       "ProductListOut": {
         "properties": {
+          "campaign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WinningCampaignOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "category": {
             "anyOf": [
               {
@@ -5029,7 +5039,8 @@
           "shelf_price",
           "variant_count",
           "stock_total",
-          "menu_item_count"
+          "menu_item_count",
+          "campaign"
         ],
         "title": "ProductListOut",
         "type": "object"
@@ -5047,6 +5058,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/NamedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "campaign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WinningCampaignOut"
               },
               {
                 "type": "null"
@@ -7145,6 +7166,33 @@
           }
         },
         "title": "VoucherPatch",
+        "type": "object"
+      },
+      "WinningCampaignOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "percentage": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Percentage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "percentage"
+        ],
+        "title": "WinningCampaignOut",
         "type": "object"
       },
       "ZoneOut": {

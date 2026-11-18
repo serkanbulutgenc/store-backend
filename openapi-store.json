@@ -1591,6 +1591,21 @@
             ],
             "title": "Remaining"
           },
+          "shelf_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shelf Price"
+          },
           "size": {
             "title": "Size",
             "type": "string"
@@ -1606,6 +1621,7 @@
           "colour",
           "size",
           "price",
+          "shelf_price",
           "available",
           "in_stock",
           "remaining"
@@ -1746,6 +1762,17 @@
       },
       "ProductCardOut": {
         "properties": {
+          "campaign_percentage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Percentage"
+          },
           "colours": {
             "items": {
               "$ref": "#/components/schemas/SwatchOut"
@@ -1805,6 +1832,21 @@
             "title": "Rating Count",
             "type": "integer"
           },
+          "shelf_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shelf Price"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1824,6 +1866,8 @@
           "title",
           "price",
           "old_price",
+          "shelf_price",
+          "campaign_percentage",
           "sold_out",
           "image",
           "colours",
@@ -1858,6 +1902,17 @@
             },
             "title": "Breadcrumbs",
             "type": "array"
+          },
+          "campaign_percentage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Percentage"
           },
           "colours": {
             "items": {
@@ -1933,6 +1988,21 @@
             "title": "Rating Count",
             "type": "integer"
           },
+          "shelf_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shelf Price"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1959,6 +2029,8 @@
           "title",
           "price",
           "old_price",
+          "shelf_price",
+          "campaign_percentage",
           "sold_out",
           "image",
           "colours",
