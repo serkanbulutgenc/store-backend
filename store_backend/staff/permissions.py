@@ -54,6 +54,7 @@ class Perm(StrEnum):
     MANAGE_VOUCHERS = "manage_vouchers"  # create, edit, deactivate, delete
     MANAGE_MENUS = "manage_menus"  # read and save the Header and Footer menus
     MANAGE_COLLECTIONS = "manage_collections"  # publish, unpublish, approve, reject
+    MANAGE_CAMPAIGNS = "manage_campaigns"  # create, edit, activate, deactivate, delete
 
     @property
     def label(self) -> str:
@@ -87,6 +88,7 @@ OWNER_ONLY: frozenset[Perm] = frozenset(
         Perm.MANAGE_VOUCHERS,
         Perm.MANAGE_MENUS,
         Perm.MANAGE_COLLECTIONS,
+        Perm.MANAGE_CAMPAIGNS,
     },
 )
 

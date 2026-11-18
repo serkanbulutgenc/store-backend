@@ -625,3 +625,44 @@ class CollectionProduct(models.Model):
 
     def __str__(self) -> str:
         return f"{self.collection_id}:{self.product_id}"
+
+
+class Campaign(models.Model):
+    """An automatic, code-free percentage discount the Owner sets on chosen Products,
+    Categories or Collections (see GLOSSARY.md and ADR 0009). Only the rule is stored;
+    the Campaign price is computed from it on every read."""
+
+    name = models.CharField(
+        max_length=200,
+        help_text="Internal; Shoppers never see it.",
+    )
+    percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    # The schedule applies the Campaign by itself; `is_active` is the manual switch
+    # that stops it whatever the schedule says.
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    include_subcategories = models.BooleanField(default=False)
+    products = models.ManyToManyField(Product, related_name="+", blank=True)
+    categories = models.ManyToManyField(Category, related_name="+", blank=True)
+    collections = models.ManyToManyField(Collection, related_name="+", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(percentage__gte=1) & Q(percentage__lte=99),
+                name="catalog_campaign_percentage_1_99",
+            ),
+            models.CheckConstraint(
+                condition=Q(starts_at__isnull=True)
+                | Q(ends_at__isnull=True)
+                | Q(ends_at__gt=models.F("starts_at")),
+                name="catalog_campaign_ends_after_start",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
