@@ -859,6 +859,48 @@
         "title": "CheckoutIn",
         "type": "object"
       },
+      "CollectionPageOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductCardOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "description",
+          "image",
+          "items"
+        ],
+        "title": "CollectionPageOut",
+        "type": "object"
+      },
       "ColourFacet": {
         "properties": {
           "count": {
@@ -3947,6 +3989,39 @@
         "summary": "Quote Order",
         "tags": [
           "checkout"
+        ]
+      }
+    },
+    "/api/store/collections/{slug}": {
+      "get": {
+        "description": "A published Collection's Products in the Owner's order. Draft and archived\nProducts are left out, sold-out ones are shown as sold out. A Collection that is\nnot published or has no visible Product is 404.",
+        "operationId": "catalog_get_collection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Collection",
+        "tags": [
+          "catalog"
         ]
       }
     },

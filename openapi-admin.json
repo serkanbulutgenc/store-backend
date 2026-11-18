@@ -931,6 +931,344 @@
         "title": "CategoryReorderIn",
         "type": "object"
       },
+      "CollectionIn": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Product Ids",
+            "type": "array"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CollectionIn",
+        "type": "object"
+      },
+      "CollectionOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pending_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingChangeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionProductOut"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "rejection_reason": {
+            "title": "Rejection Reason",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "pending_approval",
+              "published",
+              "unpublished"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visible_product_count": {
+            "title": "Visible Product Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "status",
+          "published_at",
+          "submitted_by",
+          "submitted_at",
+          "rejection_reason",
+          "pending_change",
+          "image",
+          "products",
+          "visible_product_count"
+        ],
+        "title": "CollectionOut",
+        "type": "object"
+      },
+      "CollectionPatch": {
+        "description": "What the Owner changes; anything left out stays as it is. `product_ids`\nreplaces the whole ordered list.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "product_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Ids"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "title": "CollectionPatch",
+        "type": "object"
+      },
+      "CollectionProductOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "published",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "slug",
+          "status"
+        ],
+        "title": "CollectionProductOut",
+        "type": "object"
+      },
+      "CollectionRowOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "has_pending_change": {
+            "title": "Has Pending Change",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "rejection_reason": {
+            "title": "Rejection Reason",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "pending_approval",
+              "published",
+              "unpublished"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "status",
+          "published_at",
+          "submitted_by",
+          "submitted_at",
+          "rejection_reason",
+          "has_pending_change",
+          "product_count"
+        ],
+        "title": "CollectionRowOut",
+        "type": "object"
+      },
       "ColourIn": {
         "properties": {
           "hex_code": {
@@ -1019,6 +1357,53 @@
           }
         },
         "title": "ColourPatch",
+        "type": "object"
+      },
+      "CoverImageOut": {
+        "description": "The cover image: `processing` until its derivatives exist.",
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          },
+          "derivatives": {
+            "items": {
+              "$ref": "#/components/schemas/ImageDerivativeOut"
+            },
+            "title": "Derivatives",
+            "type": "array"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "original_url": {
+            "title": "Original Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "alt_text",
+          "original_url",
+          "width",
+          "height",
+          "derivatives",
+          "error"
+        ],
+        "title": "CoverImageOut",
         "type": "object"
       },
       "CustomerDetail": {
@@ -1350,6 +1735,19 @@
         "title": "HomeReturnRow",
         "type": "object"
       },
+      "ImageAltIn": {
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alt_text"
+        ],
+        "title": "ImageAltIn",
+        "type": "object"
+      },
       "ImageDerivativeOut": {
         "properties": {
           "url": {
@@ -1382,6 +1780,17 @@
           "ids"
         ],
         "title": "ImageOrderIn",
+        "type": "object"
+      },
+      "ImageUploadIn": {
+        "properties": {
+          "alt_text": {
+            "default": "",
+            "title": "Alt Text",
+            "type": "string"
+          }
+        },
+        "title": "ImageUploadIn",
         "type": "object"
       },
       "ImportCountsOut": {
@@ -2069,6 +2478,17 @@
             "title": "Children",
             "type": "array"
           },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
           "include_subcategories": {
             "default": false,
             "title": "Include Subcategories",
@@ -2111,6 +2531,7 @@
               "category",
               "product",
               "brand",
+              "collection",
               "legal_page",
               "builtin",
               "url",
@@ -2178,6 +2599,17 @@
             },
             "title": "Children",
             "type": "array"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
           },
           "include_subcategories": {
             "title": "Include Subcategories",
@@ -2250,6 +2682,7 @@
               "category",
               "product",
               "brand",
+              "collection",
               "legal_page",
               "builtin",
               "url",
@@ -2275,6 +2708,7 @@
           "category_id",
           "product_id",
           "brand_id",
+          "collection_id",
           "include_subcategories",
           "legal_page",
           "builtin",
@@ -2340,6 +2774,17 @@
             ],
             "title": "Category Id"
           },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
           "legal_page": {
             "anyOf": [
               {
@@ -2371,6 +2816,7 @@
               "category",
               "product",
               "brand",
+              "collection",
               "legal_page"
             ],
             "title": "Target Type",
@@ -2383,6 +2829,7 @@
           "category_id",
           "product_id",
           "brand_id",
+          "collection_id",
           "legal_page"
         ],
         "title": "MenuTargetOut",
@@ -3547,6 +3994,37 @@
         "title": "PagedStaffUserOut",
         "type": "object"
       },
+      "PagedVoucherAdminOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherAdminOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PagedVoucherAdminOut",
+        "type": "object"
+      },
       "PaymentMethod": {
         "enum": [
           "bank_transfer",
@@ -3554,6 +4032,79 @@
         ],
         "title": "PaymentMethod",
         "type": "string"
+      },
+      "PendingChangeOut": {
+        "description": "A Staff edit of a published Collection, waiting for the Owner.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionProductOut"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "description",
+          "products",
+          "submitted_by",
+          "submitted_at",
+          "updated_at"
+        ],
+        "title": "PendingChangeOut",
+        "type": "object"
+      },
+      "PersonOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PersonOut",
+        "type": "object"
       },
       "ProductClassIn": {
         "properties": {
@@ -4575,6 +5126,17 @@
         ],
         "title": "RefundMethod",
         "type": "string"
+      },
+      "RejectIn": {
+        "properties": {
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "RejectIn",
+        "type": "object"
       },
       "ReturnAdminOut": {
         "properties": {
@@ -7287,6 +7849,632 @@
         ]
       }
     },
+    "/api/admin/collections": {
+      "get": {
+        "operationId": "collections_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "pending_approval",
+                    "published",
+                    "unpublished"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionRowOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Collections",
+        "tags": [
+          "collections"
+        ]
+      },
+      "post": {
+        "operationId": "collections_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Create Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}": {
+      "delete": {
+        "description": "A hard delete: Owner-only (ADR 0005). Never touches the Products.",
+        "operationId": "collections_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Collection",
+        "tags": [
+          "collections"
+        ]
+      },
+      "get": {
+        "operationId": "collections_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Collection",
+        "tags": [
+          "collections"
+        ]
+      },
+      "patch": {
+        "operationId": "collections_edit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/approve": {
+      "post": {
+        "operationId": "collections_approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Approve Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/image": {
+      "delete": {
+        "operationId": "collections_delete_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Collection Image",
+        "tags": [
+          "collections"
+        ]
+      },
+      "patch": {
+        "description": "Change the cover image's alt text.",
+        "operationId": "collections_edit_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageAltIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Collection Image",
+        "tags": [
+          "collections"
+        ]
+      },
+      "post": {
+        "description": "One cover image (JPEG, PNG or WebP), replacing any existing one; derivatives\nare made in the background. Staff may on a draft; on a published Collection only\nthe Owner, and not while it has a pending change.",
+        "operationId": "collections_upload_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "default": "",
+                    "title": "Alt Text",
+                    "type": "string"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Collection Image",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/pending-change": {
+      "patch": {
+        "description": "The Owner amends a pending change before approving it.",
+        "operationId": "collections_edit_pending_change",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Pending Change",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/publish": {
+      "post": {
+        "operationId": "collections_publish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Publish Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/reject": {
+      "post": {
+        "operationId": "collections_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reject Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/submit": {
+      "post": {
+        "operationId": "collections_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Submit Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/unpublish": {
+      "post": {
+        "operationId": "collections_unpublish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Unpublish Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/admin/collections/{collection_id}/withdraw": {
+      "post": {
+        "description": "Back to draft; only the Staff user who submitted it.",
+        "operationId": "collections_withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "title": "Collection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Withdraw Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
     "/api/admin/colours": {
       "get": {
         "operationId": "catalog_list_colours",
@@ -7932,7 +9120,7 @@
     },
     "/api/admin/menu-targets": {
       "get": {
-        "description": "Categories, Legal pages, Products and Brands matching `q` by name.",
+        "description": "Categories, Legal pages, Products, Brands, Collections matching `q` by name.",
         "operationId": "menus_search_targets",
         "parameters": [
           {
@@ -10831,6 +12019,29 @@
               ],
               "title": "Status"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -10838,11 +12049,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/VoucherAdminOut"
-                  },
-                  "title": "Response",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagedVoucherAdminOut"
                 }
               }
             },

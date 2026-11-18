@@ -14,6 +14,7 @@ from ninja import Schema
 
 from store_backend.api.money import Money
 from store_backend.services import browse
+from store_backend.services import collections
 
 router = Router(tags=["catalog"], auth=None)
 
@@ -244,3 +245,23 @@ class ProductDetailOut(ProductCardOut):
 )
 def get_product(request, slug: str):
     return browse.detail(slug)
+
+
+class CollectionPageOut(Schema):
+    name: str
+    slug: str
+    description: str
+    image: CardImageOut | None
+    items: list[ProductCardOut]
+
+
+@router.get(
+    "/collections/{slug}",
+    operation_id="catalog_get_collection",
+    response=CollectionPageOut,
+)
+def get_collection(request, slug: str):
+    """A published Collection's Products in the Owner's order. Draft and archived
+    Products are left out, sold-out ones are shown as sold out. A Collection that is
+    not published or has no visible Product is 404."""
+    return collections.page(slug)
