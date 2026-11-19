@@ -1,0 +1,9 @@
+# A Campaign price is computed from the Campaign rules at read time; only the Order freezes it
+
+A Campaign is stored as a rule (its targets, percentage, schedule and active switch). No Campaign price is written onto Products or Variants. The storefront, basket and quote work out the price on every read: the Variant's effective Shelf price, minus the largest discount among the Campaigns active at that moment. The Order is the only place the result is frozen, together with a link to the Campaign for reporting, as it already is for the Voucher discount ([ADR 0006](0006-vouchers-live-in-oscar-models-pricing-computes-the-discount.md)).
+
+We rejected writing a sale price onto each Product or Variant when a Campaign starts. It makes reads trivial, but it goes stale when a Campaign ends, is deactivated or is edited, and it needs a job at every start and end to keep thousands of prices in step. It also collides with the Product's own `old_price` and Shelf price, which the Owner edits by hand. A Product added to a targeted Category or Collection would need the same reconciliation. The cost of computing at read time is that every price surface, including listing cards, search and filters by price, must go through one pricing function.
+
+Campaign discounts never stack, so the price is `shelf * (1 - best percentage)`, rounded to kuruş with KDV split per line like every other price. A Voucher then applies on top of that price through the existing pro-rata path.
+
+Consequences: any new place that shows or sorts by price must call the shared pricing code, or it will show the Shelf price while checkout charges the Campaign price. Campaign-targeting rules (Product, Category with subcategories, Collection) are resolved on read, so the lookup has to stay cheap enough for listing pages. Because stored Order lines hold the frozen price, editing or deactivating a Campaign never changes past Orders.

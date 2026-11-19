@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from typing import Any
 
 from django.db.models import Avg
 from django.db.models import Count
@@ -43,6 +44,7 @@ from store_backend.catalog.models import SlugRedirect
 from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import SIZES
 from store_backend.services import attributes
+from store_backend.services import campaign_pricing
 from store_backend.services import categories
 from store_backend.services import reviews
 from store_backend.services import search
@@ -78,11 +80,17 @@ class Filters:
     options: list[int] = field(default_factory=list)
     # Selected option ids grouped by attribute; filled in by `resolve`.
     groups: dict[int, list[int]] = field(default_factory=dict)
+    # The winning Campaign percentage per Product, resolved once per request by
+    # `resolve` so that the many pools of one listing do not each look the rules up.
+    campaign_pct: Any = None
 
 
 def resolve(f: Filters) -> Filters:
     """Group the chosen option ids by attribute: any of one attribute's options, and
-    every attribute that has a choice. Unknown option ids are ignored."""
+    every attribute that has a choice. Unknown option ids are ignored. Also resolves
+    the Campaigns in force, once."""
+    if f.campaign_pct is None:
+        f = replace(f, campaign_pct=campaign_pricing.percentage_sql())
     if not f.options or f.groups:
         return f
     groups: dict[int, list[int]] = {}
@@ -134,9 +142,26 @@ def _category_ids(slug: str) -> list[int]:
     return categories.visible_ids_under(categories.get_visible(slug))
 
 
-def published() -> QuerySet[ProductProfile]:
-    return ProductProfile.objects.filter(status=ProductStatus.PUBLISHED).annotate(
-        price_from=_price_from(),
+def published(campaign_pct: Any = None) -> QuerySet[ProductProfile]:
+    """Published Products with `shelf_from` (their cheapest Variant's Shelf price),
+    `campaign_pct` (the winning Campaign's percentage, 0 if none) and `price_from`
+    (the cheapest price after it), the one price every filter and sort goes by."""
+    return (
+        ProductProfile.objects.filter(status=ProductStatus.PUBLISHED)
+        .annotate(
+            shelf_from=_price_from(),
+            campaign_pct=(
+                campaign_pricing.percentage_sql()
+                if campaign_pct is None
+                else campaign_pct
+            ),
+        )
+        .annotate(
+            price_from=campaign_pricing.discounted_sql(
+                F("shelf_from"),
+                F("campaign_pct"),
+            ),
+        )
     )
 
 
@@ -150,7 +175,7 @@ def _pool(  # noqa: C901
     """Published Products meeting the Product filters, except the `skip` dimension
     (and the chosen attribute options of `skip_attribute`, or of all with
     `skip_attributes`)."""
-    qs = published()
+    qs = published(f.campaign_pct)
     if f.category:
         in_category = ProductCategory.objects.filter(
             product=OuterRef("product_id"),
@@ -337,13 +362,22 @@ def product_card(
     price = (
         profile.price_from if profile.price_from is not None else profile.shelf_price
     )
+    percentage = profile.campaign_pct or None
     return {
         "id": profile.product_id,
         "slug": profile.slug,
         "title": profile.product.title,
         "price": price,
+        # The Shelf price to strike through while a Campaign runs on the Product, which
+        # also hides the Old price.
+        "shelf_price": profile.shelf_from if percentage else None,
+        "campaign_percentage": percentage,
         # Only meaningful against the Product price, not a Variant's override.
-        "old_price": profile.old_price if price == profile.shelf_price else None,
+        "old_price": (
+            profile.old_price
+            if not percentage and price == profile.shelf_price
+            else None
+        ),
         "sold_out": not in_stock,
         "image": card_image(photos),
         "rating_average": rating[0],
@@ -353,6 +387,18 @@ def product_card(
             for c in sorted(seen.values(), key=lambda c: c.name)
         ],
     }
+
+
+def _variant_shelf(variant: dict, profile: ProductProfile) -> Decimal:
+    override = variant["price_override"]
+    return override if override is not None else profile.shelf_price
+
+
+def _variant_price(variant: dict, profile: ProductProfile) -> Decimal:
+    shelf = _variant_shelf(variant, profile)
+    if not profile.campaign_pct:
+        return shelf
+    return campaign_pricing.discounted(shelf, profile.campaign_pct)
 
 
 def variants_by_product(parent_ids: list[int]) -> dict[int, list[dict]]:
@@ -598,11 +644,10 @@ def detail(slug: str) -> dict:
                     "hex_code": v["colour"].hex_code,
                 },
                 "size": v["size"],
-                "price": (
-                    v["price_override"]
-                    if v["price_override"] is not None
-                    else profile.shelf_price
-                ),
+                "price": _variant_price(v, profile),
+                "shelf_price": _variant_shelf(v, profile)
+                if profile.campaign_pct
+                else None,
                 "available": v["available"],
                 "in_stock": v["available"] > 0,
                 # "son N adet" is shown at or below the low-stock threshold.

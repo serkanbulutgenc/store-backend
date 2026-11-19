@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+from store_backend.services import campaign_pricing
 from store_backend.services import catalog
 from store_backend.services import pricing
 from store_backend.services import shipping
@@ -45,6 +46,8 @@ class Quote:
     discount: Decimal = pricing.ZERO
     voucher: Voucher | None = None
     gross_snapshots: dict[int, pricing.LineSnapshot] = field(default_factory=dict)
+    # How each line was priced, by basket line id: its Shelf price and winning Campaign.
+    priced: dict[int, campaign_pricing.Priced] = field(default_factory=dict)
     skipped_voucher: Voucher | None = None  # on the basket, but not applied
     voucher_problem: str | None = None  # why it was not applied
     totals: pricing.OrderTotals = field(init=False)
@@ -66,10 +69,19 @@ class Quote:
         return _is_free(self.items_total, self.store)
 
 
-def _snapshots(lines: list[BasketLine]) -> dict[int, pricing.LineSnapshot]:
+def _priced(lines: list[BasketLine]) -> dict[int, campaign_pricing.Priced]:
+    """Each line at the price in force now: the Campaign price where one applies."""
+    by_variant = campaign_pricing.priced(line.product for line in lines)
+    return {line.pk: by_variant[line.product_id] for line in lines}
+
+
+def _snapshots(
+    lines: list[BasketLine],
+    priced: dict[int, campaign_pricing.Priced],
+) -> dict[int, pricing.LineSnapshot]:
     return {
         line.pk: pricing.line_snapshot(
-            unit_price=catalog.shelf_price_for(line.product),
+            unit_price=priced[line.pk].unit,
             quantity=line.quantity,
             kdv_rate=catalog.kdv_rate_for(line.product),
         )
@@ -129,7 +141,8 @@ def quote(
     flat Settings fee. A `voucher` discounts the items only; fees, and the free
     shipping threshold, are measured on the items before it.
     """
-    snapshots = gross = _snapshots(lines)
+    priced = _priced(lines)
+    snapshots = gross = _snapshots(lines, priced)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
     discount = pricing.ZERO
     if voucher is not None:
@@ -148,4 +161,5 @@ def quote(
         discount,
         voucher,
         gross,
+        priced=priced,
     )

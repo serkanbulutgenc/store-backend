@@ -54,6 +54,17 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 - **Voucher discount**: The amount a Voucher takes off an Order's items, spread across the item lines in proportion to their value. Shipping and COD fees are never discounted, the minimum basket amount and the free-shipping threshold are measured before it, and it cannot take the items below zero. It stays frozen on the Order, and a refund returns what the Shopper actually paid for a line, net of its share.
 - A Voucher that has been redeemed can be deactivated but never deleted.
 
+**Campaign**: An automatic, code-free discount the Owner sets on chosen Products, Categories (optionally with their subcategories) or Collections. It takes a percentage or fixed TL amount off the Shelf price, so the Shopper simply sees the lower price, with the Shelf price struck through and a "-20%" badge. Only the Owner creates, edits, activates, deactivates and deletes Campaigns; Staff see which Campaign an Order used. There is no approval step, and every change is written to the Audit log. A Voucher still applies on top of a Campaign price.
+- A Campaign has an optional start and end date-time that apply it automatically, plus a manual active/inactive switch that overrides the schedule. An open-ended Campaign is allowed.
+- The discount is a percentage only. It applies to each Variant's effective Shelf price, so a Variant's own override is discounted too.
+- A Product under several active Campaigns gets only the largest discount; Campaigns never stack. The Dashboard shows which Campaign is winning on a Product.
+- The struck-through price is the Shelf price, not the Old price, which is hidden while a Campaign is active on the Product.
+- The basket and checkout always use the current Campaign price, and the basket flags a price that changed. The free-shipping threshold and a Voucher's minimum basket amount are measured on Campaign prices.
+- The Campaign form warns the Owner about Products pushed below cost price, but does not block.
+- A Campaign that an Order used can be deactivated but never deleted (see [ADR 0005](docs/adr/0005-deletes-are-owner-only-and-refused-while-referenced.md)).
+- The Shopper sees only the price, strike-through and "-20%" badge; a Campaign has an internal name, no public name or landing page.
+- An Order freezes the Campaign price it was bought at and links to the Campaign for the Owner's reporting. A refund returns what the Shopper actually paid.
+
 **Archived**: A Product hidden from the Storefront but kept for Order history. Products with Orders are never deleted.
 
 **Sold out**: A Variant with zero stock. Still shown, but cannot be bought.

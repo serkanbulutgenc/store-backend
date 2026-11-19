@@ -31,11 +31,12 @@ CURRENCY = "TRY"
 
 def _price_for(variant: Product):
     # Imported here: the services module imports catalog models at load time.
+    from store_backend.services import campaign_pricing  # noqa: PLC0415
     from store_backend.services import catalog  # noqa: PLC0415
 
     if not hasattr(variant, "variant_profile"):
         return None
-    incl: Decimal = catalog.shelf_price_for(variant)
+    incl: Decimal = campaign_pricing.unit_price(variant)
     excl, kdv = pricing.split_kdv(incl, catalog.kdv_rate_for(variant))
     return TaxInclusiveFixedPrice(currency=CURRENCY, excl_tax=excl, tax=kdv)
 

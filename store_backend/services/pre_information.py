@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     from oscar.apps.basket.models import Line as BasketLine
 
+    from store_backend.services.campaign_pricing import Priced
     from store_backend.services.checkout import CheckoutForm
     from store_backend.services.contact import Address
     from store_backend.services.pricing import LineSnapshot
@@ -55,13 +56,21 @@ def _seller(store: StoreSettings) -> list[str]:
     ]
 
 
-def _line(line: BasketLine, snap: LineSnapshot) -> list[str]:
+def _line(line: BasketLine, snap: LineSnapshot, priced: Priced) -> list[str]:
     variant = line.product
     profile = variant.variant_profile
+    # What the Shopper saw: the Shelf price struck through and the badge. The
+    # Campaign's internal name is never shown.
+    sale = (
+        f" (liste fiyatı {format_try(priced.shelf)}, "
+        f"%{priced.winner.percentage.normalize():f} indirim)"
+        if priced.winner
+        else ""
+    )
     text = [
         (
             f"- {variant.parent.title} ({profile.colour.name}, {profile.size}) "
-            f"x {snap.quantity}: birim {format_try(snap.unit_price_incl)}, "
+            f"x {snap.quantity}: birim {format_try(snap.unit_price_incl)}{sale}, "
             f"toplam {format_try(snap.total_incl)} (KDV %{snap.kdv_rate:g} dahil)"
         ),
     ]
@@ -95,7 +104,7 @@ def render(
         "ÜRÜNLER",
     ]
     for line in quote.lines:
-        out.extend(_line(line, quote.gross_snapshots[line.pk]))
+        out.extend(_line(line, quote.gross_snapshots[line.pk], quote.priced[line.pk]))
     out.extend(
         [
             "",

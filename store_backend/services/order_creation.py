@@ -22,6 +22,7 @@ from oscar.apps.order.utils import OrderCreator
 from oscar.core.prices import Price
 
 from store_backend.catalog.strategy import CURRENCY
+from store_backend.services import campaign_pricing
 from store_backend.services import payment
 from store_backend.services import pricing
 from store_backend.shop.models import OrderFeeSnapshot
@@ -69,9 +70,11 @@ class _SnapshotOrderCreator(OrderCreator):
         self,
         snapshots: dict[int, pricing.LineSnapshot],
         gross: dict[int, pricing.LineSnapshot],
+        priced: dict[int, campaign_pricing.Priced],
     ) -> None:
         self.snapshots = snapshots
         self.gross = gross
+        self.priced = priced
 
     def create_additional_line_models(self, order, order_line, basket_line):
         snap = self.snapshots[basket_line.pk]
@@ -83,8 +86,13 @@ class _SnapshotOrderCreator(OrderCreator):
         order_line.unit_price_incl_tax = snap.unit_price_incl
         order_line.unit_price_excl_tax = snap.unit_price_excl
         order_line.save()
+        won = self.priced[basket_line.pk].winner
         OrderLineSnapshot.objects.create(
             line=order_line,
+            campaign_id=won.campaign_id if won else None,
+            campaign_name=won.name if won else "",
+            campaign_percentage=won.percentage if won else None,
+            shelf_unit_price=self.priced[basket_line.pk].shelf if won else None,
             quantity=snap.quantity,
             unit_price_incl=snap.unit_price_incl,
             kdv_rate=snap.kdv_rate,
@@ -208,7 +216,7 @@ def create_order(  # noqa: PLR0913
         **_address_fields(full_name, billing),
     )
     order = _with_unique_number(
-        _SnapshotOrderCreator(quote.snapshots, quote.gross_snapshots),
+        _SnapshotOrderCreator(quote.snapshots, quote.gross_snapshots, quote.priced),
         basket=basket,
         total=Price(CURRENCY, excl_tax=totals.total_excl, tax=totals.total_kdv),
         shipping_method=_ShippingMethod(),
