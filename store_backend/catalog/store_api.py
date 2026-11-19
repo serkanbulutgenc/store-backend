@@ -66,6 +66,7 @@ class BrandFacet(Schema):
     id: int
     name: str
     count: int
+    logo_url: str | None
 
 
 class PriceFacet(Schema):
@@ -199,6 +200,7 @@ def get_category(request, slug: str):
 class BrandOut(Schema):
     id: int
     name: str
+    logo_url: str | None
 
 
 class CrumbOut(Schema):

@@ -83,12 +83,32 @@ class Colour(models.Model):
 
 class Brand(models.Model):
     name = models.CharField(max_length=128, unique=True)
+    # Optional logo, stored like a Category image (`CategoryProfile.ImageStatus`).
+    logo_original = models.CharField(max_length=255, blank=True)
+    logo_width = models.PositiveIntegerField(default=0)
+    logo_height = models.PositiveIntegerField(default=0)
+    logo_status = models.CharField(max_length=16, blank=True, default="")
+    logo_derivatives = models.JSONField(default=list, blank=True)
+    logo_error = models.TextField(blank=True)
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self) -> str:
         return self.name
+
+    def logo_file_names(self) -> list[str]:
+        if not self.logo_original:
+            return []
+        return [self.logo_original, *(d["name"] for d in self.logo_derivatives)]
+
+    def logo_url(self) -> str | None:
+        """The smallest derivative, once the logo is ready; None before that."""
+        if self.logo_status != "ready" or not self.logo_derivatives:
+            return None
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        return media_url(self.logo_derivatives[0]["name"])
 
 
 class Supplier(models.Model):

@@ -37,6 +37,7 @@ from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.models import Supplier
 from store_backend.services import attributes
+from store_backend.services import brand_logo
 from store_backend.services import catalog
 from store_backend.services import catalog_policy
 from store_backend.services import catalog_views as views
@@ -61,6 +62,9 @@ class NamedOut(Schema):
 
 class BrandOut(NamedOut):
     menu_item_count: int  # Menu items that block deleting it (ADR 0007)
+    logo_status: str  # "" (no logo), "processing", "ready" or "failed"
+    logo_url: str | None  # set once the logo is ready
+    logo_error: str
 
 
 class ColourOut(Schema):
@@ -618,6 +622,30 @@ def create_brand(request, data: NameIn):
 )
 def update_brand(request, brand_id: int, data: NamePatch):
     return catalog.update_brand(get_object_or_404(Brand, pk=brand_id), name=data.name)
+
+
+@router.post(
+    "/brands/{brand_id}/logo",
+    auth=requires(Perm.MANAGE_BRANDS),
+    operation_id="catalog_upload_brand_logo",
+    response=BrandOut,
+)
+def upload_brand_logo(request, brand_id: int, file: File[UploadedFile]):
+    """One logo (PNG, JPEG or WebP, up to 2 MB, long edge at least 200 px), replacing
+    any existing one; derivatives are made in the background."""
+    brand = brand_logo.upload(get_object_or_404(Brand, pk=brand_id), file)
+    return views.brand_dict(brand, catalog.brand_menu_item_counts())
+
+
+@router.delete(
+    "/brands/{brand_id}/logo",
+    auth=requires(Perm.MANAGE_BRANDS),
+    operation_id="catalog_delete_brand_logo",
+    response=BrandOut,
+)
+def delete_brand_logo(request, brand_id: int):
+    brand = brand_logo.remove(get_object_or_404(Brand, pk=brand_id))
+    return views.brand_dict(brand, catalog.brand_menu_item_counts())
 
 
 @router.delete(

@@ -624,6 +624,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -632,7 +643,8 @@
         "required": [
           "id",
           "name",
-          "count"
+          "count",
+          "logo_url"
         ],
         "title": "BrandFacet",
         "type": "object"
@@ -643,6 +655,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -650,7 +673,8 @@
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "logo_url"
         ],
         "title": "BrandOut",
         "type": "object"

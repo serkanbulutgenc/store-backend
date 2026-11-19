@@ -271,7 +271,12 @@ def _brand_facet(f: Filters) -> list[dict]:
     brands = Brand.objects.in_bulk([r["brand_id"] for r in rows])
     return sorted(
         (
-            {"id": r["brand_id"], "name": brands[r["brand_id"]].name, "count": r["n"]}
+            {
+                "id": r["brand_id"],
+                "name": brands[r["brand_id"]].name,
+                "count": r["n"],
+                "logo_url": brands[r["brand_id"]].logo_url(),
+            }
             for r in rows
         ),
         key=lambda b: b["name"],
@@ -627,7 +632,11 @@ def detail(slug: str) -> dict:
         **card,
         "description": product.description or "",
         "brand": (
-            {"id": profile.brand_id, "name": profile.brand.name}
+            {
+                "id": profile.brand_id,
+                "name": profile.brand.name,
+                "logo_url": profile.brand.logo_url(),
+            }
             if profile.brand_id
             else None
         ),
