@@ -26,6 +26,14 @@ def process_collection_image(collection_id: int) -> None:
 
 
 @shared_task
+def process_brand_logo(brand_id: int) -> None:
+    """Make the WebP derivatives of a Brand's uploaded logo."""
+    from store_backend.services import brand_logo  # noqa: PLC0415
+
+    brand_logo.process(brand_id)
+
+
+@shared_task
 def purge_removed_files() -> int:
     """Delete files whose grace period after an image delete has passed."""
     return media.purge_removed_files()

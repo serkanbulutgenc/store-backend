@@ -654,6 +654,25 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_error": {
+            "title": "Logo Error",
+            "type": "string"
+          },
+          "logo_status": {
+            "title": "Logo Status",
+            "type": "string"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
           "menu_item_count": {
             "title": "Menu Item Count",
             "type": "integer"
@@ -666,7 +685,10 @@
         "required": [
           "id",
           "name",
-          "menu_item_count"
+          "menu_item_count",
+          "logo_status",
+          "logo_url",
+          "logo_error"
         ],
         "title": "BrandOut",
         "type": "object"
@@ -7940,6 +7962,100 @@
           }
         ],
         "summary": "Update Brand",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/brands/{brand_id}/logo": {
+      "delete": {
+        "operationId": "catalog_delete_brand_logo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brand_id",
+            "required": true,
+            "schema": {
+              "title": "Brand Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Brand Logo",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "post": {
+        "description": "One logo (PNG, JPEG or WebP, up to 2 MB, long edge at least 200 px), replacing\nany existing one; derivatives are made in the background.",
+        "operationId": "catalog_upload_brand_logo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brand_id",
+            "required": true,
+            "schema": {
+              "title": "Brand Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Brand Logo",
         "tags": [
           "catalog"
         ]

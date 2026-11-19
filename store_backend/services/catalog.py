@@ -862,6 +862,9 @@ def delete_brand(actor: User, brand: Brand) -> None:
         summary=f"Marka silindi: {brand.name}",
         before={"name": brand.name},
     )
+    from store_backend.services import media  # noqa: PLC0415 - media imports this module
+
+    media._schedule_names(brand.logo_file_names())  # noqa: SLF001
     brand.delete()
 
 
