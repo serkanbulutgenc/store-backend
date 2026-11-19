@@ -32,6 +32,7 @@ from PIL import UnidentifiedImageError
 
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import Brand
 from store_backend.catalog.models import CategoryProfile
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import PendingFileRemoval
@@ -68,8 +69,18 @@ MSG_HEIC = (
     "(iPhone: Ayarlar > Kamera > Biçimler > En Uyumlu)."
 )
 MSG_CORRUPT = "Fotoğraf okunamadı; dosya bozuk olabilir. Yeniden çekip yükleyin."
-MSG_SIZE = "Dosya en fazla 15 MB olabilir."
-MSG_SMALL = f"Görselin uzun kenarı en az {MIN_LONG_EDGE} piksel olmalı."
+
+
+def msg_size(max_bytes: int) -> str:
+    return f"Dosya en fazla {max_bytes // (1024 * 1024)} MB olabilir."
+
+
+def msg_small(min_long_edge: int) -> str:
+    return f"Görselin uzun kenarı en az {min_long_edge} piksel olmalı."
+
+
+MSG_SIZE = msg_size(MAX_BYTES)
+MSG_SMALL = msg_small(MIN_LONG_EDGE)
 MSG_LIMIT = f"Bir ürüne en fazla {MAX_IMAGES} fotoğraf eklenebilir."
 
 
@@ -133,12 +144,13 @@ def _inspect(
     data: bytes,
     *,
     min_long_edge: int = MIN_LONG_EDGE,
+    max_bytes: int = MAX_BYTES,
 ) -> tuple[bytes, str, int, int]:
     """Validate an upload; return (bytes to store, extension, width, height) with
     the size taken after orientation.
     """
-    if len(data) > MAX_BYTES:
-        raise _invalid(MSG_SIZE)
+    if len(data) > max_bytes:
+        raise _invalid(msg_size(max_bytes))
     try:
         img = Image.open(io.BytesIO(data))
         fmt = img.format
@@ -152,7 +164,7 @@ def _inspect(
     if fmt not in _FORMATS:
         raise _invalid(MSG_FORMAT)
     if max(width, height) < min_long_edge:
-        raise _invalid(MSG_SMALL)
+        raise _invalid(msg_small(min_long_edge))
     if orientation in _ROTATED_ORIENTATIONS:
         width, height = height, width
     data, extension = _without_gps(img, fmt, data)
@@ -458,6 +470,9 @@ def _in_use(name: str) -> bool:
         ).exists()
         or CategoryProfile.objects.filter(
             Q(image_original=name) | Q(image_derivatives__contains=[{"name": name}]),
+        ).exists()
+        or Brand.objects.filter(
+            Q(logo_original=name) | Q(logo_derivatives__contains=[{"name": name}]),
         ).exists()
     )
 

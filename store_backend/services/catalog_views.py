@@ -32,7 +32,14 @@ def named(obj: Any) -> dict | None:
 
 
 def brand_dict(b: Brand, menu_counts: dict[int, int]) -> dict:
-    return {"id": b.pk, "name": b.name, "menu_item_count": menu_counts.get(b.pk, 0)}
+    return {
+        "id": b.pk,
+        "name": b.name,
+        "menu_item_count": menu_counts.get(b.pk, 0),
+        "logo_status": b.logo_status,
+        "logo_url": b.logo_url(),
+        "logo_error": b.logo_error,
+    }
 
 
 def colour_dict(c: Colour) -> dict:
