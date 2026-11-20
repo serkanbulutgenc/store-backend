@@ -36,6 +36,7 @@ from oscar.apps.catalogue.models import ProductCategory
 from oscar.apps.order.models import Line
 
 from store_backend.api.errors import NotFoundError
+from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Attribute
 from store_backend.catalog.models import AttributeOption
 from store_backend.catalog.models import AttributeValue
@@ -842,3 +843,20 @@ def _cards(profiles: list[ProductProfile]) -> list[dict]:
         )
         for p in profiles
     ]
+
+
+RECENTLY_VIEWED_MAX = 12
+
+
+def recently_viewed(slugs: list[str]) -> list[dict]:
+    """Fresh cards for the slugs a browser kept, in the order it sent them.
+
+    Unknown, unpublished and sold-out Products are left out. Nothing is cached, stored
+    or logged: the list belongs to the Shopper's device.
+    """
+    if len(slugs) > RECENTLY_VIEWED_MAX:
+        msg = f"At most {RECENTLY_VIEWED_MAX} Products can be requested."
+        raise UnprocessableError(msg, fields={"slugs": [msg]})
+    found = {p.slug: p for p in published().filter(slug__in=slugs)}
+    ordered = [found[s] for s in dict.fromkeys(slugs) if s in found]
+    return [card for card in _cards(ordered) if not card["sold_out"]]
