@@ -1971,6 +1971,14 @@
             "title": "Description",
             "type": "string"
           },
+          "fit_note": {
+            "title": "Fit Note",
+            "type": "string"
+          },
+          "has_size_guide": {
+            "title": "Has Size Guide",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2086,6 +2094,8 @@
           "brand",
           "breadcrumbs",
           "is_hygiene",
+          "has_size_guide",
+          "fit_note",
           "attributes",
           "variants",
           "photos"
@@ -2829,6 +2839,19 @@
           "count"
         ],
         "title": "SizeFacet",
+        "type": "object"
+      },
+      "SizeGuideOut": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SizeGuideOut",
         "type": "object"
       },
       "SwatchOut": {
@@ -4630,6 +4653,39 @@
         "summary": "List Reviews",
         "tags": [
           "reviews"
+        ]
+      }
+    },
+    "/api/store/products/{slug}/size-guide": {
+      "get": {
+        "description": "The Size guide that applies to a published Product, loaded when the dialog\nopens. 404 when none applies (no guide written, or a One-size Product).",
+        "operationId": "catalog_get_product_size_guide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SizeGuideOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Product Size Guide",
+        "tags": [
+          "catalog"
         ]
       }
     },

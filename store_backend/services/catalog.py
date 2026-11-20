@@ -44,6 +44,7 @@ from store_backend.services import audit
 from store_backend.services import catalog_policy
 from store_backend.services import shipping_admin
 from store_backend.services import shop_settings
+from store_backend.services import size_guides
 from store_backend.shop.models import MenuItem
 
 if TYPE_CHECKING:
@@ -244,6 +245,7 @@ def create_product(  # noqa: PLR0913
     desi: int | None = None,
     slug: str | None = None,
     description: str = "",
+    fit_note: str = "",
 ) -> Product:
     title = title.strip()
     if not title:
@@ -259,6 +261,7 @@ def create_product(  # noqa: PLR0913
         raise _invalid("low_stock_threshold", "Eşik negatif olamaz.")
     if desi is not None:
         shipping_admin.validate_desi(desi)
+    note = size_guides.clean_fit_note(fit_note)
     if slug:
         final_slug = slugify_tr(slug)
         if not final_slug or _slug_taken(final_slug):
@@ -293,6 +296,7 @@ def create_product(  # noqa: PLR0913
         old_price=old,
         kdv_rate=rate,
         desi=desi,
+        fit_note=note,
         **extra,
     )
     set_category(product, category)
@@ -572,6 +576,8 @@ PRODUCT_FIELDS = frozenset(
         "desi",
         "slug",
         "description",
+        "size_guide",
+        "fit_note",
     },
 )
 PRICE_FIELDS = ("shelf_price", "old_price", "cost_price")
@@ -584,7 +590,7 @@ def _price_snapshot(profile: ProductProfile) -> dict[str, str | None]:
 
 
 @transaction.atomic
-def update_product(  # noqa: C901, PLR0912
+def update_product(  # noqa: C901, PLR0912, PLR0915
     actor: User,
     product: Product,
     **changes: object,
@@ -599,6 +605,7 @@ def update_product(  # noqa: C901, PLR0912
         raise _invalid(sorted(unknown)[0], "Bilinmeyen alan.")
     profile = ProductProfile.objects.select_for_update().get(product=product)
     before = _price_snapshot(profile)
+    guide_before, note_before = profile.size_guide, profile.fit_note
 
     if "title" in changes:
         title = str(changes["title"]).strip()
@@ -642,10 +649,20 @@ def update_product(  # noqa: C901, PLR0912
     if "desi" in changes:
         value = changes["desi"]
         profile.desi = None if value is None else shipping_admin.validate_desi(value)
+    if "size_guide" in changes:
+        profile.size_guide = size_guides.clean(changes["size_guide"], "size_guide")
+    if "fit_note" in changes:
+        profile.fit_note = size_guides.clean_fit_note(changes["fit_note"])
     profile.save()
     if "slug" in changes:
         rename_slug(product, str(changes["slug"]))
 
+    size_guides.audit_product_edits(
+        actor,
+        product,
+        guide=(guide_before, profile.size_guide),
+        fit_note=(note_before, profile.fit_note),
+    )
     after = _price_snapshot(profile)
     if after != before:
         audit.record(

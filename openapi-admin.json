@@ -5184,6 +5184,10 @@
             ],
             "title": "Desi"
           },
+          "fit_note": {
+            "title": "Fit Note",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -5230,6 +5234,17 @@
             "pattern": "^-?\\d+\\.\\d{2}$",
             "title": "Shelf Price",
             "type": "string"
+          },
+          "size_guide": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Guide"
           },
           "slug": {
             "title": "Slug",
@@ -5285,6 +5300,8 @@
           "low_stock_threshold",
           "desi",
           "description",
+          "size_guide",
+          "fit_note",
           "variants",
           "attribute_values"
         ],
@@ -5352,6 +5369,17 @@
             ],
             "title": "Desi"
           },
+          "fit_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit Note"
+          },
           "kdv_rate": {
             "anyOf": [
               {
@@ -5406,6 +5434,17 @@
               }
             ],
             "title": "Shelf Price"
+          },
+          "size_guide": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Guide"
           },
           "slug": {
             "anyOf": [
@@ -6442,6 +6481,19 @@
           "provinces"
         ],
         "title": "ShippingOut",
+        "type": "object"
+      },
+      "SizeGuideIO": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SizeGuideIO",
         "type": "object"
       },
       "SkippedCombinationOut": {
@@ -11372,6 +11424,88 @@
           }
         ],
         "summary": "Create Attribute",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/admin/product-classes/{class_id}/size-guide": {
+      "get": {
+        "operationId": "catalog_get_class_size_guide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "title": "Class Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SizeGuideIO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Class Size Guide",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "put": {
+        "operationId": "catalog_set_class_size_guide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "title": "Class Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SizeGuideIO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SizeGuideIO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Set Class Size Guide",
         "tags": [
           "catalog"
         ]
