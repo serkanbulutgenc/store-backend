@@ -4726,6 +4726,44 @@
         ]
       }
     },
+    "/api/store/recently-viewed": {
+      "get": {
+        "description": "Fresh cards for the Product slugs a browser kept (\"Son bakt\u0131klar\u0131n\u0131z\"), comma\nseparated and in that order. Products that are gone or sold out are left out.",
+        "operationId": "catalog_get_recently_viewed",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slugs",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Slugs",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCardOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Recently Viewed",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/store/settings": {
       "get": {
         "description": "What the storefront needs: fees, banner, seller identity and Legal versions.\nBank details, KDV rate, recipients and the stock default stay private.",

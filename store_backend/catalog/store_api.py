@@ -297,3 +297,15 @@ def get_collection(request, slug: str):
 def get_product_similar(request, slug: str):
     """The ranked "Benzer ürünler" cards of a published Product."""
     return browse.similar(slug)
+
+
+@router.get(
+    "/recently-viewed",
+    operation_id="catalog_get_recently_viewed",
+    response=list[ProductCardOut],
+)
+def get_recently_viewed(request, slugs: str = ""):
+    """Fresh cards for the Product slugs a browser kept ("Son baktıklarınız"), comma
+    separated and in that order. Products that are gone or sold out are left out."""
+    wanted = (part.strip() for part in slugs.split(","))
+    return browse.recently_viewed([slug for slug in wanted if slug])
