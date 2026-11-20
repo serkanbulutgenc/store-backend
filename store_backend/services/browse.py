@@ -598,6 +598,20 @@ def category_page(slug: str) -> dict:
     }
 
 
+def size_guide(slug: str) -> str:
+    """The effective Size guide of a published Product; not found when none applies."""
+    profile = (
+        published()
+        .select_related("product__product_class__profile")
+        .filter(slug=slug)
+        .first()
+    )
+    text = size_guides.effective_guide(profile) if profile else None
+    if text is None:
+        raise NotFoundError
+    return text
+
+
 def detail(slug: str) -> dict:
     """A published Product for its page; drafts and archived Products are not found."""
     profile = (
@@ -643,7 +657,7 @@ def detail(slug: str) -> dict:
         ),
         "breadcrumbs": [{"name": c.name, "slug": c.slug} for c in crumbs],
         "is_hygiene": product.product_class.profile.is_hygiene,
-        "size_guide": size_guides.effective_guide(profile),
+        "has_size_guide": size_guides.effective_guide(profile) is not None,
         "fit_note": profile.fit_note,
         "attributes": attributes.blocks_for(product),
         "variants": [

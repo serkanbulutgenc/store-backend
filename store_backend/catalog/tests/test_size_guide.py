@@ -63,6 +63,15 @@ def storefront(product) -> dict:
     return response.json()
 
 
+def guide_of(product) -> str | None:
+    """What the dialog gets when it opens: the guide text, or None when none applies."""
+    response = Client().get(f"{STORE}/{product.profile.slug}/size-guide")
+    if response.status_code == HTTPStatus.NOT_FOUND:
+        return None
+    assert response.status_code == HTTPStatus.OK, response.content
+    return response.json()["text"]
+
+
 # --- the class guide ------------------------------------------------------------------
 
 
@@ -72,7 +81,7 @@ def test_a_class_guide_written_in_the_dashboard_shows_on_the_storefront(staff_ap
     response = staff_api.put(f"{CLASSES}/{class_id()}/size-guide", {"text": TABLE})
 
     assert response.status_code == HTTPStatus.OK, response.content
-    assert storefront(product)["size_guide"] == TABLE
+    assert guide_of(product) == TABLE
 
 
 # --- the Product override -------------------------------------------------------------
@@ -88,11 +97,11 @@ def test_a_product_override_wins_and_removing_it_falls_back_to_the_class_guide(
 
     set_ = staff_api.patch(f"{PRODUCTS}/{product.pk}", {"size_guide": OVERRIDE})
     assert set_.status_code == HTTPStatus.OK, set_.content
-    assert storefront(product)["size_guide"] == OVERRIDE
+    assert guide_of(product) == OVERRIDE
 
     cleared = staff_api.patch(f"{PRODUCTS}/{product.pk}", {"size_guide": None})
     assert cleared.status_code == HTTPStatus.OK, cleared.content
-    assert storefront(product)["size_guide"] == TABLE
+    assert guide_of(product) == TABLE
 
 
 # --- when no guide applies ------------------------------------------------------------
@@ -101,7 +110,7 @@ def test_a_product_override_wins_and_removing_it_falls_back_to_the_class_guide(
 def test_a_product_with_neither_guide_has_none(staff_api):
     product = make_product()
 
-    assert storefront(product)["size_guide"] is None
+    assert guide_of(product) is None
 
 
 def test_a_one_size_product_hides_the_guide_even_when_one_is_written(staff_api):
@@ -109,7 +118,7 @@ def test_a_one_size_product_hides_the_guide_even_when_one_is_written(staff_api):
     staff_api.put(f"{CLASSES}/{class_id('Aksesuar')}/size-guide", {"text": TABLE})
     staff_api.patch(f"{PRODUCTS}/{product.pk}", {"size_guide": OVERRIDE})
 
-    assert storefront(product)["size_guide"] is None
+    assert guide_of(product) is None
 
 
 def test_listing_payloads_do_not_carry_the_guide_or_the_fit_note(staff_api):
@@ -190,7 +199,7 @@ def test_a_shopper_and_an_anonymous_visitor_may_not_edit(api_for):
         assert [r.status_code for r in responses] == [
             HTTPStatus.UNAUTHORIZED if api is not shopper else HTTPStatus.FORBIDDEN,
         ] * 3, [r.content for r in responses]
-    assert storefront(product)["size_guide"] is None
+    assert guide_of(product) is None
 
 
 # --- the Audit log --------------------------------------------------------------------
@@ -266,7 +275,7 @@ def test_a_realistic_size_table_fits_the_length_cap(staff_api):
 
     assert class_saved.status_code == HTTPStatus.OK, class_saved.content
     assert override_saved.status_code == HTTPStatus.OK, override_saved.content
-    assert storefront(product)["size_guide"] == guide
+    assert guide_of(product) == guide
 
 
 def test_a_guide_over_the_description_cap_is_refused(staff_api):
@@ -288,3 +297,27 @@ def test_a_guide_over_the_description_cap_is_refused(staff_api):
     assert "text" in on_class.json()["fields"]
     assert on_product.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "size_guide" in on_product.json()["fields"]
+
+
+# --- the Product page does not carry the guide ----------------------------------------
+
+
+def test_product_detail_says_whether_a_guide_applies_but_never_carries_its_text(
+    staff_api,
+):
+    product = make_product()
+    assert storefront(product)["has_size_guide"] is False
+
+    staff_api.put(f"{CLASSES}/{class_id()}/size-guide", {"text": TABLE})
+
+    detail = storefront(product)
+    assert detail["has_size_guide"] is True
+    assert "size_guide" not in detail
+    assert TABLE not in str(detail)
+
+
+def test_has_size_guide_is_false_for_a_one_size_product(staff_api):
+    product = make_product("Çanta", klass="Aksesuar", size="Tek Ebat")
+    staff_api.put(f"{CLASSES}/{class_id('Aksesuar')}/size-guide", {"text": TABLE})
+
+    assert storefront(product)["has_size_guide"] is False

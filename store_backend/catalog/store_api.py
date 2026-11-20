@@ -238,7 +238,7 @@ class ProductDetailOut(ProductCardOut):
     brand: BrandOut | None
     breadcrumbs: list[CrumbOut]
     is_hygiene: bool
-    size_guide: str | None
+    has_size_guide: bool
     fit_note: str
     attributes: list[AttributeBlockOut]
     variants: list[PageVariantOut]
@@ -252,6 +252,21 @@ class ProductDetailOut(ProductCardOut):
 )
 def get_product(request, slug: str):
     return browse.detail(slug)
+
+
+class SizeGuideOut(Schema):
+    text: str
+
+
+@router.get(
+    "/products/{slug}/size-guide",
+    operation_id="catalog_get_product_size_guide",
+    response=SizeGuideOut,
+)
+def get_product_size_guide(request, slug: str):
+    """The Size guide that applies to a published Product, loaded when the dialog
+    opens. 404 when none applies (no guide written, or a One-size Product)."""
+    return {"text": browse.size_guide(slug)}
 
 
 class CollectionPageOut(Schema):
