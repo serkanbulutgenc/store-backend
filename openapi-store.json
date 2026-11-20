@@ -4656,6 +4656,43 @@
         ]
       }
     },
+    "/api/store/products/{slug}/similar": {
+      "get": {
+        "description": "The ranked \"Benzer \u00fcr\u00fcnler\" cards of a published Product.",
+        "operationId": "catalog_get_product_similar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCardOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Product Similar",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/store/products/{slug}/size-guide": {
       "get": {
         "description": "The Size guide that applies to a published Product, loaded when the dialog\nopens. 404 when none applies (no guide written, or a One-size Product).",
