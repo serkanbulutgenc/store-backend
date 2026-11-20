@@ -238,6 +238,8 @@ class ProductDetailOut(ProductCardOut):
     brand: BrandOut | None
     breadcrumbs: list[CrumbOut]
     is_hygiene: bool
+    size_guide: str | None
+    fit_note: str
     attributes: list[AttributeBlockOut]
     variants: list[PageVariantOut]
     photos: list[PagePhotoOut]

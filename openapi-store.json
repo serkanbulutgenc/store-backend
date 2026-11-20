@@ -1971,6 +1971,10 @@
             "title": "Description",
             "type": "string"
           },
+          "fit_note": {
+            "title": "Fit Note",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2049,6 +2053,17 @@
             ],
             "title": "Shelf Price"
           },
+          "size_guide": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Guide"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -2086,6 +2101,8 @@
           "brand",
           "breadcrumbs",
           "is_hygiene",
+          "size_guide",
+          "fit_note",
           "attributes",
           "variants",
           "photos"

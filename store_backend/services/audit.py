@@ -80,6 +80,8 @@ class Action(StrEnum):
     CAMPAIGN_ACTIVATED = "campaign_activated"
     CAMPAIGN_DEACTIVATED = "campaign_deactivated"
     CAMPAIGN_DELETED = "campaign_deleted"
+    SIZE_GUIDE_EDITED = "size_guide_edited"
+    FIT_NOTE_EDITED = "fit_note_edited"
 
 
 def record(  # noqa: PLR0913

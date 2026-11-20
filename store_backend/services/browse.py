@@ -48,6 +48,7 @@ from store_backend.services import campaign_pricing
 from store_backend.services import categories
 from store_backend.services import reviews
 from store_backend.services import search
+from store_backend.services import size_guides
 from store_backend.services import stock
 from store_backend.services.order_ops import STATUS_CANCELLED
 from store_backend.services.order_ops import STATUS_RETURNED
@@ -642,6 +643,8 @@ def detail(slug: str) -> dict:
         ),
         "breadcrumbs": [{"name": c.name, "slug": c.slug} for c in crumbs],
         "is_hygiene": product.product_class.profile.is_hygiene,
+        "size_guide": size_guides.effective_guide(profile),
+        "fit_note": profile.fit_note,
         "attributes": attributes.blocks_for(product),
         "variants": [
             {

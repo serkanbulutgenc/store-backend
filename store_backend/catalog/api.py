@@ -44,6 +44,7 @@ from store_backend.services import catalog_views as views
 from store_backend.services import categories
 from store_backend.services import media
 from store_backend.services import product_classes
+from store_backend.services import size_guides
 from store_backend.services import stock
 from store_backend.staff.permissions import Perm
 
@@ -176,6 +177,10 @@ class ProductClassOut(Schema):
     product_count: int | None = None
 
 
+class SizeGuideIO(Schema):
+    text: str
+
+
 class ProductClassIn(Schema):
     name: str
     size_scheme: str
@@ -271,6 +276,8 @@ class ProductPatch(Schema):
     desi: int | None = None
     slug: str | None = None
     description: str | None = None
+    size_guide: str | None = None  # the Product's override; null or empty removes it
+    fit_note: str | None = None  # one line of plain text; null or empty removes it
     # Owner only:
     supplier_id: int | None = None
     supplier_code: str | None = None
@@ -378,6 +385,8 @@ class ProductOut(Schema):
     low_stock_threshold: int
     desi: int | None
     description: str
+    size_guide: str | None  # the Product's own override, not the class's
+    fit_note: str
     variants: list[VariantOut]
     attribute_values: list[AttributeValueIO]
     # Owner only; left out of the response for everyone else.
@@ -439,6 +448,26 @@ def update_product_class(request, class_id: int, data: ProductClassPatch):
     changes = {k: v for k, v in data.dict(exclude_unset=True).items() if v is not None}
     pc = product_classes.update(request.auth, class_id, changes)
     return views.product_class_dict(pc, product_classes.product_count(pc.pk))
+
+
+@router.get(
+    "/product-classes/{class_id}/size-guide",
+    auth=requires(Perm.MANAGE_PRODUCTS),
+    operation_id="catalog_get_class_size_guide",
+    response=SizeGuideIO,
+)
+def get_class_size_guide(request, class_id: int):
+    return {"text": size_guides.get_class_guide(class_id)}
+
+
+@router.put(
+    "/product-classes/{class_id}/size-guide",
+    auth=requires(Perm.MANAGE_PRODUCTS),
+    operation_id="catalog_set_class_size_guide",
+    response=SizeGuideIO,
+)
+def set_class_size_guide(request, class_id: int, data: SizeGuideIO):
+    return {"text": size_guides.set_class_guide(request.auth, class_id, data.text)}
 
 
 @router.delete(

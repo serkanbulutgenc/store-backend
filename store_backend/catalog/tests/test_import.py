@@ -431,3 +431,64 @@ def test_an_over_long_description_is_a_row_error_and_writes_nothing(owner, colou
     just_fits = "a" * catalog.DESCRIPTION_MAX
     catalog_import.run(owner, "b.csv", with_description(just_fits, "", ""))
     assert parent_product().description == just_fits
+
+
+# --- fit_note column -------------------------------------------------------------
+
+
+def with_fit_note(*notes: str, column: str = "fit_note") -> bytes:
+    """The standard three rows, each ending in the given fit note cell."""
+    rows = "".join(
+        line + "," + text + "\n"
+        for line, text in zip(ROWS.splitlines(), notes, strict=True)
+    )
+    return csv_bytes(rows, HEADER.rstrip("\n") + f",{column}\n")
+
+
+def test_import_sets_a_products_fit_note(owner, colours):
+    catalog_import.run(owner, "a.csv", with_fit_note("Dar kalıp", "", ""))
+
+    assert parent_product().profile.fit_note == "Dar kalıp"
+
+
+def test_reimport_updates_the_fit_note_and_empty_never_clears_it(owner, colours):
+    catalog_import.run(owner, "a.csv", with_fit_note("Dar kalıp", "", ""))
+
+    catalog_import.run(owner, "b.csv", with_fit_note("", "Bir beden büyük alın", ""))
+    assert parent_product().profile.fit_note == "Bir beden büyük alın"
+
+    catalog_import.run(owner, "c.csv", csv_bytes())  # no fit_note column
+    assert parent_product().profile.fit_note == "Bir beden büyük alın"
+
+    catalog_import.run(owner, "d.csv", with_fit_note("", "", ""))  # empty cells
+    assert parent_product().profile.fit_note == "Bir beden büyük alın"
+
+
+def test_rows_of_one_product_with_different_fit_notes_are_a_row_error(owner, colours):
+    with pytest.raises(UnprocessableError) as caught:
+        catalog_import.run(owner, "a.csv", with_fit_note("Dar", "Bol", ""))
+
+    assert "Satır 3, fit_note" in caught.value.fields["file"][0]
+
+
+def test_a_fit_note_over_the_length_cap_is_a_row_error(owner, colours):
+    with pytest.raises(UnprocessableError) as caught:
+        catalog_import.run(owner, "a.csv", with_fit_note("x" * 121, "", ""))
+
+    assert "Satır 2, fit_note" in caught.value.fields["file"][0]
+
+
+def test_a_size_guide_column_is_ignored_because_guides_are_not_importable(
+    owner,
+    colours,
+):
+    catalog_import.run(
+        owner,
+        "a.csv",
+        with_fit_note("| Beden |", "", "", column="size_guide"),
+    )
+
+    product = parent_product()
+    assert product.profile.size_guide == ""
+    assert product.profile.fit_note == ""
+    assert product.product_class.profile.size_guide == ""
