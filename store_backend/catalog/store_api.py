@@ -287,3 +287,13 @@ def get_collection(request, slug: str):
     Products are left out, sold-out ones are shown as sold out. A Collection that is
     not published or has no visible Product is 404."""
     return collections.page(slug)
+
+
+@router.get(
+    "/products/{slug}/similar",
+    operation_id="catalog_get_product_similar",
+    response=list[ProductCardOut],
+)
+def get_product_similar(request, slug: str):
+    """The ranked "Benzer ürünler" cards of a published Product."""
+    return browse.similar(slug)

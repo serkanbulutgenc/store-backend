@@ -12,18 +12,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from typing import Any
 
+from django.core.cache import cache
 from django.db.models import Avg
+from django.db.models import Case
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
+from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import OuterRef
 from django.db.models import Subquery
 from django.db.models import Sum
+from django.db.models import When
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Collate
 from oscar.apps.catalogue.models import Category
@@ -56,7 +61,7 @@ from store_backend.shop.models import Review
 from store_backend.shop.models import ReviewStatus
 
 if TYPE_CHECKING:
-    from decimal import Decimal
+    from collections.abc import Iterable
 
     from django.db.models import QuerySet
 
@@ -439,6 +444,18 @@ def photos_by_product(parent_ids: list[int]) -> dict[int, list[ProductPhoto]]:
     return out
 
 
+def _units_sold() -> Coalesce:
+    """Units sold across the Product's Variants, not counting undone Orders."""
+    sold = (
+        Line.objects.filter(product__parent_id=OuterRef("product_id"))
+        .exclude(order__status__in=(STATUS_CANCELLED, STATUS_RETURNED))
+        .values("product__parent_id")
+        .annotate(units=Sum("quantity"))
+        .values("units")
+    )
+    return Coalesce(Subquery(sold), 0)
+
+
 def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # noqa: PLR0911
     sold_out_last = Exists(
         _variants(in_stock=True).filter(parent=OuterRef("product_id")),
@@ -455,15 +472,7 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # 
         qs = qs.annotate(title_tr=Collate("product__title", "tr-x-icu"))
         return qs.order_by("-has_stock", "title_tr", "-product_id")
     if sort == "popular":
-        # Units sold across the Product's Variants, not counting undone Orders.
-        sold = (
-            Line.objects.filter(product__parent_id=OuterRef("product_id"))
-            .exclude(order__status__in=(STATUS_CANCELLED, STATUS_RETURNED))
-            .values("product__parent_id")
-            .annotate(units=Sum("quantity"))
-            .values("units")
-        )
-        qs = qs.annotate(units_sold=Coalesce(Subquery(sold), 0))
+        qs = qs.annotate(units_sold=_units_sold())
         return qs.order_by("-has_stock", "-units_sold", "-product_id")
     if sort == "rating_desc":
         average = (
@@ -694,3 +703,142 @@ def detail(slug: str) -> dict:
             if p.status == ProductPhoto.Status.READY
         ],
     }
+
+
+# --- similar products ----------------------------------------------------------
+
+
+# What each signal adds to a candidate's score. The order follows the spec (Category,
+# then Brand, then shared attribute values, then a small price bonus), and a
+# same-Category match outweighs everything below it.
+SCORE_SAME_CATEGORY = 100
+SCORE_SAME_BRAND = 10
+SCORE_PER_SHARED_VALUE = 2
+SCORE_CLOSE_PRICE = 1
+CLOSE_PRICE_SPREAD = Decimal("0.3")  # within 30% either way
+SIMILAR_MIN = 4  # fewer than this in the same Category widens to the parent Category
+SIMILAR_MAX = 8
+SIMILAR_CACHE_SECONDS = 60
+
+
+def similar(slug: str) -> list[dict]:
+    """The Products shown as similar to a published Product, best first, as cards.
+
+    Cached briefly: the ranking is the heaviest query a product page makes, and a
+    minute of staleness (stock, price, a new Product) is harmless. A Product that is
+    not found is never cached.
+    """
+    key = f"similar:{slug}"
+    cards = cache.get(key)
+    if cards is None:
+        cards = _similar(slug)
+        cache.set(key, cards, SIMILAR_CACHE_SECONDS)
+    return cards
+
+
+def _similar(slug: str) -> list[dict]:
+    profile = published().filter(slug=slug).first()
+    if profile is None:
+        raise NotFoundError
+    own = list(categories.visible().filter(productcategory__product=profile.product_id))
+    own_ids = [c.pk for c in own]
+    candidates = _similar_candidates(profile, own_ids)
+    if candidates.count() < SIMILAR_MIN:
+        wide_ids = set(own_ids)
+        for parent in {c.get_parent() for c in own} - {None}:
+            wide_ids.update(categories.visible_ids_under(parent))
+        candidates = _similar_candidates(profile, wide_ids)
+    ranked = candidates.annotate(
+        score=_similar_score(profile, own_ids),
+        units_sold=_units_sold(),
+    ).order_by("-score", "-units_sold", "-product_id")
+    return _cards(list(ranked[:SIMILAR_MAX]))
+
+
+def _similar_candidates(
+    profile: ProductProfile,
+    category_ids: Iterable[int],
+) -> QuerySet[ProductProfile]:
+    """Other published Products with stock in any of the Categories."""
+    return (
+        published()
+        .select_related("product")
+        .exclude(product_id=profile.product_id)
+        .filter(Exists(_variants(in_stock=True).filter(parent=OuterRef("product_id"))))
+        .filter(
+            Exists(
+                ProductCategory.objects.filter(
+                    product=OuterRef("product_id"),
+                    category_id__in=list(category_ids),
+                ),
+            ),
+        )
+    )
+
+
+def _similar_score(profile: ProductProfile, own_category_ids: list[int]) -> Any:
+    same_category = Case(
+        When(
+            Exists(
+                ProductCategory.objects.filter(
+                    product=OuterRef("product_id"),
+                    category_id__in=own_category_ids,
+                ),
+            ),
+            then=SCORE_SAME_CATEGORY,
+        ),
+        default=0,
+        output_field=IntegerField(),
+    )
+    same_brand = Case(
+        When(brand_id=profile.brand_id, brand_id__isnull=False, then=SCORE_SAME_BRAND),
+        default=0,
+        output_field=IntegerField(),
+    )
+    own_options = list(
+        AttributeValue.objects.filter(
+            product_id=profile.product_id,
+            option_id__isnull=False,
+        ).values_list("option_id", flat=True),
+    )
+    shared = (
+        AttributeValue.objects.filter(
+            product=OuterRef("product_id"),
+            option_id__in=own_options,
+        )
+        .values("product")
+        .annotate(n=Count("pk"))
+        .values("n")
+    )
+    own_price = profile.price_from
+    close_price = Case(
+        When(
+            price_from__gte=own_price * (1 - CLOSE_PRICE_SPREAD),
+            price_from__lte=own_price * (1 + CLOSE_PRICE_SPREAD),
+            then=SCORE_CLOSE_PRICE,
+        ),
+        default=0,
+        output_field=IntegerField(),
+    )
+    return (
+        same_category
+        + same_brand
+        + Coalesce(Subquery(shared), 0) * SCORE_PER_SHARED_VALUE
+        + close_price
+    )
+
+
+def _cards(profiles: list[ProductProfile]) -> list[dict]:
+    ids = [p.product_id for p in profiles]
+    variants = variants_by_product(ids)
+    photos = photos_by_product(ids)
+    ratings = reviews.ratings_for(ids)
+    return [
+        product_card(
+            p,
+            variants[p.product_id],
+            photos[p.product_id],
+            ratings[p.product_id],
+        )
+        for p in profiles
+    ]
