@@ -123,3 +123,15 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 **Store settings**: The single Owner-edited record holding the seller's legal identity (name, tax or MERSIS number, address, contact, designated return carrier, complaint contact).
 
 **Phase 1**: First release. Payments by bank transfer and cash on delivery only.
+
+**Stock alert**: A Shopper's request, for one sold-out Variant, to be emailed once when it is back in stock. It needs the Shopper's specific consent and a confirmed email address (a Guest confirms by link; a signed-in Shopper's verified email counts). It is a commercial message, so every email carries a reject link and the feature stays off until the Owner confirms İYS registration. It ends after the email is sent, is rejected, or lapses after 90 days. _Avoid_: waitlist, notify me, subscription.
+
+**Size guide**: The formatted measuring reference a Shopper opens from the size picker (label "Beden tablosu"). Written once per Product class, with an optional override on a single Product; Owner and Staff edit it. Hidden for a One-size Product or when no guide applies. _Avoid_: size chart, sizing.
+
+**Fit note**: An optional one-line comment on how a Product runs (for example "runs small, size up"), shown under the size picker (label "Kalıp notu"). Plain text, per Product. _Avoid_: fit tip.
+
+**Similar products**: The ranked list of other Products shown on a Product's page (label "Benzer ürünler"): same leaf Category first, then Brand, shared attributes and close price. Only published, in-stock Products appear. _Avoid_: related products.
+
+**Recently viewed**: The list of up to 12 Products a Shopper last opened, kept only in their own browser and cleared on sign-out (label "Son baktıklarınız"). It is never sent to the server as a log. _Avoid_: history.
+
+**Report**: A read-only, Owner-only summary of orders, returns, Campaigns and Vouchers (label "Raporlar"). It never uses visitor tracking. _Avoid_: analytics, statistics.
