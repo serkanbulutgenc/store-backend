@@ -57,6 +57,10 @@ class ProductClassProfile(models.Model):
         validators=[MinValueValidator(1)],
         help_text="Carrier size of one item of this class, in desi.",
     )
+    size_guide = models.TextField(
+        blank=True,
+        help_text="Markdown measuring reference shown beside the size picker.",
+    )
 
     def __str__(self) -> str:
         return str(self.product_class)
@@ -170,6 +174,11 @@ class ProductProfile(models.Model):
     low_stock_threshold = models.PositiveIntegerField(
         default=DEFAULT_LOW_STOCK_THRESHOLD,
     )
+    size_guide = models.TextField(
+        blank=True,
+        help_text="Overrides the Product class Size guide; empty uses the class's.",
+    )
+    fit_note = models.CharField(max_length=120, blank=True)
     desi = models.PositiveSmallIntegerField(
         null=True,
         blank=True,

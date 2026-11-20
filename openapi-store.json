@@ -1971,6 +1971,14 @@
             "title": "Description",
             "type": "string"
           },
+          "fit_note": {
+            "title": "Fit Note",
+            "type": "string"
+          },
+          "has_size_guide": {
+            "title": "Has Size Guide",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2086,6 +2094,8 @@
           "brand",
           "breadcrumbs",
           "is_hygiene",
+          "has_size_guide",
+          "fit_note",
           "attributes",
           "variants",
           "photos"
@@ -2829,6 +2839,19 @@
           "count"
         ],
         "title": "SizeFacet",
+        "type": "object"
+      },
+      "SizeGuideOut": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SizeGuideOut",
         "type": "object"
       },
       "SwatchOut": {
@@ -4630,6 +4653,114 @@
         "summary": "List Reviews",
         "tags": [
           "reviews"
+        ]
+      }
+    },
+    "/api/store/products/{slug}/similar": {
+      "get": {
+        "description": "The ranked \"Benzer \u00fcr\u00fcnler\" cards of a published Product.",
+        "operationId": "catalog_get_product_similar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCardOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Product Similar",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/store/products/{slug}/size-guide": {
+      "get": {
+        "description": "The Size guide that applies to a published Product, loaded when the dialog\nopens. 404 when none applies (no guide written, or a One-size Product).",
+        "operationId": "catalog_get_product_size_guide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SizeGuideOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Product Size Guide",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/store/recently-viewed": {
+      "get": {
+        "description": "Fresh cards for the Product slugs a browser kept (\"Son bakt\u0131klar\u0131n\u0131z\"), comma\nseparated and in that order. Products that are gone or sold out are left out.",
+        "operationId": "catalog_get_recently_viewed",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slugs",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Slugs",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCardOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Recently Viewed",
+        "tags": [
+          "catalog"
         ]
       }
     },

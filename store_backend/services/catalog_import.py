@@ -19,7 +19,9 @@ or a percentage (0-100) overriding it. `category` is `Name` or a path such as
 `Parent > Child > Grandchild`, up to five levels. `description` is the Product's
 Markdown Description (at most 5000 characters; a Product's rows that fill it in must
 agree). A blank or missing description never clears an existing one: edit it in the
-Dashboard instead. `notes` is ignored. Brands,
+Dashboard instead. `fit_note` is the Product's one-line Fit note (at most 120
+characters, rows of one Product must agree); empty or missing leaves it as it is. Size
+guides are not importable: a `size_guide` column is ignored. `notes` is ignored. Brands,
 suppliers and categories that do not exist (every missing ancestor too) are created
 on confirm; colours are never created (a colour needs a swatch), sizes must be in the
 class's scheme, and Products are created as drafts.
@@ -49,6 +51,7 @@ from store_backend.catalog.models import VariantProfile
 from store_backend.catalog.sizes import sizes_for
 from store_backend.services import audit
 from store_backend.services import catalog
+from store_backend.services import size_guides
 from store_backend.services import stock
 
 if TYPE_CHECKING:
@@ -67,7 +70,7 @@ REQUIRED = (
     "shelf_price_try",
     "quantity",
 )
-OPTIONAL = ("brand", "supplier", "sku", "kdv_class", "description", "notes")
+OPTIONAL = ("brand", "supplier", "sku", "kdv_class", "description", "fit_note", "notes")
 MAX_KDV = Decimal(100)
 MAX_ERRORS_SHOWN = 20
 MAX_IMPORT_CATEGORY_DEPTH = catalog.MAX_CATEGORY_DEPTH
@@ -95,6 +98,7 @@ class Line:
     sku: str
     kdv: Decimal | None
     description: str | None = None  # None: the file has no description column
+    fit_note: str = ""  # empty: leave the Product's Fit note as it is
     variant: VariantProfile | None = None  # the matched existing Variant
     action: str = "create"
 
@@ -110,6 +114,7 @@ class ProductPlan:
     brand: str
     supplier: str
     description: str | None = None
+    fit_note: str = ""
     product: Product | None = None  # the matched existing Product
     lines: list[Line] = field(default_factory=list)
 
@@ -266,7 +271,7 @@ def _category_path(text: str) -> tuple[str, ...] | None:
 # --- planning --------------------------------------------------------------------
 
 
-def _parse_line(  # noqa: C901
+def _parse_line(  # noqa: C901, PLR0912
     number: int,
     values: dict[str, str],
     cat: _Catalogue,
@@ -322,6 +327,12 @@ def _parse_line(  # noqa: C901
             "description",
             f"Açıklama en fazla {catalog.DESCRIPTION_MAX} karakter olabilir.",
         )
+    fit_note = get("fit_note")
+    if len(fit_note) > size_guides.FIT_NOTE_MAX:
+        bad(
+            "fit_note",
+            f"Kalıp notu en fazla {size_guides.FIT_NOTE_MAX} karakter olabilir.",
+        )
     if len(errors) > before:
         return None
     return Line(
@@ -338,6 +349,7 @@ def _parse_line(  # noqa: C901
         sku=get("sku"),
         kdv=kdv,
         description=description,
+        fit_note=fit_note,
     )
 
 
@@ -379,6 +391,17 @@ def _group(lines: list[Line], errors: list[RowError]) -> list[ProductPlan]:
                 )
                 continue
             plan.description = ln.description
+        if ln.fit_note:
+            if plan.fit_note and plan.fit_note != ln.fit_note:
+                errors.append(
+                    RowError(
+                        ln.row,
+                        "fit_note",
+                        "Aynı ürünün satırlarında kalıp notu aynı olmalı.",
+                    ),
+                )
+                continue
+            plan.fit_note = ln.fit_note
         plan.lines.append(ln)
     for plan in groups.values():
         # The Product price is the most common line price (lowest on a tie), so row
@@ -603,7 +626,7 @@ def _ensure_parents(plan: Plan) -> tuple[dict, dict, dict]:
     return brands, suppliers, categories
 
 
-def _apply_product(
+def _apply_product(  # noqa: C901
     actor: User,
     p: ProductPlan,
     refs: tuple[dict, dict, dict],
@@ -620,6 +643,7 @@ def _apply_product(
             supplier=suppliers.get(_key(p.supplier)),
             kdv_rate=p.kdv,
             description=p.description or "",
+            fit_note=p.fit_note,
         )
     else:
         changes: dict[str, object] = {}
@@ -629,6 +653,8 @@ def _apply_product(
             changes["kdv_rate"] = p.kdv
         if p.description and p.product.description != p.description:
             changes["description"] = p.description
+        if p.fit_note and p.product.profile.fit_note != p.fit_note:
+            changes["fit_note"] = p.fit_note
         if changes:
             catalog.update_product(actor, p.product, **changes)
     for ln in p.lines:

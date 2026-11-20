@@ -238,6 +238,8 @@ class ProductDetailOut(ProductCardOut):
     brand: BrandOut | None
     breadcrumbs: list[CrumbOut]
     is_hygiene: bool
+    has_size_guide: bool
+    fit_note: str
     attributes: list[AttributeBlockOut]
     variants: list[PageVariantOut]
     photos: list[PagePhotoOut]
@@ -250,6 +252,21 @@ class ProductDetailOut(ProductCardOut):
 )
 def get_product(request, slug: str):
     return browse.detail(slug)
+
+
+class SizeGuideOut(Schema):
+    text: str
+
+
+@router.get(
+    "/products/{slug}/size-guide",
+    operation_id="catalog_get_product_size_guide",
+    response=SizeGuideOut,
+)
+def get_product_size_guide(request, slug: str):
+    """The Size guide that applies to a published Product, loaded when the dialog
+    opens. 404 when none applies (no guide written, or a One-size Product)."""
+    return {"text": browse.size_guide(slug)}
 
 
 class CollectionPageOut(Schema):
@@ -270,3 +287,25 @@ def get_collection(request, slug: str):
     Products are left out, sold-out ones are shown as sold out. A Collection that is
     not published or has no visible Product is 404."""
     return collections.page(slug)
+
+
+@router.get(
+    "/products/{slug}/similar",
+    operation_id="catalog_get_product_similar",
+    response=list[ProductCardOut],
+)
+def get_product_similar(request, slug: str):
+    """The ranked "Benzer ürünler" cards of a published Product."""
+    return browse.similar(slug)
+
+
+@router.get(
+    "/recently-viewed",
+    operation_id="catalog_get_recently_viewed",
+    response=list[ProductCardOut],
+)
+def get_recently_viewed(request, slugs: str = ""):
+    """Fresh cards for the Product slugs a browser kept ("Son baktıklarınız"), comma
+    separated and in that order. Products that are gone or sold out are left out."""
+    wanted = (part.strip() for part in slugs.split(","))
+    return browse.recently_viewed([slug for slug in wanted if slug])
