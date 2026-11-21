@@ -36,6 +36,8 @@ from store_backend.shop.models import AlertConsent
 from store_backend.shop.models import StockAlert
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from store_backend.users.models import User
 
 UNCONFIRMED_TTL = timedelta(hours=48)
@@ -299,8 +301,12 @@ def notify_back(variant: Product) -> int:
     return len(rows)
 
 
-def purge() -> None:
-    """Drop lapsed live rows and consent records older than 3 years."""
-    now = timezone.now()
-    StockAlert.objects.filter(expires_at__lte=now).delete()
-    AlertConsent.objects.filter(consented_at__lte=now - CONSENT_TTL).delete()
+def purge(now: datetime | None = None) -> dict[str, int]:
+    """Drop lapsed live rows (unconfirmed after 48 h, confirmed after 90 days: both
+    are `expires_at`) and Alert consent records older than 3 years. Safe to repeat."""
+    now = now or timezone.now()
+    alerts, _ = StockAlert.objects.filter(expires_at__lte=now).delete()
+    consents, _ = AlertConsent.objects.filter(
+        consented_at__lte=now - CONSENT_TTL,
+    ).delete()
+    return {"alerts": alerts, "consents": consents}
