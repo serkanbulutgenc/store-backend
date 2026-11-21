@@ -437,6 +437,8 @@ FEE_KDV_RATE = 20
 CHECKOUT_RATE_LIMIT = (10, 600)
 # Order tracking lookups: per client address, and per Order number (all addresses).
 TRACKING_RATE_LIMIT = (20, 600)
+# Stock alert subscriptions per client address: (count, window in seconds).
+STOCK_ALERT_RATE_LIMIT = (10, 3600)
 TRACKING_ORDER_RATE_LIMIT = (8, 600)
 # Read the client address from the first `X-Forwarded-For` entry. Only turn this on
 # behind a proxy that sets the header itself; otherwise a client can forge it.

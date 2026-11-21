@@ -2854,6 +2854,49 @@
         "title": "SizeGuideOut",
         "type": "object"
       },
+      "SubscribeIn": {
+        "properties": {
+          "consent": {
+            "description": "The unticked consent box. Must be true.",
+            "title": "Consent",
+            "type": "boolean"
+          },
+          "email": {
+            "default": "",
+            "description": "Required for guests; ignored for a signed-in Shopper with a verified email.",
+            "maxLength": 254,
+            "title": "Email",
+            "type": "string"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "variant_id",
+          "consent"
+        ],
+        "title": "SubscribeIn",
+        "type": "object"
+      },
+      "SubscribeOut": {
+        "properties": {
+          "status": {
+            "enum": [
+              "confirmed",
+              "confirmation_sent"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SubscribeOut",
+        "type": "object"
+      },
       "SwatchOut": {
         "properties": {
           "hex_code": {
@@ -2875,6 +2918,20 @@
           "hex_code"
         ],
         "title": "SwatchOut",
+        "type": "object"
+      },
+      "TokenIn": {
+        "properties": {
+          "token": {
+            "maxLength": 300,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "TokenIn",
         "type": "object"
       },
       "TrackingIn": {
@@ -4784,6 +4841,106 @@
         "summary": "Get Public Settings",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/store/stock-alerts": {
+      "post": {
+        "description": "Ask to be emailed once when this sold-out Variant is back. A guest gets a\nconfirm email (`confirmation_sent`); a signed-in Shopper with a verified email is\n`confirmed` at once. 409 `stock_alerts_unavailable` while the Store setting is\noff, 409 `in_stock` when the Variant is not sold out, 409 `stock_alert_limit` past\n5 active per email, 429 on too many tries from one address.",
+        "operationId": "stock_alerts_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscribeOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Subscribe",
+        "tags": [
+          "stock-alerts"
+        ]
+      }
+    },
+    "/api/store/stock-alerts/confirm": {
+      "post": {
+        "description": "The click in the confirm email, which is the consent. 404 for an unknown or\nexpired link, 409 `in_stock` if the Variant came back meanwhile. Safe to repeat.",
+        "operationId": "stock_alerts_confirm",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Confirm",
+        "tags": [
+          "stock-alerts"
+        ]
+      }
+    },
+    "/api/store/stock-alerts/reject": {
+      "post": {
+        "description": "The reject link in every email. Deletes the waiting row and records the\nrejection; works while the setting is off, and repeats are fine. 404 for a\ntampered link.",
+        "operationId": "stock_alerts_reject",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Reject",
+        "tags": [
+          "stock-alerts"
         ]
       }
     },
