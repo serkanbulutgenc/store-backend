@@ -30,6 +30,7 @@ EDITABLE = (
     *MONEY_FIELDS,
     "fee_kdv_rate",
     "low_stock_default",
+    "stock_alerts_enabled",
     "bank_name",
     "bank_account_holder",
     "bank_iban",
@@ -84,6 +85,10 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
     if field == "low_stock_default":
         if not isinstance(value, int) or not 0 <= value <= MAX_LOW_STOCK:
             raise _invalid(field, "Eşik 0 ile 10000 arasında olmalı.")
+        return value
+    if field == "stock_alerts_enabled":
+        if not isinstance(value, bool):
+            raise _invalid(field, "Geçerli bir değer girin.")
         return value
     if field == "bank_iban":
         iban = re.sub(r"\s+", "", str(value)).upper()

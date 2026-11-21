@@ -27,6 +27,7 @@ class SettingsOut(Schema):
     cod_fee: Money
     fee_kdv_rate: str
     low_stock_default: int
+    stock_alerts_enabled: bool
     bank_name: str
     bank_account_holder: str
     bank_iban: str
@@ -60,6 +61,7 @@ class SettingsPatch(Schema):
     cod_fee: str | None = None
     fee_kdv_rate: str | None = None
     low_stock_default: int | None = None
+    stock_alerts_enabled: bool | None = None
     bank_name: str | None = None
     bank_account_holder: str | None = None
     bank_iban: str | None = None

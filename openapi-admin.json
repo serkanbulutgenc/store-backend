@@ -6076,6 +6076,10 @@
             "pattern": "^-?\\d+\\.\\d{2}$",
             "title": "Shipping Fee",
             "type": "string"
+          },
+          "stock_alerts_enabled": {
+            "title": "Stock Alerts Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6084,6 +6088,7 @@
           "cod_fee",
           "fee_kdv_rate",
           "low_stock_default",
+          "stock_alerts_enabled",
           "bank_name",
           "bank_account_holder",
           "bank_iban",
@@ -6317,6 +6322,17 @@
               }
             ],
             "title": "Shipping Fee"
+          },
+          "stock_alerts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Alerts Enabled"
           }
         },
         "title": "SettingsPatch",
@@ -6653,11 +6669,17 @@
           "on_hand": {
             "title": "On Hand",
             "type": "integer"
+          },
+          "waiting": {
+            "description": "Shoppers waiting for a Stock alert on this Variant (confirmed, not lapsed). Never their addresses.",
+            "title": "Waiting",
+            "type": "integer"
           }
         },
         "required": [
           "on_hand",
-          "allocated"
+          "allocated",
+          "waiting"
         ],
         "title": "StockOut",
         "type": "object"

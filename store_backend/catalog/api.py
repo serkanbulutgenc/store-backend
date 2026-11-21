@@ -338,6 +338,10 @@ class StockGridIn(Schema):
 class StockOut(Schema):
     on_hand: int
     allocated: int
+    waiting: int = Field(
+        description="Shoppers waiting for a Stock alert on this Variant (confirmed, "
+        "not lapsed). Never their addresses.",
+    )
 
 
 class VariantOut(Schema):
@@ -1106,7 +1110,7 @@ def save_stock_grid(request, product_id: int, data: StockGridIn):
         "variant_profile__colour",
         "parent__profile",
     ).prefetch_related("stockrecords")
-    return [views.variant_dict(v) for v in variants.order_by("pk")]
+    return views.variant_dicts(variants.order_by("pk"))
 
 
 @router.get(
