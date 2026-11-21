@@ -67,6 +67,7 @@ SUBJECTS: dict[str, str] = {
     "refund_issued": "İadeniz yapıldı – {number}",
     "staff_new_order": "Yeni sipariş – {number}",
     "low_stock_digest": "Düşük stok özeti – {count} ürün",
+    "stock_alert_confirm": "Stok bildirimi için e-postanızı onaylayın",
     "deletion_request_owner": "Hesap silme talebi",
 }
 
