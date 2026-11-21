@@ -26,8 +26,10 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.api.ratelimit import Rate
 from store_backend.api.ratelimit import count_attempt
 from store_backend.catalog.models import ProductStatus
+from store_backend.services import campaign_pricing
 from store_backend.services import legal_pages
 from store_backend.services import outbox
+from store_backend.services import pre_information
 from store_backend.services import shop_settings
 from store_backend.services import stock
 from store_backend.shop.models import AlertConsent
@@ -243,6 +245,58 @@ def reject(token: str) -> None:
         variant_id=variant_id,
         rejected_at__isnull=True,
     ).update(rejected_at=timezone.now())
+
+
+def notify_back(variant: Product) -> int:
+    """The Variant just went from 0 free units to 1 or more: email everyone waiting,
+    first come first served, then delete their rows. Returns how many were emailed.
+
+    Runs in the stock change's transaction, so the emails and the deleted rows commit
+    with the new stock (the outbox sends after commit). Drafts and archived Products
+    do not alert; their rows keep waiting.
+    """
+    variant = (
+        Product.objects.filter(
+            pk=variant.pk,
+            parent__profile__status=ProductStatus.PUBLISHED,
+        )
+        .select_related("variant_profile__colour", "parent__profile")
+        .first()
+    )
+    if variant is None:
+        return 0
+    rows = list(
+        StockAlert.objects.select_for_update()
+        .filter(
+            variant=variant,
+            confirmed_at__isnull=False,
+            expires_at__gt=timezone.now(),
+        )
+        .order_by("confirmed_at", "pk"),
+    )
+    if not rows:
+        return 0
+    base = settings.STOREFRONT_URL.rstrip("/")
+    profile = variant.variant_profile
+    context = {
+        "product": variant.parent.title,
+        "colour": profile.colour.name,
+        "size": profile.size,
+        "price": pre_information.format_try(campaign_pricing.unit_price(variant)),
+        "product_url": f"{base}/urun/{variant.parent.profile.slug}",
+    }
+    for row in rows:
+        token = reject_token(row.email, variant.pk)
+        outbox.enqueue(
+            "stock_alert_back",
+            to=row.email,
+            context={
+                **context,
+                "reject_url": f"{base}/stok-bildirimi/vazgec?token={token}",
+            },
+        )
+    StockAlert.objects.filter(pk__in=[r.pk for r in rows]).delete()
+    return len(rows)
 
 
 def purge() -> None:

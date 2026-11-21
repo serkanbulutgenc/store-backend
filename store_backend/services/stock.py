@@ -45,6 +45,9 @@ def units(record: StockRecord | None) -> int:
     return max(record.num_in_stock - (record.num_allocated or 0), 0)
 
 
+_free = units  # `restock` has a parameter named `units`
+
+
 def available_sql(prefix: str = "") -> Expression:
     """`units` as a SQL expression; `prefix` is the path to the stock record columns
     (`"stockrecords__"` from a Variant, `"product__stockrecords__"` from its profile).
@@ -92,10 +95,24 @@ def _reserved(order: Order) -> list[tuple[StockRecord, int]]:
     return [(r, quantities[r.pk]) for r in records.order_by("pk")]
 
 
+def _alert_if_back(record: StockRecord, before: int) -> None:
+    """Fire the Stock alerts when a Variant goes from 0 free units to 1 or more.
+
+    Every path that raises stock calls this (not a database signal), inside its own
+    transaction, so the alerts commit with the stock they are about.
+    """
+    if before == 0 and units(record) > 0:
+        from store_backend.services import stock_alerts  # noqa: PLC0415
+
+        stock_alerts.notify_back(record.product)
+
+
 def release(order: Order) -> None:
     """Give an Order's reserved units back (it was cancelled)."""
     for record, quantity in _reserved(order):
+        before = units(record)
         record.cancel_allocation(quantity)
+        _alert_if_back(record, before)
 
 
 def consume(order: Order) -> None:
@@ -138,8 +155,10 @@ def restock(
     )
     for record in records.order_by("pk"):
         before = record.num_in_stock
+        free_before = _free(record)
         record.num_in_stock += quantities[record.pk]
         record.save(update_fields=["num_in_stock"])
+        _alert_if_back(record, free_before)
         audit.record(
             actor,
             audit.Action.STOCK_ADJUSTMENT,
@@ -174,8 +193,10 @@ def adjust(actor: User, variant: Product, *, delta: int, reason: str) -> StockRe
     if new_level < 0:
         raise _invalid("delta", "Stok sıfırın altına düşemez.")
     before = record.num_in_stock
+    free_before = units(record)
     record.num_in_stock = new_level
     record.save(update_fields=["num_in_stock"])
+    _alert_if_back(record, free_before)
     audit.record(
         actor,
         audit.Action.STOCK_ADJUSTMENT,
