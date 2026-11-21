@@ -379,6 +379,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "store_backend.shop.tasks.send_low_stock_digest",
         "schedule": crontab(hour=9, minute=0),
     },
+    "purge-stock-alerts": {
+        "task": "store_backend.shop.tasks.purge_stock_alerts",
+        "schedule": 60 * 60,
+    },
     "dispatch-due-messages": {
         "task": "store_backend.messaging.tasks.dispatch_due_messages",
         "schedule": 60,
