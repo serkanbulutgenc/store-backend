@@ -2303,6 +2303,10 @@
             "pattern": "^-?\\d+\\.\\d{2}$",
             "title": "Shipping Fee",
             "type": "string"
+          },
+          "stock_alerts_enabled": {
+            "title": "Stock Alerts Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2311,7 +2315,8 @@
           "cod_fee",
           "banner",
           "seller",
-          "legal_versions"
+          "legal_versions",
+          "stock_alerts_enabled"
         ],
         "title": "PublicSettingsOut",
         "type": "object"
@@ -4823,7 +4828,7 @@
     },
     "/api/store/settings": {
       "get": {
-        "description": "What the storefront needs: fees, banner, seller identity and Legal versions.\nBank details, KDV rate, recipients and the stock default stay private.",
+        "description": "What the storefront needs: fees, banner, seller identity, Legal versions and\nwhether Stock alerts are on.\nBank details, KDV rate, recipients and the stock default stay private.",
         "operationId": "settings_get_public",
         "parameters": [],
         "responses": {

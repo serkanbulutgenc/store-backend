@@ -36,6 +36,7 @@ class PublicSettingsOut(Schema):
     banner: BannerOut | None
     seller: SellerOut
     legal_versions: dict[str, str]
+    stock_alerts_enabled: bool
 
 
 @router.get(
@@ -45,7 +46,8 @@ class PublicSettingsOut(Schema):
     response=PublicSettingsOut,
 )
 def get_public_settings(request):
-    """What the storefront needs: fees, banner, seller identity and Legal versions.
+    """What the storefront needs: fees, banner, seller identity, Legal versions and
+    whether Stock alerts are on.
     Bank details, KDV rate, recipients and the stock default stay private.
     """
     s = shop_settings.get()
@@ -72,4 +74,5 @@ def get_public_settings(request):
             "complaint_contact": s.complaint_contact,
         },
         "legal_versions": legal_pages.current_versions(),
+        "stock_alerts_enabled": s.stock_alerts_enabled,
     }
