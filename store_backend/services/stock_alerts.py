@@ -16,6 +16,7 @@ from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.core import signing
 from django.db import transaction
+from django.db.models import Count
 from django.db.models.functions import Lower
 from django.utils import timezone
 from oscar.apps.catalogue.models import Product
@@ -36,6 +37,7 @@ from store_backend.shop.models import AlertConsent
 from store_backend.shop.models import StockAlert
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from datetime import datetime
 
     from store_backend.users.models import User
@@ -299,6 +301,21 @@ def notify_back(variant: Product) -> int:
         )
     StockAlert.objects.filter(pk__in=[r.pk for r in rows]).delete()
     return len(rows)
+
+
+def waiting_counts(variant_ids: Iterable[int]) -> dict[int, int]:
+    """`{variant id: Shoppers waiting}`: confirmed, unexpired rows only. Never the
+    addresses, which stay out of the Dashboard."""
+    rows = (
+        StockAlert.objects.filter(
+            variant_id__in=list(variant_ids),
+            confirmed_at__isnull=False,
+            expires_at__gt=timezone.now(),
+        )
+        .values("variant_id")
+        .annotate(n=Count("pk"))
+    )
+    return {row["variant_id"]: row["n"] for row in rows}
 
 
 def purge(now: datetime | None = None) -> dict[str, int]:
