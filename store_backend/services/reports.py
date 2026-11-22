@@ -19,10 +19,13 @@ from typing import TYPE_CHECKING
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count
+from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Min
 from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
@@ -31,8 +34,10 @@ from django.utils import timezone
 from oscar.apps.catalogue.models import Product
 from oscar.apps.order.models import Line
 from oscar.apps.order.models import Order
+from oscar.apps.order.models import OrderDiscount
 
 from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import Campaign
 from store_backend.services import audit
 from store_backend.services import pricing
 from store_backend.services.accountant_export import safe
@@ -40,8 +45,10 @@ from store_backend.services.order_context import PAYMENT_WINDOW
 from store_backend.services.order_ops import STATUS_CANCELLED
 from store_backend.services.order_ops import STATUS_RETURNED
 from store_backend.shop.models import OrderFeeSnapshot
+from store_backend.shop.models import OrderLineSnapshot
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import ReturnLine
+from store_backend.shop.models import ReturnReason
 from store_backend.shop.models import ReturnStatus
 
 if TYPE_CHECKING:
@@ -51,6 +58,8 @@ if TYPE_CHECKING:
     from store_backend.users.models import User
 
 MAX_DAYS = 366
+UNSPECIFIED = "unspecified"  # a whole-order return has no reason
+MIN_RATE_UNITS = 5  # a smaller row shows counts, never a rate
 CACHE_SECONDS = 60
 DEFAULT_PRESET = "30d"
 
@@ -178,15 +187,26 @@ def resolve(
     return _preset(preset or Preset(DEFAULT_PRESET), today())
 
 
-def _placed(period: Period):
-    """Orders placed in `period` (shop-time days) that are not cancelled."""
+def _window(period: Period):
+    """Orders placed in `period` (shop-time days), whatever became of them."""
     zone = timezone.get_current_timezone()
     first = datetime.combine(period.start, time.min, tzinfo=zone)
     after = datetime.combine(period.end + timedelta(days=1), time.min, tzinfo=zone)
-    return Order.objects.filter(
-        date_placed__gte=first,
-        date_placed__lt=after,
-    ).exclude(status__in=(STATUS_CANCELLED, STATUS_RETURNED))
+    return Order.objects.filter(date_placed__gte=first, date_placed__lt=after)
+
+
+def _placed(period: Period):
+    """Orders placed in `period` that are not cancelled or returned."""
+    return _window(period).exclude(status__in=(STATUS_CANCELLED, STATUS_RETURNED))
+
+
+def _shipped(period: Period):
+    """Orders placed in `period` that Staff shipped, including any returned later."""
+    return (
+        _window(period)
+        .exclude(status=STATUS_CANCELLED)
+        .filter(record__shipped_at__isnull=False)
+    )
 
 
 def _sold(period: Period):
@@ -367,6 +387,7 @@ def _sales(
 
 
 DELETED_PRODUCT = "Silinmiş ürün"
+REASONS = (*(r.value for r in ReturnReason), UNSPECIFIED)
 
 
 def _by_product(period: Period, kdv: Kdv) -> dict[int | None, dict]:
@@ -456,7 +477,7 @@ def _csv(  # noqa: PLR0913
     report: str,
     *,
     period: Period,
-    kdv: Kdv,
+    kdv: Kdv | None,
     columns: Sequence[str],
     rows: Sequence[dict],
 ) -> str:
@@ -475,7 +496,7 @@ def _csv(  # noqa: PLR0913
         after={
             "from": str(period.start),
             "to": str(period.end),
-            "kdv": kdv.value,
+            **({"kdv": kdv.value} if kdv else {}),
             "rows": len(rows),
         },
     )
@@ -534,3 +555,291 @@ def products(
 ) -> dict:
     key = f"reports:products:{period.start}:{period.end}:{kdv}:{sort}"
     return _cached(key, lambda: _products(period, kdv, sort))
+
+
+def _item_titles(keys, labels: dict) -> dict[int | None, str]:
+    found = {p.pk: p.title for p in Product.objects.filter(pk__in=set(keys) - {None})}
+    return {key: found.get(key) or labels.get(key) or DELETED_PRODUCT for key in keys}
+
+
+def _rate(returned: int, shipped: int) -> float | None:
+    """Returned units as a percentage of shipped, or None for a row too small."""
+    if shipped < MIN_RATE_UNITS:
+        return None
+    return round(returned * 100 / shipped, 1)
+
+
+def _shipped_and_returned(shipped_orders, group) -> dict:
+    """`{key: {"shipped", "returned", "label"}}` for the Orders, grouped by the
+    expression `group(prefix)`, where `prefix` reaches the Order line."""
+    shipped = (
+        Line.objects.filter(order__in=shipped_orders.values("pk"))
+        .annotate(key=group(""))
+        .values("key")
+        .annotate(units=Sum("quantity"), label=Min("title"))
+    )
+    sent_back = (
+        ReturnLine.objects.filter(
+            request__order__in=shipped_orders.values("pk"),
+            request__status__in=(ReturnStatus.RECEIVED, ReturnStatus.REFUNDED),
+        )
+        .annotate(key=group("order_line__"))
+        .values("key", "request__reason")
+        .annotate(units=Sum("quantity"))
+    )
+    reasons: dict = {}
+    for r in sent_back:
+        reasons.setdefault(r["key"], dict.fromkeys(REASONS, 0))[
+            r["request__reason"]
+        ] += r["units"]
+    # A whole-order return brings back every unit of its Order. Units that already
+    # came back by request keep their reason; the rest have none to give.
+    whole = Order.objects.filter(
+        pk__in=shipped_orders.filter(status=STATUS_RETURNED).values("pk"),
+    )
+    bought = {
+        r["key"]: r["units"]
+        for r in Line.objects.filter(order__in=whole.values("pk"))
+        .annotate(key=group(""))
+        .values("key")
+        .annotate(units=Sum("quantity"))
+    }
+    asked = {
+        r["key"]: r["units"]
+        for r in ReturnLine.objects.filter(
+            request__order__in=whole.values("pk"),
+            request__status__in=(ReturnStatus.RECEIVED, ReturnStatus.REFUNDED),
+        )
+        .annotate(key=group("order_line__"))
+        .values("key")
+        .annotate(units=Sum("quantity"))
+    }
+    for key, units in bought.items():
+        rest = units - asked.get(key, 0)
+        reasons.setdefault(key, dict.fromkeys(REASONS, 0))[UNSPECIFIED] += rest
+    return {
+        r["key"]: {
+            "shipped": r["units"],
+            "reasons": reasons.get(r["key"], dict.fromkeys(REASONS, 0)),
+            "label": r["label"],
+        }
+        for r in shipped
+    }
+
+
+def _by_parent_product(prefix: str):
+    return Coalesce(f"{prefix}product__parent_id", f"{prefix}product_id")
+
+
+def _by_size(prefix: str):
+    return Coalesce(f"{prefix}product__variant_profile__size", Value(""))
+
+
+def _ranked(found: dict, name) -> list[dict]:
+    rows = [
+        {
+            **name(key, row),
+            "shipped": row["shipped"],
+            "returned": sum(row["reasons"].values()),
+            "rate": _rate(sum(row["reasons"].values()), row["shipped"]),
+            "reasons": row["reasons"],
+        }
+        for key, row in found.items()
+    ]
+    rows.sort(
+        key=lambda r: (
+            -r["returned"],
+            -r["shipped"],
+            str(r.get("title", r.get("size"))),
+        ),
+    )
+    return rows
+
+
+def _returns(period: Period) -> dict:
+    """Return rate by Product and by Size: returned units over units shipped, by
+    order date."""
+    shipped_orders = Order.objects.filter(pk__in=_shipped(period).values("pk"))
+    products = _shipped_and_returned(shipped_orders, _by_parent_product)
+    titles = _item_titles(products, {k: v["label"] for k, v in products.items()})
+    sizes = _shipped_and_returned(shipped_orders, _by_size)
+    before = period.before()
+    return {
+        "range": {"start": period.start, "end": period.end},
+        "previous": {"start": before.start, "end": before.end},
+        "by_product": _ranked(
+            products,
+            lambda key, _row: {"product_id": key, "title": titles[key]},
+        ),
+        "by_size": _ranked(sizes, lambda key, _row: {"size": key}),
+    }
+
+
+def _worth_sent_back(sold, key: str, kdv: Kdv) -> dict:
+    """What the Shopper paid for units that came back by Return request (received
+    or refunded), per `key`, an expression on a Return line."""
+    rows = (
+        ReturnLine.objects.filter(
+            request__order__in=sold.values("pk"),
+            request__status__in=(ReturnStatus.RECEIVED, ReturnStatus.REFUNDED),
+        )
+        .annotate(key=F(key))
+        .exclude(key__isnull=True)
+        .values("key", "order_line")
+        .annotate(
+            units=Sum("quantity"),
+            paid=F(f"order_line__{kdv.column}"),
+            bought=F("order_line__quantity"),
+        )
+    )
+    worth: dict = {}
+    for row in rows:
+        back = pricing.kurus(row["paid"] * row["units"] / row["bought"])
+        worth[row["key"]] = worth.get(row["key"], pricing.ZERO) + back
+    return worth
+
+
+def _campaigns(period: Period, kdv: Kdv) -> list[dict]:
+    """Per Campaign: Orders that sold at least one of its lines, the discount it
+    gave (frozen shelf price minus the price charged, per unit sold) and the revenue
+    of those lines, after any Voucher."""
+    sold = Order.objects.filter(pk__in=_sold(period).values("pk"))
+    discount = (F("shelf_unit_price") - F("unit_price_incl")) * F("quantity")
+    if kdv is Kdv.EXCL:
+        discount = discount / (1 + F("kdv_rate") / 100)
+    discount = ExpressionWrapper(
+        discount,
+        output_field=DecimalField(max_digits=14, decimal_places=6),
+    )
+    found = (
+        OrderLineSnapshot.objects.filter(
+            line__order__in=sold.values("pk"),
+            campaign__isnull=False,
+        )
+        .values("campaign")
+        .annotate(
+            orders=Count("line__order", distinct=True),
+            given=Sum(discount),
+            revenue=Sum(f"line__{kdv.column}"),
+        )
+    )
+    back = _worth_sent_back(sold, "order_line__kdv_snapshot__campaign", kdv)
+    names = dict(
+        Campaign.objects.filter(pk__in=[r["campaign"] for r in found]).values_list(
+            "pk",
+            "name",
+        ),
+    )
+    rows = [
+        {
+            "campaign_id": r["campaign"],
+            "name": names[r["campaign"]],
+            "orders": r["orders"],
+            "discount": pricing.kurus(r["given"]),
+            "revenue": r["revenue"] - back.get(r["campaign"], pricing.ZERO),
+        }
+        for r in found
+    ]
+    rows.sort(key=lambda r: (-r["revenue"], r["name"]))
+    return rows
+
+
+def _vouchers(period: Period, kdv: Kdv) -> list[dict]:
+    """Per Voucher code: Orders that used it, what it took off (as stored with the
+    Order) and the revenue of those Orders' lines, after the Voucher."""
+    sold = Order.objects.filter(pk__in=_sold(period).values("pk"))
+    used = OrderDiscount.objects.filter(order__in=sold.values("pk")).exclude(
+        voucher_code="",
+    )
+    given = {
+        r["voucher_code"]: r
+        for r in used.values("voucher_code").annotate(
+            orders=Count("order", distinct=True),
+            given=Sum("amount"),
+        )
+    }
+    revenue = {
+        r["code"]: r
+        for r in Line.objects.filter(order__in=used.values("order"))
+        .annotate(code=F("order__discounts__voucher_code"))
+        .exclude(code="")
+        .values("code")
+        .annotate(
+            revenue=Sum(kdv.column),
+            took=Sum(F(f"line_price_before_discounts_{kdv.value}_tax") - F(kdv.column)),
+        )
+    }
+    back = _worth_sent_back(sold, "request__order__discounts__voucher_code", kdv)
+    rows = [
+        {
+            "code": code,
+            "orders": row["orders"],
+            "discount": row["given"] if kdv is Kdv.INCL else revenue[code]["took"],
+            "revenue": revenue[code]["revenue"] - back.get(code, pricing.ZERO),
+        }
+        for code, row in given.items()
+    ]
+    rows.sort(key=lambda r: (-r["revenue"], r["code"]))
+    return rows
+
+
+def _campaigns_vouchers(period: Period, kdv: Kdv = Kdv.INCL) -> dict:
+    before = period.before()
+    return {
+        "range": {"start": period.start, "end": period.end},
+        "previous": {"start": before.start, "end": before.end},
+        "kdv": kdv.value,
+        "campaigns": _campaigns(period, kdv),
+        "vouchers": _vouchers(period, kdv),
+    }
+
+
+RETURNS_COLUMNS = ("view", "name", "shipped", "returned", "rate", *REASONS)
+CAMPAIGNS_COLUMNS = ("kind", "name", "orders", "discount", "revenue")
+
+
+@transaction.atomic
+def returns_csv(actor: User, period: Period) -> str:
+    """Both views in one file: a `view` column says `product` or `size`."""
+    found = _returns(period)
+    rows = [
+        {"view": "product", "name": r["title"], **r, **r["reasons"]}
+        for r in found["by_product"]
+    ] + [
+        {"view": "size", "name": r["size"], **r, **r["reasons"]}
+        for r in found["by_size"]
+    ]
+    return _csv(
+        actor,
+        "returns",
+        period=period,
+        kdv=None,
+        columns=RETURNS_COLUMNS,
+        rows=rows,
+    )
+
+
+@transaction.atomic
+def campaigns_vouchers_csv(actor: User, period: Period, kdv: Kdv) -> str:
+    """Campaigns then Vouchers in one file: a `kind` column says which."""
+    rows = [{"kind": "campaign", **r} for r in _campaigns(period, kdv)] + [
+        {"kind": "voucher", "name": r["code"], **r} for r in _vouchers(period, kdv)
+    ]
+    return _csv(
+        actor,
+        "campaigns_vouchers",
+        period=period,
+        kdv=kdv,
+        columns=CAMPAIGNS_COLUMNS,
+        rows=rows,
+    )
+
+
+def returns(period: Period) -> dict:
+    key = f"reports:returns:{period.start}:{period.end}"
+    return _cached(key, lambda: _returns(period))
+
+
+def campaigns_vouchers(period: Period, kdv: Kdv = Kdv.INCL) -> dict:
+    key = f"reports:campaigns-vouchers:{period.start}:{period.end}:{kdv}"
+    return _cached(key, lambda: _campaigns_vouchers(period, kdv))

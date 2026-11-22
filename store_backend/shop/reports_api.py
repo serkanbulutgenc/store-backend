@@ -72,6 +72,73 @@ class ProductsReportOut(Schema):
     rows: list[ProductRowOut]
 
 
+class ReasonsOut(Schema):
+    """Returned units by why they came back; `unspecified` is a whole-order return."""
+
+    wrong_size: int
+    changed_mind: int
+    defective: int
+    wrong_item: int
+    other: int
+    unspecified: int
+
+
+class ReturnRowOut(Schema):
+    shipped: int
+    returned: int
+    rate: float | None  # percent of shipped; null for a row under 5 shipped units
+    reasons: ReasonsOut
+
+
+class ReturnProductRowOut(ReturnRowOut):
+    product_id: int | None
+    title: str
+
+
+class ReturnSizeRowOut(ReturnRowOut):
+    size: str
+
+
+class ReturnsReportOut(Schema):
+    range: SpanOut
+    previous: SpanOut
+    by_product: list[ReturnProductRowOut]
+    by_size: list[ReturnSizeRowOut]
+
+
+class CampaignRowOut(Schema):
+    campaign_id: int
+    name: str
+    orders: int
+    discount: Money
+    revenue: Money
+
+
+class VoucherRowOut(Schema):
+    code: str
+    orders: int
+    discount: Money
+    revenue: Money
+
+
+class CampaignsVouchersReportOut(Schema):
+    range: SpanOut
+    previous: SpanOut
+    kdv: reports.Kdv
+    campaigns: list[CampaignRowOut]
+    vouchers: list[VoucherRowOut]
+
+
+class RangeParams(Schema):
+    preset: reports.Preset | None = None
+    date_from: dt.date | None = None
+    date_to: dt.date | None = None
+
+
+class KdvRangeParams(RangeParams):
+    kdv: reports.Kdv = reports.Kdv.INCL
+
+
 class SalesParams(Schema):
     preset: reports.Preset | None = None
     date_from: dt.date | None = None
@@ -150,3 +217,57 @@ def products_csv(request, params: Query[ProductsParams]):
     period = reports.resolve(params.preset, params.date_from, params.date_to)
     text = reports.products_csv(request.auth, period, params.kdv, params.sort)
     return _download(text, "urunler", period)
+
+
+@router.get(
+    "/reports/returns",
+    auth=requires_owner(),
+    operation_id="reports_returns",
+    response={200: ReturnsReportOut},
+)
+def returns_report(request, params: Query[RangeParams]):
+    """Owner only. Return rate by Product: returned units over units shipped, by
+    order date. A row under 5 shipped units carries counts only (no rate)."""
+    period = reports.resolve(params.preset, params.date_from, params.date_to)
+    return reports.returns(period)
+
+
+@router.get(
+    "/reports/returns.csv",
+    auth=requires_owner(),
+    operation_id="reports_returns_csv",
+    response={200: str},
+)
+def returns_csv(request, params: Query[RangeParams]):
+    """Owner only. Both Returns views as one CSV, for the same query as the
+    report. Audit-logged."""
+    period = reports.resolve(params.preset, params.date_from, params.date_to)
+    return _download(reports.returns_csv(request.auth, period), "iadeler", period)
+
+
+@router.get(
+    "/reports/campaigns-vouchers",
+    auth=requires_owner(),
+    operation_id="reports_campaigns_vouchers",
+    response={200: CampaignsVouchersReportOut},
+)
+def campaigns_vouchers(request, params: Query[KdvRangeParams]):
+    """Owner only. Per Campaign and per Voucher code: orders, the discount given
+    and revenue, over the same sale rules as Sales. Prices include KDV unless
+    `kdv=excl`."""
+    period = reports.resolve(params.preset, params.date_from, params.date_to)
+    return reports.campaigns_vouchers(period, params.kdv)
+
+
+@router.get(
+    "/reports/campaigns-vouchers.csv",
+    auth=requires_owner(),
+    operation_id="reports_campaigns_vouchers_csv",
+    response={200: str},
+)
+def campaigns_vouchers_csv(request, params: Query[KdvRangeParams]):
+    """Owner only. Campaigns and Vouchers as one CSV, for the same query as the
+    report. Audit-logged."""
+    period = reports.resolve(params.preset, params.date_from, params.date_to)
+    text = reports.campaigns_vouchers_csv(request.auth, period, params.kdv)
+    return _download(text, "kampanya-kupon", period)

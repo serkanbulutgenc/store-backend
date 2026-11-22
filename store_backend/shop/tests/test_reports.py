@@ -178,9 +178,9 @@ def test_a_transfer_past_its_48_hours_is_not_pending(transfer, boss):
 # --- returns are netted out ----------------------------------------
 
 
-def receive(staff, placed, quantity):
+def receive(staff, placed, quantity, reason="wrong_size"):
     """One unit-count return request, approved and received (not yet refunded)."""
-    request = filed(placed, quantity=quantity)
+    request = filed(placed, quantity=quantity, reason=reason)
     review(staff, placed, request.pk, "approve")
     line = request.lines.get().order_line_id
     done = review(

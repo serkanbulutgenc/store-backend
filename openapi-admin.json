@@ -998,71 +998,79 @@
       },
       "CampaignRowOut": {
         "properties": {
-          "ends_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ends At"
-          },
-          "id": {
-            "title": "Id",
+          "campaign_id": {
+            "title": "Campaign Id",
             "type": "integer"
           },
-          "is_active": {
-            "title": "Is Active",
-            "type": "boolean"
+          "discount": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
           },
           "name": {
             "title": "Name",
             "type": "string"
           },
-          "percentage": {
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "revenue": {
             "examples": [
               "349.90"
             ],
             "pattern": "^-?\\d+\\.\\d{2}$",
-            "title": "Percentage",
-            "type": "string"
-          },
-          "starts_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Starts At"
-          },
-          "status": {
-            "enum": [
-              "active",
-              "inactive",
-              "scheduled",
-              "ended"
-            ],
-            "title": "Status",
+            "title": "Revenue",
             "type": "string"
           }
         },
         "required": [
-          "id",
+          "campaign_id",
           "name",
-          "percentage",
-          "starts_at",
-          "ends_at",
-          "is_active",
-          "status"
+          "orders",
+          "discount",
+          "revenue"
         ],
         "title": "CampaignRowOut",
+        "type": "object"
+      },
+      "CampaignsVouchersReportOut": {
+        "properties": {
+          "campaigns": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignRowOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
+          "kdv": {
+            "$ref": "#/components/schemas/Kdv"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "range": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "vouchers": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherRowOut"
+            },
+            "title": "Vouchers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "range",
+          "previous",
+          "kdv",
+          "campaigns",
+          "vouchers"
+        ],
+        "title": "CampaignsVouchersReportOut",
         "type": "object"
       },
       "CarrierOut": {
@@ -2723,6 +2731,60 @@
         ],
         "title": "Kdv",
         "type": "string"
+      },
+      "KdvRangeParams": {
+        "properties": {
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "kdv": {
+            "allOf": [
+              {
+                "description": "Which price column a Report adds up: with KDV (default) or without.",
+                "enum": [
+                  "incl",
+                  "excl"
+                ],
+                "title": "Kdv",
+                "type": "string"
+              }
+            ],
+            "default": "incl"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "KdvRangeParams",
+        "type": "object"
       },
       "LowStock": {
         "properties": {
@@ -5809,6 +5871,46 @@
         "title": "PublishIn",
         "type": "object"
       },
+      "RangeParams": {
+        "properties": {
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "RangeParams",
+        "type": "object"
+      },
       "RateOut": {
         "properties": {
           "band_0_2": {
@@ -5917,6 +6019,45 @@
           }
         },
         "title": "RatePatch",
+        "type": "object"
+      },
+      "ReasonsOut": {
+        "description": "Returned units by why they came back; `unspecified` is a whole-order return.",
+        "properties": {
+          "changed_mind": {
+            "title": "Changed Mind",
+            "type": "integer"
+          },
+          "defective": {
+            "title": "Defective",
+            "type": "integer"
+          },
+          "other": {
+            "title": "Other",
+            "type": "integer"
+          },
+          "unspecified": {
+            "title": "Unspecified",
+            "type": "integer"
+          },
+          "wrong_item": {
+            "title": "Wrong Item",
+            "type": "integer"
+          },
+          "wrong_size": {
+            "title": "Wrong Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wrong_size",
+          "changed_mind",
+          "defective",
+          "wrong_item",
+          "other",
+          "unspecified"
+        ],
+        "title": "ReasonsOut",
         "type": "object"
       },
       "RefundMethod": {
@@ -6086,6 +6227,57 @@
         "title": "ReturnLineAdminOut",
         "type": "object"
       },
+      "ReturnProductRowOut": {
+        "properties": {
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "reasons": {
+            "$ref": "#/components/schemas/ReasonsOut"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipped",
+          "returned",
+          "rate",
+          "reasons",
+          "product_id",
+          "title"
+        ],
+        "title": "ReturnProductRowOut",
+        "type": "object"
+      },
       "ReturnReason": {
         "enum": [
           "wrong_size",
@@ -6190,6 +6382,45 @@
         "title": "ReturnRow",
         "type": "object"
       },
+      "ReturnSizeRowOut": {
+        "properties": {
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "reasons": {
+            "$ref": "#/components/schemas/ReasonsOut"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipped",
+          "returned",
+          "rate",
+          "reasons",
+          "size"
+        ],
+        "title": "ReturnSizeRowOut",
+        "type": "object"
+      },
       "ReturnStatus": {
         "enum": [
           "requested",
@@ -6200,6 +6431,38 @@
         ],
         "title": "ReturnStatus",
         "type": "string"
+      },
+      "ReturnsReportOut": {
+        "properties": {
+          "by_product": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnProductRowOut"
+            },
+            "title": "By Product",
+            "type": "array"
+          },
+          "by_size": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnSizeRowOut"
+            },
+            "title": "By Size",
+            "type": "array"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "range": {
+            "$ref": "#/components/schemas/SpanOut"
+          }
+        },
+        "required": [
+          "range",
+          "previous",
+          "by_product",
+          "by_size"
+        ],
+        "title": "ReturnsReportOut",
+        "type": "object"
       },
       "SalesParams": {
         "properties": {
@@ -7765,6 +8028,42 @@
           }
         },
         "title": "VoucherPatch",
+        "type": "object"
+      },
+      "VoucherRowOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "discount": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "orders",
+          "discount",
+          "revenue"
+        ],
+        "title": "VoucherRowOut",
         "type": "object"
       },
       "WinningCampaignOut": {
@@ -12662,6 +12961,201 @@
         ]
       }
     },
+    "/api/admin/reports/campaigns-vouchers": {
+      "get": {
+        "description": "Owner only. Per Campaign and per Voucher code: orders, the discount given\nand revenue, over the same sale rules as Sales. Prices include KDV unless\n`kdv=excl`.",
+        "operationId": "reports_campaigns_vouchers",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignsVouchersReportOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Campaigns Vouchers",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/campaigns-vouchers.csv": {
+      "get": {
+        "description": "Owner only. Campaigns and Vouchers as one CSV, for the same query as the\nreport. Audit-logged.",
+        "operationId": "reports_campaigns_vouchers_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Campaigns Vouchers Csv",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/admin/reports/products": {
       "get": {
         "description": "Owner only. Products ranked by `sort` (revenue or units), best first, over\nthe same ranges, KDV choice and sale rules as Sales.",
@@ -12890,6 +13384,163 @@
           }
         ],
         "summary": "Products Csv",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/returns": {
+      "get": {
+        "description": "Owner only. Return rate by Product: returned units over units shipped, by\norder date. A row under 5 shipped units carries counts only (no rate).",
+        "operationId": "reports_returns",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnsReportOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Returns Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/returns.csv": {
+      "get": {
+        "description": "Owner only. Both Returns views as one CSV, for the same query as the\nreport. Audit-logged.",
+        "operationId": "reports_returns_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Returns Csv",
         "tags": [
           "reports"
         ]
