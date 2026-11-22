@@ -2338,6 +2338,10 @@
       },
       "ImportCountsOut": {
         "properties": {
+          "products_changed": {
+            "title": "Products Changed",
+            "type": "integer"
+          },
           "products_to_create": {
             "title": "Products To Create",
             "type": "integer"
@@ -2362,6 +2366,7 @@
         "required": [
           "products_to_create",
           "products_to_update",
+          "products_changed",
           "variants_to_create",
           "variants_to_update",
           "variants_unchanged"
