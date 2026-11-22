@@ -12,6 +12,7 @@ import re
 import pytest
 
 from store_backend.api.admin import admin_api
+from store_backend.api.permissions import RequiresOwner
 from store_backend.api.permissions import RequiresPermission
 from store_backend.staff.permissions import OWNER_ONLY
 from store_backend.staff.permissions import Perm
@@ -92,6 +93,15 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "legal_pages_publish": Perm.MANAGE_LEGAL_PAGES,
 }
 
+# Operations that need the Owner group itself rather than a named permission (a screen
+# that is not grantable, such as Reports). They are not open to every Dashboard user.
+OWNER_GROUP_OPERATIONS = {
+    "reports_sales",
+    "reports_sales_csv",
+    "reports_products",
+    "reports_products_csv",
+}
+
 # Owner-only permissions that no endpoint declares because a service checks them
 # inside a shared endpoint (for example cancelling a paid Order).
 CHECKED_IN_SERVICES = {
@@ -127,9 +137,21 @@ def test_every_operation_declares_exactly_one_permission_check():
 
 def test_only_known_operations_are_open_to_every_dashboard_user():
     open_ops = {
-        op.operation_id for _, op in operations() if declared(op).permission is None
+        op.operation_id
+        for _, op in operations()
+        if declared(op).permission is None
+        and not isinstance(declared(op), RequiresOwner)
     }
     assert open_ops == NO_PERMISSION
+
+
+def test_owner_group_operations_are_exactly_the_expected_ones():
+    actual = {
+        op.operation_id
+        for _, op in operations()
+        if isinstance(declared(op), RequiresOwner)
+    }
+    assert actual == OWNER_GROUP_OPERATIONS
 
 
 def test_only_known_operations_skip_the_owner_totp_check():
@@ -159,7 +181,7 @@ def test_owner_only_permissions_not_declared_on_an_endpoint_are_known():
     [
         (op.methods[0], path, op.operation_id)
         for path, op in operations()
-        if op.operation_id in OWNER_ONLY_OPERATIONS
+        if op.operation_id in OWNER_ONLY_OPERATIONS.keys() | OWNER_GROUP_OPERATIONS
     ],
 )
 def test_staff_is_refused_on_every_owner_only_operation(
