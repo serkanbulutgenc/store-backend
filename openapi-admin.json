@@ -996,7 +996,7 @@
         "title": "CampaignPatch",
         "type": "object"
       },
-      "CampaignRowOut": {
+      "CampaignReportRowOut": {
         "properties": {
           "campaign_id": {
             "title": "Campaign Id",
@@ -1034,6 +1034,75 @@
           "discount",
           "revenue"
         ],
+        "title": "CampaignReportRowOut",
+        "type": "object"
+      },
+      "CampaignRowOut": {
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "percentage": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Percentage",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "scheduled",
+              "ended"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "percentage",
+          "starts_at",
+          "ends_at",
+          "is_active",
+          "status"
+        ],
         "title": "CampaignRowOut",
         "type": "object"
       },
@@ -1041,7 +1110,7 @@
         "properties": {
           "campaigns": {
             "items": {
-              "$ref": "#/components/schemas/CampaignRowOut"
+              "$ref": "#/components/schemas/CampaignReportRowOut"
             },
             "title": "Campaigns",
             "type": "array"
@@ -1057,7 +1126,7 @@
           },
           "vouchers": {
             "items": {
-              "$ref": "#/components/schemas/VoucherRowOut"
+              "$ref": "#/components/schemas/VoucherReportRowOut"
             },
             "title": "Vouchers",
             "type": "array"
@@ -8030,7 +8099,7 @@
         "title": "VoucherPatch",
         "type": "object"
       },
-      "VoucherRowOut": {
+      "VoucherReportRowOut": {
         "properties": {
           "code": {
             "title": "Code",
@@ -8063,7 +8132,7 @@
           "discount",
           "revenue"
         ],
-        "title": "VoucherRowOut",
+        "title": "VoucherReportRowOut",
         "type": "object"
       },
       "WinningCampaignOut": {
