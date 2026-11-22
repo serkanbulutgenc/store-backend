@@ -106,7 +106,7 @@ class ReturnsReportOut(Schema):
     by_size: list[ReturnSizeRowOut]
 
 
-class CampaignRowOut(Schema):
+class CampaignReportRowOut(Schema):
     campaign_id: int
     name: str
     orders: int
@@ -114,7 +114,7 @@ class CampaignRowOut(Schema):
     revenue: Money
 
 
-class VoucherRowOut(Schema):
+class VoucherReportRowOut(Schema):
     code: str
     orders: int
     discount: Money
@@ -125,8 +125,8 @@ class CampaignsVouchersReportOut(Schema):
     range: SpanOut
     previous: SpanOut
     kdv: reports.Kdv
-    campaigns: list[CampaignRowOut]
-    vouchers: list[VoucherRowOut]
+    campaigns: list[CampaignReportRowOut]
+    vouchers: list[VoucherReportRowOut]
 
 
 class RangeParams(Schema):
