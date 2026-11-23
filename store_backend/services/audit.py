@@ -83,6 +83,16 @@ class Action(StrEnum):
     CAMPAIGN_DELETED = "campaign_deleted"
     SIZE_GUIDE_EDITED = "size_guide_edited"
     FIT_NOTE_EDITED = "fit_note_edited"
+    APPROVAL_SUBMITTED = "approval_submitted"
+    APPROVAL_WITHDRAWN = "approval_withdrawn"
+    APPROVAL_APPROVED = "approval_approved"
+    APPROVAL_REJECTED = "approval_rejected"
+    APPROVAL_PUBLISHED = "approval_published"
+    APPROVAL_UNPUBLISHED = "approval_unpublished"
+    APPROVAL_EDITED = "approval_edited"
+    APPROVAL_CHANGE_SUBMITTED = "approval_change_submitted"
+    APPROVAL_CHANGE_APPROVED = "approval_change_approved"
+    APPROVAL_CHANGE_REJECTED = "approval_change_rejected"
 
 
 def record(  # noqa: PLR0913
