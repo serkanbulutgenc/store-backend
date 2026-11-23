@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
 from store_backend.staff.permissions import Perm
@@ -73,3 +75,95 @@ class AuditEntry(models.Model):
 
     def delete(self, *args, **kwargs):
         raise AppendOnlyError
+
+
+class ApprovalStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PENDING = "pending_approval", "Pending approval"
+    PUBLISHED = "published", "Published"
+    UNPUBLISHED = "unpublished", "Unpublished"
+
+
+class ApprovalFields(models.Model):
+    """The state every content type under the approval rule carries (phase 4, section
+    2): Staff draft, the Owner approves. Mix this into the model; the rules are in
+    `store_backend.services.approval`."""
+
+    status = models.CharField(
+        max_length=16,
+        choices=ApprovalStatus,
+        default=ApprovalStatus.DRAFT,
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    # Set while pending approval; kept after a rejection so the submitter sees why.
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        abstract = True
+
+
+class PendingChange(models.Model):
+    """A Staff edit of a published item, held until the Owner decides (ADR 0008). The
+    live row is untouched meanwhile. At most one per item; a second edit amends it."""
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveBigIntegerField()
+    payload = models.JSONField(encoder=DjangoJSONEncoder)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "object_id"],
+                name="staff_pending_change_one_per_item",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"pending change {self.content_type_id}:{self.object_id}"
+
+
+class ApprovedVersion(models.Model):
+    """One approved text of an item, kept as its history. Written when the item is
+    published or a pending change is approved; never changed."""
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveBigIntegerField()
+    version = models.PositiveIntegerField()
+    payload = models.JSONField(encoder=DjangoJSONEncoder)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    approved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "object_id", "version"],
+                name="staff_approved_version_unique",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.content_type_id}:{self.object_id} v{self.version}"
