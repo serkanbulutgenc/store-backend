@@ -817,6 +817,7 @@ MENU_BUILTIN_PAGES: dict[str, tuple[str, str]] = {
     "favorites": ("Favorilerim", "/hesap/favoriler"),
     "basket": ("Sepet", "/sepet"),
     "legal_search": ("Yasal sayfalarda ara", "/yasal"),
+    "campaigns": ("Kampanyalar", "/kampanyalar"),
 }
 
 
@@ -844,6 +845,7 @@ class MenuItem(models.Model):
         PRODUCT = "product", "Ürün"
         BRAND = "brand", "Marka"
         COLLECTION = "collection", "Koleksiyon"
+        CAMPAIGN_PAGE = "campaign_page", "Kampanya sayfası"
         BUILTIN = "builtin", "Hazır sayfa"
         URL = "url", "Özel bağlantı"
         GROUP = "group", "Grup başlığı"
@@ -882,6 +884,13 @@ class MenuItem(models.Model):
     )
     collection = models.ForeignKey(
         "store_catalog.Collection",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    campaign_page = models.ForeignKey(
+        "store_catalog.CampaignPage",
         null=True,
         blank=True,
         on_delete=models.PROTECT,

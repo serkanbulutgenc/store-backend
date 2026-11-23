@@ -4186,6 +4186,17 @@
             ],
             "title": "Builtin"
           },
+          "campaign_page_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Page Id"
+          },
           "category_id": {
             "anyOf": [
               {
@@ -4259,6 +4270,7 @@
               "product",
               "brand",
               "collection",
+              "campaign_page",
               "legal_page",
               "builtin",
               "url",
@@ -4308,6 +4320,17 @@
               }
             ],
             "title": "Builtin"
+          },
+          "campaign_page_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Page Id"
           },
           "category_id": {
             "anyOf": [
@@ -4410,6 +4433,7 @@
               "product",
               "brand",
               "collection",
+              "campaign_page",
               "legal_page",
               "builtin",
               "url",
@@ -4436,6 +4460,7 @@
           "product_id",
           "brand_id",
           "collection_id",
+          "campaign_page_id",
           "include_subcategories",
           "legal_page",
           "builtin",
@@ -4489,6 +4514,17 @@
               }
             ],
             "title": "Brand Id"
+          },
+          "campaign_page_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Page Id"
           },
           "category_id": {
             "anyOf": [
@@ -4544,6 +4580,7 @@
               "product",
               "brand",
               "collection",
+              "campaign_page",
               "legal_page"
             ],
             "title": "Target Type",
@@ -4557,6 +4594,7 @@
           "product_id",
           "brand_id",
           "collection_id",
+          "campaign_page_id",
           "legal_page"
         ],
         "title": "MenuTargetOut",
@@ -13760,7 +13798,7 @@
     },
     "/api/admin/menu-targets": {
       "get": {
-        "description": "Categories, Legal pages, Products, Brands, Collections matching `q` by name.",
+        "description": "Categories, Legal pages, Products, Brands, Collections, Campaign pages matching `q` by name.",
         "operationId": "menus_search_targets",
         "parameters": [
           {

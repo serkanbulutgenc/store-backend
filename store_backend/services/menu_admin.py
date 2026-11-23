@@ -22,9 +22,11 @@ from oscar.apps.catalogue.models import Product
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Brand
+from store_backend.catalog.models import CampaignPage
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
+from store_backend.services import campaign_pages
 from store_backend.services import categories
 from store_backend.services import collections
 from store_backend.services import legal_pages
@@ -98,6 +100,12 @@ def _collection_target(item: MenuItem) -> tuple[str, str | None, Reason]:
     return collection.name, collections.path(collection), reason
 
 
+def _campaign_page_target(item: MenuItem) -> tuple[str, str | None, Reason]:
+    page = CampaignPage.objects.get(pk=item.campaign_page_id)
+    reason = "" if campaign_pages.is_public(page) else "target_not_public"
+    return page.title, campaign_pages.path(page), reason
+
+
 def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: C901, PLR0911
     """The target's own label, its URL, and why the Storefront would leave the item
     out for the target's sake ("" when the target is public)."""
@@ -118,6 +126,8 @@ def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: C901, PL
         return _brand_target(item)
     if item.target_type == kind.COLLECTION:
         return _collection_target(item)
+    if item.target_type == kind.CAMPAIGN_PAGE:
+        return _campaign_page_target(item)
     if item.target_type == kind.LEGAL_PAGE:
         slug = (
             legal_pages.slug_of(item.legal_page)
@@ -157,6 +167,7 @@ def _node(
         "product_id": item.product_id,
         "brand_id": item.brand_id,
         "collection_id": item.collection_id,
+        "campaign_page_id": item.campaign_page_id,
         "include_subcategories": item.include_subcategories,
         "legal_page": item.legal_page or None,
         "builtin": item.builtin or None,
@@ -213,6 +224,7 @@ _REFERENCES = (
     (MenuItem.Target.PRODUCT, "product_id", "Ürün bulunamadı."),
     (MenuItem.Target.BRAND, "brand_id", "Marka bulunamadı."),
     (MenuItem.Target.COLLECTION, "collection_id", "Koleksiyon bulunamadı."),
+    (MenuItem.Target.CAMPAIGN_PAGE, "campaign_page_id", "Kampanya sayfası bulunamadı."),
 )
 
 
@@ -229,6 +241,7 @@ def _check_target(node: dict, path: str, known: dict[str, set[int]]) -> None:
         "product_id": node["product_id"] is not None,
         "brand_id": node["brand_id"] is not None,
         "collection_id": node["collection_id"] is not None,
+        "campaign_page_id": node["campaign_page_id"] is not None,
         "legal_page": bool(node["legal_page"]),
         "builtin": bool(node["builtin"]),
         # An empty URL on a URL item is a bad URL, not a missing target.
@@ -241,6 +254,7 @@ def _check_target(node: dict, path: str, known: dict[str, set[int]]) -> None:
         MenuItem.Target.PRODUCT: "product_id",
         MenuItem.Target.BRAND: "brand_id",
         MenuItem.Target.COLLECTION: "collection_id",
+        MenuItem.Target.CAMPAIGN_PAGE: "campaign_page_id",
         MenuItem.Target.LEGAL_PAGE: "legal_page",
         MenuItem.Target.BUILTIN: "builtin",
         MenuItem.Target.URL: "url",
@@ -296,6 +310,7 @@ def _known_targets(nodes: list[dict]) -> dict[str, set[int]]:
         "product_id": Product.objects.filter(profile__isnull=False),
         "brand_id": Brand.objects,
         "collection_id": Collection.objects,
+        "campaign_page_id": CampaignPage.objects,
     }
     return {
         field: set(
@@ -343,6 +358,7 @@ def _snapshot(nodes: list[dict]) -> list[dict]:
         "product_id",
         "brand_id",
         "collection_id",
+        "campaign_page_id",
         "include_subcategories",
         "legal_page",
         "builtin",
@@ -366,6 +382,7 @@ def _create(menu: Menu, nodes: list[dict], parent: MenuItem | None) -> None:
             product_id=node["product_id"],
             brand_id=node["brand_id"],
             collection_id=node["collection_id"],
+            campaign_page_id=node["campaign_page_id"],
             include_subcategories=node["include_subcategories"],
             legal_page=node["legal_page"] or "",
             builtin=node["builtin"] or "",
@@ -425,6 +442,7 @@ def _match(target_type: str, label: str, **reference: Any) -> dict[str, Any]:
         "product_id": None,
         "brand_id": None,
         "collection_id": None,
+        "campaign_page_id": None,
         "legal_page": None,
         "target_type": target_type,
         "target_label": label,
@@ -467,6 +485,12 @@ def search_targets(q: str) -> list[dict[str, Any]]:
     found.extend(
         _match("collection", c.name, collection_id=c.pk)
         for c in Collection.objects.alias(f=_folded("name")).filter(
+            f__contains=folded,
+        )[:PICK_LIMIT]
+    )
+    found.extend(
+        _match("campaign_page", p.title, campaign_page_id=p.pk)
+        for p in CampaignPage.objects.alias(f=_folded("title")).filter(
             f__contains=folded,
         )[:PICK_LIMIT]
     )

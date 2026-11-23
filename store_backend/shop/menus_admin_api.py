@@ -18,6 +18,7 @@ Target = Literal[
     "product",
     "brand",
     "collection",
+    "campaign_page",
     "legal_page",
     "builtin",
     "url",
@@ -33,6 +34,7 @@ class MenuItemIn(Schema):
     product_id: int | None = None
     brand_id: int | None = None
     collection_id: int | None = None
+    campaign_page_id: int | None = None
     include_subcategories: bool = False
     legal_page: str | None = None
     builtin: str | None = None
@@ -52,6 +54,7 @@ class MenuItemOut(Schema):
     product_id: int | None
     brand_id: int | None
     collection_id: int | None
+    campaign_page_id: int | None
     include_subcategories: bool
     legal_page: str | None
     builtin: str | None
@@ -99,12 +102,20 @@ def save_menu(request, key: str, data: MenuIn):
 class MenuTargetOut(Schema):
     """A match for the builder's target picker; spread it into an item as it is."""
 
-    target_type: Literal["category", "product", "brand", "collection", "legal_page"]
+    target_type: Literal[
+        "category",
+        "product",
+        "brand",
+        "collection",
+        "campaign_page",
+        "legal_page",
+    ]
     target_label: str
     category_id: int | None
     product_id: int | None
     brand_id: int | None
     collection_id: int | None
+    campaign_page_id: int | None
     legal_page: str | None
 
 
@@ -115,5 +126,6 @@ class MenuTargetOut(Schema):
     response=list[MenuTargetOut],
 )
 def search_menu_targets(request, q: str = ""):
-    """Categories, Legal pages, Products, Brands, Collections matching `q` by name."""
+    """Categories, Legal pages, Products, Brands, Collections and Campaign pages
+    matching `q` by name."""
     return menu_admin.search_targets(q)
