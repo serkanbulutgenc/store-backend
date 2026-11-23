@@ -306,6 +306,7 @@ def _move(  # noqa: PLR0913
         item.status = to
         if to == ApprovalStatus.PUBLISHED:
             item.published_at = timezone.now()
+            item.rejection_reason = ""
         if action == audit.Action.APPROVAL_SUBMITTED:
             item.submitted_by = actor
             item.submitted_at = timezone.now()
