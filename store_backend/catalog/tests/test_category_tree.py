@@ -6,6 +6,7 @@ from __future__ import annotations
 from http import HTTPStatus
 
 import pytest
+from django.test import Client
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import ProductClass
 
@@ -212,3 +213,62 @@ def test_staff_cannot_move_or_delete_but_can_still_reorder(owner_api, api_for):
     assert reorder.status_code == HTTPStatus.OK
     assert Category.objects.filter(pk=etek["id"]).exists()
     assert Category.objects.get(pk=elbise["id"]).depth == 2
+
+
+# -- the homepage row ------------------------------------------------------------
+
+
+def _home_names():
+    response = Client().get("/api/store/home-categories")
+    assert response.status_code == HTTPStatus.OK
+    return [c["slug"] for c in response.json()]
+
+
+def test_only_the_categories_the_owner_picked_show_on_the_homepage_in_order(owner_api):
+    first = add(owner_api, "Aaa").json()
+    second = add(owner_api, "Bbb").json()
+    add(owner_api, "Ccc")
+
+    assert _home_names() == []  # nothing picked: the row is empty
+    owner_api.patch(
+        f"{ADMIN}/categories/{second['id']}",
+        {"show_on_home": True, "home_order": 1},
+    )
+    owner_api.patch(
+        f"{ADMIN}/categories/{first['id']}",
+        {"show_on_home": True, "home_order": 2},
+    )
+
+    assert _home_names() == [second["slug"], first["slug"]]
+
+
+def test_a_hidden_category_or_one_under_a_hidden_parent_is_left_out_of_the_row(
+    owner_api,
+):
+    parent = add(owner_api, "Üst").json()
+    child = add(owner_api, "Alt", parent).json()
+    owner_api.patch(f"{ADMIN}/categories/{child['id']}", {"show_on_home": True})
+    assert _home_names() == [child["slug"]]
+
+    owner_api.patch(f"{ADMIN}/categories/{parent['id']}", {"is_hidden": True})
+
+    assert _home_names() == []
+
+
+def test_the_home_row_settings_are_validated(owner_api):
+    made = add(owner_api, "Xyz").json()
+    url = f"{ADMIN}/categories/{made['id']}"
+
+    assert (
+        owner_api.patch(url, {"home_order": 10000}).status_code
+        == HTTPStatus.UNPROCESSABLE_ENTITY
+    )
+    assert (
+        owner_api.patch(url, {"home_order": None}).status_code
+        == HTTPStatus.UNPROCESSABLE_ENTITY
+    )
+    assert (
+        owner_api.patch(url, {"show_on_home": None}).status_code
+        == HTTPStatus.UNPROCESSABLE_ENTITY
+    )
+    assert owner_api.patch(url, {"show_on_home": True}).json()["show_on_home"] is True

@@ -577,6 +577,26 @@ def category_tree(depth: int = 2) -> list[dict]:
     return roots
 
 
+def home_categories() -> list[dict]:
+    """The Categories the Owner picked for the homepage row, in the Owner's order (then
+    by name), each with its thumbnail URL once the image is ready, else None. A hidden
+    Category, or one under a hidden parent, is left out."""
+    picked = categories.visible().filter(profile__show_on_home=True)
+    ordered = sorted(
+        picked.select_related("profile"),
+        key=lambda c: (c.profile.home_order, c.name.casefold()),
+    )
+    return [
+        {
+            "name": c.name,
+            "slug": c.slug,
+            "image_url": _thumbnail_url(c.profile),
+            "image_alt": c.profile.image_alt,
+        }
+        for c in ordered
+    ]
+
+
 def category_page(slug: str) -> dict:
     """What a Category page shows: copy, image, SEO fields, breadcrumb and children.
     A hidden Category (or one under a hidden parent) is not found."""

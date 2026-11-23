@@ -137,6 +137,8 @@ class CategoryOut(Schema):
     menu_item_count: int  # Menu items that block deleting it (ADR 0007)
     sort_order: int
     is_hidden: bool
+    show_on_home: bool
+    home_order: int
     description: str
     seo_title: str
     seo_description: str
@@ -153,6 +155,8 @@ class CategoryPatch(Schema):
     seo_title: str | None = None
     seo_description: str | None = None
     is_hidden: bool | None = None
+    show_on_home: bool | None = None
+    home_order: int | None = None
     image_alt: str | None = None
 
 
@@ -792,9 +796,10 @@ def update_category(request, category_id: int, data: CategoryPatch):
             raise UnprocessableError(msg, fields={"name": [msg]})
         c = catalog.update_category(c, name=changes.pop("name"))
     if changes:
-        if changes.get("is_hidden", False) is None:
-            msg = "Geçersiz değer."
-            raise UnprocessableError(msg, fields={"is_hidden": [msg]})
+        for field in ("is_hidden", "show_on_home", "home_order"):
+            if field in changes and changes[field] is None:
+                msg = "Geçersiz değer."
+                raise UnprocessableError(msg, fields={field: [msg]})
         categories.update(c, changes)
     return views.category_dict(Category.objects.get(pk=c.pk))
 

@@ -2251,6 +2251,10 @@
             "title": "Description",
             "type": "string"
           },
+          "home_order": {
+            "title": "Home Order",
+            "type": "integer"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2300,6 +2304,10 @@
             "title": "Seo Title",
             "type": "string"
           },
+          "show_on_home": {
+            "title": "Show On Home",
+            "type": "boolean"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -2320,6 +2328,8 @@
           "menu_item_count",
           "sort_order",
           "is_hidden",
+          "show_on_home",
+          "home_order",
           "description",
           "seo_title",
           "seo_description",
@@ -2340,6 +2350,17 @@
               }
             ],
             "title": "Description"
+          },
+          "home_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Order"
           },
           "image_alt": {
             "anyOf": [
@@ -2395,6 +2416,17 @@
               }
             ],
             "title": "Seo Title"
+          },
+          "show_on_home": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show On Home"
           }
         },
         "title": "CategoryPatch",
@@ -10702,6 +10734,35 @@
       }
     },
     "/api/admin/banners/{banner_id}": {
+      "delete": {
+        "description": "The Owner deletes any Banner; Staff only a draft.",
+        "operationId": "banners_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Banner",
+        "tags": [
+          "banners"
+        ]
+      },
       "get": {
         "operationId": "banners_get",
         "parameters": [

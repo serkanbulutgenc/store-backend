@@ -90,6 +90,7 @@ class Action(StrEnum):
     APPROVAL_PUBLISHED = "approval_published"
     APPROVAL_UNPUBLISHED = "approval_unpublished"
     APPROVAL_EDITED = "approval_edited"
+    APPROVAL_DELETED = "approval_deleted"
     APPROVAL_CHANGE_SUBMITTED = "approval_change_submitted"
     APPROVAL_CHANGE_APPROVED = "approval_change_approved"
     APPROVAL_CHANGE_REJECTED = "approval_change_rejected"

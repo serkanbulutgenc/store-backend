@@ -64,6 +64,7 @@ _ORIENTATION_TAG = 0x0112
 _GPS_TAG = 0x8825
 
 MSG_FORMAT = "Yalnızca JPEG, PNG veya WebP dosyaları yüklenebilir."
+MSG_FORMAT_GIF = "Yalnızca JPEG, PNG, WebP veya GIF dosyaları yüklenebilir."
 MSG_HEIC = (
     "HEIC biçimi desteklenmiyor. Fotoğrafı JPEG olarak kaydedip yeniden yükleyin "
     "(iPhone: Ayarlar > Kamera > Biçimler > En Uyumlu)."
@@ -145,10 +146,13 @@ def _inspect(
     *,
     min_long_edge: int = MIN_LONG_EDGE,
     max_bytes: int = MAX_BYTES,
+    allow_gif: bool = False,
 ) -> tuple[bytes, str, int, int]:
     """Validate an upload; return (bytes to store, extension, width, height) with
-    the size taken after orientation.
+    the size taken after orientation. A GIF is accepted only with `allow_gif` and is
+    kept as uploaded (it has no location data), so it stays animated.
     """
+    refused = MSG_FORMAT_GIF if allow_gif else MSG_FORMAT
     if len(data) > max_bytes:
         raise _invalid(msg_size(max_bytes))
     try:
@@ -159,12 +163,15 @@ def _inspect(
         img.load()  # decode fully: catches truncated or corrupt files
     except UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError:
         if not _looks_like_heic(data):
-            raise _invalid(MSG_FORMAT) from None
+            raise _invalid(refused) from None
         raise _invalid(MSG_CORRUPT if _HEIC else MSG_HEIC) from None
-    if fmt not in _FORMATS:
-        raise _invalid(MSG_FORMAT)
+    gif = allow_gif and fmt == "GIF"
+    if fmt not in _FORMATS and not gif:
+        raise _invalid(refused)
     if max(width, height) < min_long_edge:
         raise _invalid(msg_small(min_long_edge))
+    if gif:
+        return data, ".gif", width, height
     if orientation in _ROTATED_ORIENTATIONS:
         width, height = height, width
     data, extension = _without_gps(img, fmt, data)

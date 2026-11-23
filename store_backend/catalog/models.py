@@ -373,6 +373,14 @@ class CategoryProfile(models.Model):
         default=False,
         help_text="Hides the Category and its subtree from the Storefront.",
     )
+    show_on_home = models.BooleanField(
+        default=False,
+        help_text="The Owner's pick for the homepage's Categories row.",
+    )
+    home_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Position in the homepage row; ties fall back to the name.",
+    )
     image_original = models.CharField(max_length=255, blank=True)
     image_width = models.PositiveIntegerField(default=0)
     image_height = models.PositiveIntegerField(default=0)
@@ -837,7 +845,8 @@ class Banner(ApprovalFields):
         if not original:
             return []
         derivatives = getattr(self, f"{prefix}derivatives")
-        return [original, *(d["name"] for d in derivatives)]
+        # A GIF is its own derivative; list each file once.
+        return list(dict.fromkeys([original, *(d["name"] for d in derivatives)]))
 
     def image_derivative_urls(self, which: str = "image") -> list[dict]:
         from store_backend.services.media import media_url  # noqa: PLC0415

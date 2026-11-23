@@ -1332,6 +1332,41 @@
         "title": "FacetsOut",
         "type": "object"
       },
+      "HomeCategoryOut": {
+        "properties": {
+          "image_alt": {
+            "title": "Image Alt",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "image_url",
+          "image_alt"
+        ],
+        "title": "HomeCategoryOut",
+        "type": "object"
+      },
       "ImageSizeOut": {
         "properties": {
           "url": {
@@ -4758,6 +4793,33 @@
           }
         },
         "summary": "Get Csrf"
+      }
+    },
+    "/api/store/home-categories": {
+      "get": {
+        "description": "The Categories the Owner picked for the homepage row, in the Owner's order.",
+        "operationId": "catalog_list_home_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HomeCategoryOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Home Categories",
+        "tags": [
+          "catalog"
+        ]
       }
     },
     "/api/store/legal-pages": {

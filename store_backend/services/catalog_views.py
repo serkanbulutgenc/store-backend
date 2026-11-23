@@ -80,6 +80,8 @@ def category_dict(
         "menu_item_count": menu_item_count,
         "sort_order": p.sort_order,
         "is_hidden": p.is_hidden,
+        "show_on_home": p.show_on_home,
+        "home_order": p.home_order,
         "description": p.description,
         "seo_title": p.seo_title,
         "seo_description": p.seo_description,
