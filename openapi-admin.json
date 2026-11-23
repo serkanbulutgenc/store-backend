@@ -7450,6 +7450,129 @@
         "title": "RejectIn",
         "type": "object"
       },
+      "ReplyApproveIn": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          }
+        },
+        "title": "ReplyApproveIn",
+        "type": "object"
+      },
+      "ReplyIn": {
+        "properties": {
+          "body": {
+            "maxLength": 20000,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "ReplyIn",
+        "type": "object"
+      },
+      "ReplyOut": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drafted_body": {
+            "title": "Drafted Body",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "rejection_note": {
+            "title": "Rejection Note",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "body",
+          "state",
+          "author",
+          "decided_by",
+          "rejection_note",
+          "drafted_body",
+          "sent_at",
+          "created_at"
+        ],
+        "title": "ReplyOut",
+        "type": "object"
+      },
+      "ReplyRejectIn": {
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "ReplyRejectIn",
+        "type": "object"
+      },
       "ReturnAdminOut": {
         "properties": {
           "decided_at": {
@@ -8835,6 +8958,179 @@
           "name"
         ],
         "title": "TargetOut",
+        "type": "object"
+      },
+      "ThreadOut": {
+        "properties": {
+          "anonymised": {
+            "title": "Anonymised",
+            "type": "boolean"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "title": "Last Activity At",
+            "type": "string"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyOut"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order_linked": {
+            "title": "Order Linked",
+            "type": "boolean"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "name",
+          "email",
+          "order_number",
+          "status",
+          "assignee",
+          "created_at",
+          "last_activity_at",
+          "anonymised",
+          "order_linked",
+          "messages"
+        ],
+        "title": "ThreadOut",
+        "type": "object"
+      },
+      "ThreadPatch": {
+        "properties": {
+          "assignee_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "ThreadPatch",
+        "type": "object"
+      },
+      "ThreadRow": {
+        "properties": {
+          "anonymised": {
+            "title": "Anonymised",
+            "type": "boolean"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "title": "Last Activity At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "name",
+          "email",
+          "order_number",
+          "status",
+          "assignee",
+          "created_at",
+          "last_activity_at",
+          "anonymised"
+        ],
+        "title": "ThreadRow",
         "type": "object"
       },
       "TotalsOut": {
@@ -13242,6 +13538,385 @@
           }
         ],
         "summary": "Update Category",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-replies/{reply_id}": {
+      "patch": {
+        "description": "Change a draft or a rejected reply (its author, or the Owner).",
+        "operationId": "contact_replies_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "title": "Reply Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Reply",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-replies/{reply_id}/approve": {
+      "post": {
+        "description": "Owner: send the waiting reply as written, or with `body` as the edited text.",
+        "operationId": "contact_replies_approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "title": "Reply Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Approve Reply",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-replies/{reply_id}/reject": {
+      "post": {
+        "description": "Owner: send the waiting reply back to Staff with a note they can read.",
+        "operationId": "contact_replies_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "title": "Reply Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyRejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reject Reply",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-replies/{reply_id}/submit": {
+      "post": {
+        "description": "Send the author's draft to the Owner for approval.",
+        "operationId": "contact_replies_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "title": "Reply Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Submit Reply",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-threads": {
+      "get": {
+        "description": "Every thread, latest activity first; `status` and `assignee_id` narrow it.",
+        "operationId": "contact_threads_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assignee_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assignee Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ThreadRow"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Threads",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-threads/{thread_id}": {
+      "get": {
+        "description": "The Shopper's message, then drafts, decisions and sent replies in order.",
+        "operationId": "contact_threads_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Thread",
+        "tags": [
+          "contact"
+        ]
+      },
+      "patch": {
+        "description": "Set the status and/or the assignee. `assignee_id: null` clears the assignee.",
+        "operationId": "contact_threads_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Update Thread",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-threads/{thread_id}/replies": {
+      "post": {
+        "description": "Staff: a draft (state `draft`). The Owner: sent at once (state `sent`).",
+        "operationId": "contact_replies_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Write Reply",
         "tags": [
           "contact"
         ]

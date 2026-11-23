@@ -1,0 +1,4 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Merhaba {{ name }},
+
+{{ body }}{% endblock %}

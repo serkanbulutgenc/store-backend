@@ -93,6 +93,10 @@ class Action(StrEnum):
     APPROVAL_CHANGE_SUBMITTED = "approval_change_submitted"
     APPROVAL_CHANGE_APPROVED = "approval_change_approved"
     APPROVAL_CHANGE_REJECTED = "approval_change_rejected"
+    CONTACT_REPLY_SUBMITTED = "contact_reply_submitted"
+    CONTACT_REPLY_APPROVED = "contact_reply_approved"
+    CONTACT_REPLY_REJECTED = "contact_reply_rejected"
+    CONTACT_REPLY_SENT = "contact_reply_sent"
 
 
 def record(  # noqa: PLR0913
