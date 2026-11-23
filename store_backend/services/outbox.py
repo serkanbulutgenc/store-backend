@@ -70,6 +70,7 @@ SUBJECTS: dict[str, str] = {
     "stock_alert_back": "{product} yeniden stokta",
     "stock_alert_confirm": "Stok bildirimi için e-postanızı onaylayın",
     "contact_acknowledgement": "Mesajınız bize ulaştı",
+    "contact_reply": "Mesajınıza yanıt",
     "deletion_request_owner": "Hesap silme talebi",
 }
 

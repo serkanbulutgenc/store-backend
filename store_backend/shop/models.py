@@ -996,6 +996,16 @@ class ContactThread(models.Model):
 
 class ContactMessageKind(models.TextChoices):
     SHOPPER = "shopper", "Müşteri"
+    REPLY = "reply", "Yanıt"
+
+
+class ContactReplyState(models.TextChoices):
+    """Where a reply is on its way to the Shopper. Shopper messages have no state."""
+
+    DRAFT = "draft", "Taslak"
+    PENDING = "pending", "Onay bekliyor"
+    REJECTED = "rejected", "Reddedildi"
+    SENT = "sent", "Gönderildi"
 
 
 class ContactMessage(models.Model):
@@ -1007,6 +1017,32 @@ class ContactMessage(models.Model):
     kind = models.CharField(max_length=20, choices=ContactMessageKind)
     body = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Replies only: the author, the Owner's decision and the text before an edit.
+    state = models.CharField(
+        max_length=20,
+        choices=ContactReplyState,
+        blank=True,
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    rejection_note = models.TextField(blank=True)
+    drafted_body = models.TextField(
+        blank=True,
+        help_text="The Staff text, kept when the Owner edits it before sending.",
+    )
+    sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["created_at", "pk"]
