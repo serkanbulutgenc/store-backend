@@ -37,3 +37,11 @@ def process_brand_logo(brand_id: int) -> None:
 def purge_removed_files() -> int:
     """Delete files whose grace period after an image delete has passed."""
     return media.purge_removed_files()
+
+
+@shared_task
+def process_banner_image(banner_id: int, which: str = "image") -> None:
+    """Make the WebP derivatives of a Banner's uploaded image (`image` or `mobile`)."""
+    from store_backend.services import banners  # noqa: PLC0415
+
+    banners.process_image(banner_id, which)

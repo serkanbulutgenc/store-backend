@@ -344,6 +344,29 @@
         "title": "AddressIn",
         "type": "object"
       },
+      "AnnouncementOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "message",
+          "link"
+        ],
+        "title": "AnnouncementOut",
+        "type": "object"
+      },
       "AttributeBlockOut": {
         "properties": {
           "name": {
@@ -446,6 +469,46 @@
           "alt"
         ],
         "title": "BannerOut",
+        "type": "object"
+      },
+      "BannersOut": {
+        "properties": {
+          "announcement": {
+            "items": {
+              "$ref": "#/components/schemas/AnnouncementOut"
+            },
+            "title": "Announcement",
+            "type": "array"
+          },
+          "category_top": {
+            "items": {
+              "$ref": "#/components/schemas/PictureBannerOut"
+            },
+            "title": "Category Top",
+            "type": "array"
+          },
+          "home_hero": {
+            "items": {
+              "$ref": "#/components/schemas/PictureBannerOut"
+            },
+            "title": "Home Hero",
+            "type": "array"
+          },
+          "home_mid": {
+            "items": {
+              "$ref": "#/components/schemas/PictureBannerOut"
+            },
+            "title": "Home Mid",
+            "type": "array"
+          }
+        },
+        "required": [
+          "announcement",
+          "home_hero",
+          "home_mid",
+          "category_top"
+        ],
+        "title": "BannersOut",
         "type": "object"
       },
       "BasketLineOut": {
@@ -1775,6 +1838,52 @@
         ],
         "title": "PaymentMethod",
         "type": "string"
+      },
+      "PictureBannerOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Image",
+            "type": "array"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ImageSizeOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile Image"
+          }
+        },
+        "required": [
+          "id",
+          "alt",
+          "link",
+          "image",
+          "mobile_image"
+        ],
+        "title": "PictureBannerOut",
+        "type": "object"
       },
       "PlacedLineOut": {
         "properties": {
@@ -3895,6 +4004,46 @@
         "summary": "Save Review",
         "tags": [
           "reviews"
+        ]
+      }
+    },
+    "/api/store/banners": {
+      "get": {
+        "description": "The active Banners per slot, in order: published and inside their dates. The\n`category_top` slot is filled only when a Category slug is given, with the Banners\ntied to that Category and those tied to none; a hidden Category is 404.",
+        "operationId": "catalog_list_banners",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannersOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Banners",
+        "tags": [
+          "catalog"
         ]
       }
     },

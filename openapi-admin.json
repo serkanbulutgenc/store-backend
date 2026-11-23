@@ -628,6 +628,517 @@
         "title": "AuditLogQuery",
         "type": "object"
       },
+      "BannerCategoryOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "BannerCategoryOut",
+        "type": "object"
+      },
+      "BannerChangeOut": {
+        "properties": {
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload",
+          "submitted_by",
+          "updated_at"
+        ],
+        "title": "BannerChangeOut",
+        "type": "object"
+      },
+      "BannerImageUploadIn": {
+        "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          }
+        },
+        "title": "BannerImageUploadIn",
+        "type": "object"
+      },
+      "BannerIn": {
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "link": {
+            "default": "",
+            "title": "Link",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "position": {
+            "default": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "required": [
+          "slot"
+        ],
+        "title": "BannerIn",
+        "type": "object"
+      },
+      "BannerOut": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BannerCategoryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BannerChangeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "rejection_reason": {
+            "title": "Rejection Reason",
+            "type": "string"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slot",
+          "message",
+          "link",
+          "position",
+          "starts_at",
+          "ends_at",
+          "category",
+          "status",
+          "published_at",
+          "submitted_by",
+          "submitted_at",
+          "rejection_reason",
+          "created_at",
+          "updated_at",
+          "image",
+          "mobile_image",
+          "pending_change"
+        ],
+        "title": "BannerOut",
+        "type": "object"
+      },
+      "BannerPatch": {
+        "description": "What changes; anything left out stays. Staff's edit of a published Banner is\nheld for the Owner. The images are separate.",
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "title": "BannerPatch",
+        "type": "object"
+      },
+      "BannerRowOut": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BannerCategoryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "has_pending_change": {
+            "title": "Has Pending Change",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "rejection_reason": {
+            "title": "Rejection Reason",
+            "type": "string"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slot",
+          "message",
+          "link",
+          "position",
+          "starts_at",
+          "ends_at",
+          "category",
+          "status",
+          "published_at",
+          "submitted_by",
+          "submitted_at",
+          "rejection_reason",
+          "created_at",
+          "updated_at",
+          "has_pending_change"
+        ],
+        "title": "BannerRowOut",
+        "type": "object"
+      },
       "BelowCostOut": {
         "properties": {
           "campaign_price": {
@@ -9248,6 +9759,586 @@
         "summary": "Get Audit Entry",
         "tags": [
           "staff"
+        ]
+      }
+    },
+    "/api/admin/banners": {
+      "get": {
+        "description": "Every Banner by slot and order; `status` and `slot` narrow it.",
+        "operationId": "banners_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slot"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BannerRowOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Banners",
+        "tags": [
+          "banners"
+        ]
+      },
+      "post": {
+        "description": "A new draft.",
+        "operationId": "banners_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BannerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Create Banner",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}": {
+      "get": {
+        "operationId": "banners_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Banner",
+        "tags": [
+          "banners"
+        ]
+      },
+      "patch": {
+        "description": "Edit a draft; the Owner edits any Banner. A Staff edit of a published Banner is\nsaved as a pending change and the live Banner stays as it is.",
+        "operationId": "banners_edit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BannerPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Banner",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}/image": {
+      "delete": {
+        "operationId": "banners_delete_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Image",
+        "tags": [
+          "banners"
+        ]
+      },
+      "patch": {
+        "description": "Change the alt text, which covers both images.",
+        "operationId": "banners_edit_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageAltIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Image",
+        "tags": [
+          "banners"
+        ]
+      },
+      "post": {
+        "description": "The main image (JPEG, PNG or WebP), replacing any existing one; derivatives are\nmade in the background. `alt_text`, when sent, is the Banner's alt text. Staff on a\ndraft; otherwise the Owner. Not for the announcement bar.",
+        "operationId": "banners_upload_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Alt Text"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Image",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}/mobile-image": {
+      "delete": {
+        "operationId": "banners_delete_mobile_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Mobile Image",
+        "tags": [
+          "banners"
+        ]
+      },
+      "post": {
+        "description": "The optional image for narrow screens; same formats and limits.",
+        "operationId": "banners_upload_mobile_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Mobile Image",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}/publish": {
+      "post": {
+        "description": "Owner only: a draft or unpublished Banner goes live.",
+        "operationId": "banners_publish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Publish Banner",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}/submit": {
+      "post": {
+        "description": "Draft to pending approval.",
+        "operationId": "banners_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Submit Banner",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}/unpublish": {
+      "post": {
+        "operationId": "banners_unpublish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Unpublish Banner",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/admin/banners/{banner_id}/withdraw": {
+      "post": {
+        "description": "Back to draft; only the user who submitted it.",
+        "operationId": "banners_withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "banner_id",
+            "required": true,
+            "schema": {
+              "title": "Banner Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannerOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Withdraw Banner",
+        "tags": [
+          "banners"
         ]
       }
     },

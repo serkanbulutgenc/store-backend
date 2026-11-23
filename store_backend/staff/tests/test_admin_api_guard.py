@@ -61,6 +61,8 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "collections_publish": Perm.MANAGE_COLLECTIONS,
     "collections_unpublish": Perm.MANAGE_COLLECTIONS,
     "collections_delete": Perm.DELETE_CATALOGUE,
+    "banners_publish": Perm.MANAGE_BANNERS,
+    "banners_unpublish": Perm.MANAGE_BANNERS,
     "campaigns_list": Perm.MANAGE_CAMPAIGNS,
     "campaigns_get": Perm.MANAGE_CAMPAIGNS,
     "campaigns_create": Perm.MANAGE_CAMPAIGNS,
