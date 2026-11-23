@@ -56,7 +56,7 @@ def mails():
 
 def test_owner_and_staff_both_see_every_thread(thread, staff, boss):
     for api in (staff, boss):
-        rows = api.get(THREADS).json()
+        rows = api.get(THREADS).json()["items"]
         assert [r["id"] for r in rows] == [thread.pk]
         detail = api.get(f"{THREADS}/{thread.pk}").json()
         assert detail["messages"][0]["body"] == "Siparişim ne zaman gelir?"
@@ -64,7 +64,7 @@ def test_owner_and_staff_both_see_every_thread(thread, staff, boss):
 
 
 def test_threads_can_be_filtered_by_status(thread, staff):
-    assert staff.get(THREADS, data={"status": "answered"}).json() == []
+    assert staff.get(THREADS, data={"status": "answered"}).json()["items"] == []
     assert (
         staff.get(THREADS, data={"status": "bogus"}).status_code
         == HTTPStatus.UNPROCESSABLE_ENTITY

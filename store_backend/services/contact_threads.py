@@ -8,14 +8,18 @@ acknowledgement email through the outbox.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.search import SearchQuery
+from django.contrib.postgres.search import SearchVector
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Count
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 from oscar.apps.order.models import Order
@@ -192,6 +196,8 @@ def submit(  # noqa: PLR0913
 # and the text sent is the text the thread keeps.
 
 REPLY_MAX = 5000
+SNIPPET_MAX = 140
+SEARCH_CONFIG = "turkish"
 NOTE_MAX = 500
 
 
@@ -205,15 +211,90 @@ def _require_owner(actor: User) -> None:
         raise ForbiddenError(msg, code="contact_owner_only")
 
 
-def threads(*, status: str | None = None, assignee_id: int | None = None):
-    rows = ContactThread.objects.select_related("category", "assignee", "order")
+def threads(  # noqa: PLR0913
+    *,
+    q: str | None = None,
+    status: str | None = None,
+    assignee_id: int | None = None,
+    category_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    has_pending_reply: bool | None = None,
+):
+    """Threads, latest activity first, narrowed by every filter given.
+
+    `q` searches the Shopper's name, email and order number, the category name, and
+    the text of every message (Turkish full-text). An anonymised thread has none of
+    that left, so `q` never matches it; it still shows up under the other filters.
+    `date_from` and `date_to` bound the last activity, both days included.
+    """
+    rows = ContactThread.objects.select_related(
+        "category",
+        "assignee",
+        "order",
+    ).annotate(
+        pending_reply_count=Count(
+            "messages",
+            filter=Q(messages__state=ContactReplyState.PENDING),
+        ),
+    )
+    # Meta.ordering is ignored once a query groups, so order explicitly.
+    rows = rows.order_by("-last_activity_at", "-pk")
     if status is not None:
         if status not in ContactThreadStatus.values:
             raise _invalid("status", "Bilinmeyen durum.")
         rows = rows.filter(status=status)
     if assignee_id is not None:
         rows = rows.filter(assignee_id=assignee_id)
+    if category_id is not None:
+        rows = rows.filter(category_id=category_id)
+    if date_from:
+        rows = rows.filter(last_activity_at__date__gte=_day("date_from", date_from))
+    if date_to:
+        rows = rows.filter(last_activity_at__date__lte=_day("date_to", date_to))
+    if has_pending_reply is not None:
+        rows = (
+            rows.filter(pending_reply_count__gt=0)
+            if has_pending_reply
+            else rows.filter(pending_reply_count=0)
+        )
+    text = (q or "").strip()
+    if text:
+        rows = rows.filter(anonymised_at__isnull=True).filter(_matches(text))
     return rows
+
+
+def _day(field: str, raw: str) -> date:
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        raise _invalid(field, "Tarihi GG.AA.YYYY değil, YYYY-AA-GG yazın.") from None
+
+
+def _matches(text: str) -> Q:
+    in_messages = (
+        ContactMessage.objects.annotate(
+            vector=SearchVector("body", config=SEARCH_CONFIG),
+        )
+        .filter(vector=SearchQuery(text, config=SEARCH_CONFIG, search_type="websearch"))
+        .values("thread_id")
+    )
+    return (
+        Q(name__icontains=text)
+        | Q(email__icontains=text)
+        | Q(order_number__icontains=text)
+        | Q(category__name__icontains=text)
+        | Q(pk__in=in_messages)
+    )
+
+
+def snippet(found: ContactThread) -> str:
+    """The first words of what the Shopper wrote; empty once anonymised."""
+    if found.anonymised_at is not None:
+        return ""
+    first = found.messages.filter(kind=ContactMessageKind.SHOPPER).first()
+    text = first.body if first else ""
+    return text if len(text) <= SNIPPET_MAX else text[: SNIPPET_MAX - 1].rstrip() + "…"
 
 
 def thread(thread_id: int) -> ContactThread:
