@@ -206,6 +206,16 @@ def test_the_owner_changes_a_slug_over_the_api_and_sees_the_redirects(owner, api
     assert rows[PRIVACY]["redirects"] == []
 
 
+def test_the_versions_list_carries_the_redirects_the_editor_shows(owner, api_for):
+    boss = api_for(owner, enrol=True)
+    boss.put(f"{ADMIN}/{RETURNS}/slug", {"slug": "iade"})
+
+    versions = boss.get(f"{ADMIN}/{RETURNS}/versions").json()
+
+    assert versions[0]["slug"] == "iade"
+    assert versions[0]["redirects"] == [RETURNS_SLUG]
+
+
 def test_a_bad_slug_over_the_api_is_422_with_the_field(owner, api_for):
     boss = api_for(owner, enrol=True)
     response = boss.put(f"{ADMIN}/{RETURNS}/slug", {"slug": "Iade Kosullari"})

@@ -14451,7 +14451,7 @@
     },
     "/api/admin/legal-pages/{page}/versions": {
       "get": {
-        "description": "Every saved version of one page, newest first.",
+        "description": "Every saved version of one page, newest first, with its earlier addresses.",
         "operationId": "legal_pages_versions",
         "parameters": [
           {

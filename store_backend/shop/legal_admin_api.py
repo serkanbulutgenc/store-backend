@@ -69,8 +69,9 @@ def list_pages(request):
     response=list[AdminLegalRow],
 )
 def list_versions(request, page: str):
-    """Every saved version of one page, newest first."""
-    return [_row(v) for v in legal_pages.versions(page)]
+    """Every saved version of one page, newest first, with its earlier addresses."""
+    old = legal_pages.redirects(page)
+    return [{**_row(v), "redirects": old} for v in legal_pages.versions(page)]
 
 
 @router.get(
