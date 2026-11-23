@@ -444,6 +444,8 @@ TRACKING_RATE_LIMIT = (20, 600)
 # Stock alert subscriptions per client address: (count, window in seconds).
 STOCK_ALERT_RATE_LIMIT = (10, 3600)
 TRACKING_ORDER_RATE_LIMIT = (8, 600)
+# Contact form submissions per client address: (count, window in seconds).
+CONTACT_RATE_LIMIT = (5, 3600)
 # Read the client address from the first `X-Forwarded-For` entry. Only turn this on
 # behind a proxy that sets the header itself; otherwise a client can forge it.
 TRUST_FORWARDED_FOR = False

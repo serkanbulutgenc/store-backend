@@ -1,0 +1,6 @@
+{% extends "messaging/base.txt" %}
+{% block content %}Merhaba {{ name }},
+
+"{{ category }}" konulu mesajınız bize ulaştı. En kısa sürede e-posta ile yanıtlayacağız.
+
+Bu mesajı siz göndermediyseniz bu e-postayı yok sayabilirsiniz.{% endblock %}

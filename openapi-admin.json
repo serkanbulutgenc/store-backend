@@ -1866,6 +1866,95 @@
         "title": "ColourPatch",
         "type": "object"
       },
+      "ContactCategoryIn": {
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ContactCategoryIn",
+        "type": "object"
+      },
+      "ContactCategoryPatch": {
+        "properties": {
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "maximum": 32767,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "title": "ContactCategoryPatch",
+        "type": "object"
+      },
+      "ContactCategoryRow": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "thread_count": {
+            "default": 0,
+            "title": "Thread Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_active",
+          "position"
+        ],
+        "title": "ContactCategoryRow",
+        "type": "object"
+      },
       "CoverImageOut": {
         "description": "The cover image: `processing` until its derivatives exist.",
         "properties": {
@@ -10476,6 +10565,151 @@
         "summary": "Update Colour",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/admin/contact-categories": {
+      "get": {
+        "description": "Every category, inactive ones too, with how many threads use it.",
+        "operationId": "contact_categories_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactCategoryRow"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "List Categories",
+        "tags": [
+          "contact"
+        ]
+      },
+      "post": {
+        "description": "Add a category at the end. 422 for an empty or repeated name.",
+        "operationId": "contact_categories_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCategoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactCategoryRow"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Create Category",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/admin/contact-categories/{category_id}": {
+      "delete": {
+        "description": "Delete an unused category. 409 `contact_category_in_use` once it has threads:\ndeactivate it instead.",
+        "operationId": "contact_categories_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Delete Category",
+        "tags": [
+          "contact"
+        ]
+      },
+      "patch": {
+        "description": "Rename, deactivate or reorder. Existing threads keep the category.",
+        "operationId": "contact_categories_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCategoryPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactCategoryRow"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Update Category",
+        "tags": [
+          "contact"
         ]
       }
     },

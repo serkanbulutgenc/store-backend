@@ -104,6 +104,10 @@ OWNER_GROUP_OPERATIONS = {
     "reports_returns_csv",
     "reports_campaigns_vouchers",
     "reports_campaigns_vouchers_csv",
+    "contact_categories_list",
+    "contact_categories_create",
+    "contact_categories_update",
+    "contact_categories_delete",
 }
 
 # Owner-only permissions that no endpoint declares because a service checks them
