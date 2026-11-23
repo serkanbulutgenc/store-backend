@@ -47,6 +47,7 @@ class Action(StrEnum):
     CATALOGUE_IMPORT = "catalogue_import"
     ACCOUNT_DELETION = "account_deletion"
     LEGAL_PAGE_PUBLISHED = "legal_page_published"
+    LEGAL_SLUG_CHANGED = "legal_slug_changed"
     REVIEW_APPROVED = "review_approved"
     REVIEW_REJECTED = "review_rejected"
     REVIEW_DELETED = "review_deleted"

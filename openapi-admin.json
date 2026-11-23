@@ -23,6 +23,14 @@
             "title": "Page",
             "type": "string"
           },
+          "redirects": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirects",
+            "type": "array"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -71,6 +79,14 @@
           "page": {
             "title": "Page",
             "type": "string"
+          },
+          "redirects": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirects",
+            "type": "array"
           },
           "slug": {
             "title": "Slug",
@@ -7256,6 +7272,19 @@
         "title": "SkippedCombinationOut",
         "type": "object"
       },
+      "SlugIn": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "SlugIn",
+        "type": "object"
+      },
       "Sort": {
         "description": "What the Products report ranks by.",
         "enum": [
@@ -10788,7 +10817,7 @@
     },
     "/api/admin/legal-pages": {
       "get": {
-        "description": "The current version of every page.",
+        "description": "The current version of every page, with the earlier addresses that redirect.",
         "operationId": "legal_pages_list",
         "parameters": [],
         "responses": {
@@ -10813,6 +10842,54 @@
           }
         ],
         "summary": "List Pages",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/admin/legal-pages/{page}/slug": {
+      "put": {
+        "description": "Give a page a new address. The old one keeps redirecting to it; the page's\nversions and the Consent records that point at them do not move.",
+        "operationId": "legal_pages_change_slug",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlugIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLegalRow"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Change Slug",
         "tags": [
           "legal"
         ]
