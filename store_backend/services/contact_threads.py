@@ -9,6 +9,7 @@ acknowledgement email through the outbox.
 from __future__ import annotations
 
 from datetime import date
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -42,6 +43,8 @@ from store_backend.shop.models import ContactThreadStatus
 from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from store_backend.users.models import User
 
 NAME_MAX = 100
@@ -506,3 +509,56 @@ def _send(
         target=found,
         summary=f"Yanıt gönderildi (yazışma {found.pk})",
     )
+
+
+# -- retention (3 years, then anonymise) ---------------------------------------------
+
+RETENTION = timedelta(days=365 * 3)
+
+
+def _anonymise(rows, now: datetime) -> int:
+    """Strip the personal data from these threads and keep what counts need: category,
+    status, dates and who handled them. Idempotent: an anonymised thread is skipped.
+
+    Replies that never reached the Shopper (draft, waiting, rejected) are deleted, since
+    nothing may be sent on an anonymised thread; sent replies stay, text gone.
+    """
+    ids = list(rows.filter(anonymised_at__isnull=True).values_list("pk", flat=True))
+    if not ids:
+        return 0
+    with transaction.atomic():
+        ContactMessage.objects.filter(thread_id__in=ids).exclude(
+            state__in=(ContactReplyState.SENT, ""),
+        ).delete()
+        ContactMessage.objects.filter(thread_id__in=ids).update(
+            body="",
+            drafted_body="",
+            rejection_note="",
+        )
+        return ContactThread.objects.filter(pk__in=ids).update(
+            name="",
+            email="",
+            order_number="",
+            order=None,
+            user=None,
+            anonymised_at=now,
+        )
+
+
+def purge(now: datetime | None = None) -> int:
+    """Anonymise threads whose last activity is 3 years old or more. Safe to repeat;
+    returns how many threads were anonymised this time."""
+    now = now or timezone.now()
+    return _anonymise(
+        ContactThread.objects.filter(last_activity_at__lte=now - RETENTION),
+        now,
+    )
+
+
+def anonymise_for(user: User, *, email: str, now: datetime | None = None) -> int:
+    """At once, every thread this Shopper wrote: signed in as them, or from their
+    account email. Called when their account deletion is handled."""
+    mine = Q(user=user)
+    if email:
+        mine |= Q(email__iexact=email)
+    return _anonymise(ContactThread.objects.filter(mine), now or timezone.now())
