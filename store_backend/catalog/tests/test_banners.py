@@ -117,7 +117,8 @@ def test_dates_survive_a_pending_change(staff, boss, owner):
     approval_queue.approve(owner, "banner", made["id"])
 
     banner = Banner.objects.get(pk=made["id"])
-    assert banner.starts_at and banner.ends_at
+    assert banner.starts_at
+    assert banner.ends_at
 
 
 def test_every_step_is_audited(staff, owner):
@@ -242,8 +243,12 @@ def test_staff_cannot_change_the_images_of_a_live_banner_but_the_owner_can(
     made = hero(boss)
     go_live(boss, made)
 
-    assert post_file(staff, f"{ADMIN}/{made['id']}/image", make_file()).status_code == 403
-    assert post_file(boss, f"{ADMIN}/{made['id']}/image", make_file()).status_code == 200
+    assert (
+        post_file(staff, f"{ADMIN}/{made['id']}/image", make_file()).status_code == 403
+    )
+    assert (
+        post_file(boss, f"{ADMIN}/{made['id']}/image", make_file()).status_code == 200
+    )
     assert boss.delete(f"{ADMIN}/{made['id']}/image").json()["image"] is None
 
 

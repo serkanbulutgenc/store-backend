@@ -85,45 +85,58 @@ def _clean_link(value: object) -> str:
     return link
 
 
+def _clean_placement(values: dict[str, Any]) -> dict[str, Any]:
+    """Slot, message and Category are checked together (a message belongs to the
+    announcement bar, a Category to the category slot) and always returned together,
+    so a change of slot leaves nothing stale behind."""
+    slot = values.get("slot")
+    if slot not in Banner.Slot.values:
+        _refuse("slot", "Geçerli bir alan seçin.")
+    message = str(values.get("message") or "").strip()
+    category_id = values.get("category_id")
+    if slot == Banner.Slot.ANNOUNCEMENT:
+        if not message:
+            _refuse("message", "Duyuru için bir mesaj yazın.")
+        if len(message) > MESSAGE_MAX:
+            _refuse("message", f"Mesaj en fazla {MESSAGE_MAX} karakter olabilir.")
+    else:
+        message = ""
+    if slot != Banner.Slot.CATEGORY_TOP:
+        category_id = None
+    elif (
+        category_id is not None and not Category.objects.filter(pk=category_id).exists()
+    ):
+        _refuse("category_id", "Kategori bulunamadı.")
+    return {"slot": slot, "message": message, "category_id": category_id}
+
+
+def _clean_position(value: object) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 0 <= value <= POSITION_MAX
+    ):
+        _refuse("position", f"Sıra 0 ile {POSITION_MAX} arasında olmalı.")
+    return value
+
+
 def _clean(changes: dict[str, Any], item: Banner | None) -> dict[str, Any]:
-    """Validate the content given. Slot, message and Category are checked together
-    (a message belongs to the announcement bar, a Category to the category slot) and
-    always returned together, so a change of slot leaves nothing stale behind."""
+    """Validate the content given; the dates come back as ISO strings so the result
+    survives the pending change's JSON round trip."""
     cleaned: dict[str, Any] = {}
 
     def current(field: str, default: Any = "") -> Any:
         return changes.get(field, getattr(item, field) if item else default)
 
-    if "slot" in changes or "message" in changes or "category_id" in changes or not item:
-        slot = current("slot", None)
-        if slot not in Banner.Slot.values:
-            _refuse("slot", "Geçerli bir alan seçin.")
-        message = str(current("message") or "").strip()
-        category_id = current("category_id", None)
-        if slot == Banner.Slot.ANNOUNCEMENT:
-            if not message:
-                _refuse("message", "Duyuru için bir mesaj yazın.")
-            if len(message) > MESSAGE_MAX:
-                _refuse("message", f"Mesaj en fazla {MESSAGE_MAX} karakter olabilir.")
-        else:
-            message = ""
-        if slot == Banner.Slot.CATEGORY_TOP and category_id is not None:
-            if not Category.objects.filter(pk=category_id).exists():
-                _refuse("category_id", "Kategori bulunamadı.")
-        else:
-            category_id = None
-        cleaned.update(slot=slot, message=message, category_id=category_id)
+    placement = ("slot", "message", "category_id")
+    if item is None or any(field in changes for field in placement):
+        cleaned.update(
+            _clean_placement({f: current(f, None) for f in placement}),
+        )
     if "link" in changes or not item:
         cleaned["link"] = _clean_link(current("link"))
     if "position" in changes or not item:
-        position = current("position", 0)
-        if (
-            isinstance(position, bool)
-            or not isinstance(position, int)
-            or not 0 <= position <= POSITION_MAX
-        ):
-            _refuse("position", f"Sıra 0 ile {POSITION_MAX} arasında olmalı.")
-        cleaned["position"] = position
+        cleaned["position"] = _clean_position(current("position", 0))
     if "starts_at" in changes or "ends_at" in changes or not item:
         start = _moment("starts_at", current("starts_at", None))
         end = _moment("ends_at", current("ends_at", None))
@@ -271,7 +284,8 @@ def edit(actor: User, banner_id: int, **changes: Any) -> Banner:
 
 def _guard_image_edit(actor: User, banner: Banner) -> None:
     """The Owner may always change the images. Staff may on a draft only: on a pending
-    or live Banner the images are not part of a staged change, so they are the Owner's."""
+    or live Banner the images are not part of a staged change, so they are the
+    Owner's."""
     if _is_owner(actor) or banner.status == ApprovalStatus.DRAFT:
         return
     if banner.status == ApprovalStatus.PENDING:
@@ -398,7 +412,11 @@ def process_image(banner_id: int, which: str) -> None:
     written: list[str] = []
     still_current = {"pk": banner_id, f"{prefix}original": original}
     try:
-        derivatives, width, height = media.make_derivatives(original, "banners", written)
+        derivatives, width, height = media.make_derivatives(
+            original,
+            "banners",
+            written,
+        )
     except Exception as exc:  # noqa: BLE001
         media.logger.exception("Banner %s image could not be processed", banner_id)
         media._schedule_names(written)  # noqa: SLF001
