@@ -146,6 +146,14 @@ def test_rejection_returns_the_draft_with_a_reason_staff_can_read(
     assert Probe.objects.get(pk=draft.pk).rejection_reason == ""
 
 
+def test_publishing_a_rejected_draft_clears_the_old_reason(draft, staff_user, owner):
+    # A live item now shows a rejected change's reason, so an old one must not survive.
+    approval.submit(staff_user, KIND, draft.pk)
+    approval.reject(owner, KIND, draft.pk, "Görsel eksik")
+    approval.publish(owner, KIND, draft.pk)
+    assert Probe.objects.get(pk=draft.pk).rejection_reason == ""
+
+
 def test_a_too_long_reason_is_refused(draft, staff_user, owner):
     approval.submit(staff_user, KIND, draft.pk)
     with pytest.raises(UnprocessableError):
