@@ -6,6 +6,7 @@ record keeps pointing at the version a Shopper accepted (docs/adr/0002).
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from django.contrib.postgres.search import SearchHeadline
@@ -22,6 +23,7 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.shop.models import LEGAL_PAGE_META
 from store_backend.shop.models import LEGAL_PAGES
+from store_backend.shop.models import LegalPageSlug
 from store_backend.shop.models import LegalPageVersion
 
 if TYPE_CHECKING:
@@ -37,16 +39,104 @@ MATCH_START = "«"
 MATCH_STOP = "»"
 
 
+SLUG_MAX = 100
+SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+# `/legal-pages/search` is declared before `/legal-pages/{slug}`, so a page called
+# "search" could never be read. The storefront shows pages at `/yasal/<slug>`, which has
+# no other top-level words to avoid.
+RESERVED_SLUGS = frozenset({"search"})
+
+
 def slug_of(page: str) -> str:
-    return LEGAL_PAGE_META[page][0]
+    """The page's current public slug."""
+    row = LegalPageSlug.objects.filter(page=_known(page), is_current=True).first()
+    if row is None:
+        msg = "Sayfa bulunamadı."
+        raise NotFoundError(msg)
+    return row.slug
 
 
 def page_for_slug(slug: str) -> str:
-    for page, (page_slug, _title) in LEGAL_PAGE_META.items():
-        if page_slug == slug:
-            return page
-    msg = "Sayfa bulunamadı."
-    raise NotFoundError(msg)
+    """The page an address belongs to: its current slug or an earlier one."""
+    page = (
+        LegalPageSlug.objects.filter(slug=slug).values_list("page", flat=True).first()
+    )
+    if page is None:
+        msg = "Sayfa bulunamadı."
+        raise NotFoundError(msg)
+    return page
+
+
+def redirects(page: str) -> list[str]:
+    """The earlier slugs of a page, oldest first; each redirects to the current one."""
+    return list(
+        LegalPageSlug.objects.filter(page=_known(page), is_current=False).values_list(
+            "slug",
+            flat=True,
+        ),
+    )
+
+
+def redirects_by_page() -> dict[str, list[str]]:
+    found: dict[str, list[str]] = {page: [] for page in LEGAL_PAGES}
+    for page, slug in LegalPageSlug.objects.filter(is_current=False).values_list(
+        "page",
+        "slug",
+    ):
+        found[page].append(slug)
+    return found
+
+
+@transaction.atomic
+def change_slug(actor: User, page: str, slug: str) -> str:
+    """Give `page` a new public address. The old one stays and redirects to it; going
+    back to an earlier address of the same page just makes that one current again."""
+    _known(page)
+    slug = slug.strip()
+    if not slug or len(slug) > SLUG_MAX or not SLUG_PATTERN.fullmatch(slug):
+        raise _invalid(
+            field="slug",
+            message=(
+                "Adres küçük harf, rakam ve tek tire içermeli "
+                f"(en fazla {SLUG_MAX} karakter)."
+            ),
+        )
+    if slug in RESERVED_SLUGS:
+        raise _invalid(field="slug", message="Bu adres sistem tarafından kullanılıyor.")
+    rows = list(LegalPageSlug.objects.select_for_update().filter(page=page))
+    current = next(row for row in rows if row.is_current)
+    if slug == current.slug:
+        raise _invalid(field="slug", message="Adres zaten bu.")
+    if LegalPageSlug.objects.filter(slug=slug).exclude(page=page).exists():
+        raise _invalid(
+            field="slug",
+            message="Bu adres başka bir sayfada kullanılıyor.",
+        )
+    earlier = next((row for row in rows if row.slug == slug), None)
+    old = current.slug
+    current.is_current = False
+    current.save(update_fields=["is_current"])
+    try:
+        with transaction.atomic():
+            if earlier is None:
+                LegalPageSlug.objects.create(page=page, slug=slug, is_current=True)
+            else:
+                earlier.is_current = True
+                earlier.save(update_fields=["is_current"])
+    except IntegrityError:
+        raise _invalid(
+            field="slug",
+            message="Bu adres başka bir sayfada kullanılıyor.",
+        ) from None
+    audit.record(
+        actor,
+        audit.Action.LEGAL_SLUG_CHANGED,
+        target=("legal_page", page),
+        summary=f"Yasal sayfa adresi değişti: {LEGAL_PAGE_META[page][1]}",
+        before={"slug": old},
+        after={"slug": slug},
+    )
+    return slug
 
 
 def _known(page: str) -> str:
