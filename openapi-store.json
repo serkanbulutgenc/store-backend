@@ -679,6 +679,145 @@
         "title": "BrandOut",
         "type": "object"
       },
+      "CampaignPageOut": {
+        "properties": {
+          "campaign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkedCampaignOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "ended": {
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductCardOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "slug",
+          "description",
+          "image",
+          "starts_at",
+          "ends_at",
+          "ended",
+          "campaign",
+          "items"
+        ],
+        "title": "CampaignPageOut",
+        "type": "object"
+      },
+      "CampaignPageRowOut": {
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "slug",
+          "image",
+          "starts_at",
+          "ends_at"
+        ],
+        "title": "CampaignPageRowOut",
+        "type": "object"
+      },
       "CardImageOut": {
         "properties": {
           "alt": {
@@ -1265,6 +1404,45 @@
           "excerpt"
         ],
         "title": "LegalSearchHit",
+        "type": "object"
+      },
+      "LinkedCampaignOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "required": [
+          "starts_at",
+          "ends_at",
+          "active"
+        ],
+        "title": "LinkedCampaignOut",
         "type": "object"
       },
       "MenuNode": {
@@ -4105,6 +4283,66 @@
         "summary": "Apply Voucher",
         "tags": [
           "basket"
+        ]
+      }
+    },
+    "/api/store/campaign-pages": {
+      "get": {
+        "description": "Published Campaign pages that have started and not ended, newest first.",
+        "operationId": "catalog_list_campaign_pages",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignPageRowOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Campaign Pages",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/store/campaign-pages/{slug}": {
+      "get": {
+        "description": "A published page. `ended` is true past its end date; a linked page lists its\ndiscounted Products while the Campaign is in force. 404 for draft, pending,\nunpublished and not-yet-started pages.",
+        "operationId": "catalog_get_campaign_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Campaign Page",
+        "tags": [
+          "catalog"
         ]
       }
     },
