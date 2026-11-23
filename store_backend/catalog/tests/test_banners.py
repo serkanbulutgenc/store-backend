@@ -11,11 +11,13 @@ from django.test import Client
 from django.utils import timezone
 from oscar.apps.catalogue.models import Category
 
+from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Banner
 from store_backend.catalog.tests.test_media import make_file
 from store_backend.catalog.tests.test_media import post_file
 from store_backend.services import approval_queue
 from store_backend.services import banners
+from store_backend.services import media
 from store_backend.staff.models import AuditEntry
 from store_backend.staff.models import PendingChange
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
@@ -281,6 +283,55 @@ def test_removing_the_mobile_image_keeps_the_main_one(boss):
 
     assert removed["mobile_image"] is None
     assert removed["image"]["status"] == "ready"
+
+
+def test_a_gif_banner_image_is_kept_as_uploaded_and_served(boss):
+    made = hero(boss)
+    gif = make_file(fmt="GIF", name="hareket.gif")
+
+    response = post_file(boss, f"{ADMIN}/{made['id']}/image", gif)
+    assert response.status_code == HTTPStatus.OK, response.content
+    banners.process_image(made["id"], "image")
+    go_live(boss, made)
+
+    card = shown()["home_hero"][0]
+    assert card["alt"] == ""  # alt text is optional
+    assert [s["url"].endswith(".gif") for s in card["image"]] == [True]
+
+
+def test_a_gif_is_still_refused_for_other_images(staff):
+    with pytest.raises(UnprocessableError, match="WebP"):
+        media._inspect(make_file(fmt="GIF").read())  # noqa: SLF001
+
+
+def test_owner_deletes_any_banner_and_its_files(boss):
+    made = hero(boss)
+    with_image(boss, made)
+    go_live(boss, made)
+    files = Banner.objects.get(pk=made["id"]).image_file_names("image")
+    assert files
+
+    assert boss.delete(f"{ADMIN}/{made['id']}").status_code == HTTPStatus.NO_CONTENT
+
+    assert not Banner.objects.filter(pk=made["id"]).exists()
+    assert AuditEntry.objects.filter(
+        action="approval_deleted",
+        summary__contains="Banner silindi",
+    ).exists()
+    assert shown()["home_hero"] == []
+
+
+def test_staff_delete_a_draft_but_not_a_live_or_pending_banner(staff, boss):
+    draft = create(staff)
+    live = create(boss, message="canlı")
+    go_live(boss, live)
+    pending = create(staff, message="bekleyen")
+    assert staff.post(f"{ADMIN}/{pending['id']}/submit").status_code == 200
+
+    assert staff.delete(f"{ADMIN}/{draft['id']}").status_code == HTTPStatus.NO_CONTENT
+    assert staff.delete(f"{ADMIN}/{live['id']}").status_code == HTTPStatus.FORBIDDEN
+    assert staff.delete(f"{ADMIN}/{pending['id']}").status_code == HTTPStatus.CONFLICT
+    assert Banner.objects.filter(pk__in=[live["id"], pending["id"]]).count() == 2
 
 
 # -- the Storefront --------------------------------------------------------------

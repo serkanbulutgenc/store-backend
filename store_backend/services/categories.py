@@ -42,9 +42,18 @@ MAX_SEO_TITLE = 70
 MAX_SEO_DESCRIPTION = 160
 MAX_DESCRIPTION = 5000
 MAX_ALT = 255
+MAX_HOME_ORDER = 9999
 
 EDITABLE = frozenset(
-    {"description", "seo_title", "seo_description", "is_hidden", "image_alt"},
+    {
+        "description",
+        "seo_title",
+        "seo_description",
+        "is_hidden",
+        "image_alt",
+        "show_on_home",
+        "home_order",
+    },
 )
 
 
@@ -139,6 +148,12 @@ def update(category: Category, changes: dict[str, object]) -> Category:
         "seo_description": MAX_SEO_DESCRIPTION,
         "image_alt": MAX_ALT,
     }
+    if "home_order" in changes and not (
+        0 <= int(changes["home_order"]) <= MAX_HOME_ORDER
+    ):
+        field = "home_order"
+        msg = f"Sıra 0 ile {MAX_HOME_ORDER} arasında olmalı."
+        raise _invalid(field, msg)
     for field, value in changes.items():
         if field in limits:
             text = str(value or "").strip()
