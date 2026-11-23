@@ -444,6 +444,19 @@ def _public() -> QuerySet[CampaignPage]:
     )
 
 
+PATH_PREFIX = "/kampanyalar/"
+
+
+def path(page: CampaignPage) -> str:
+    """The page's URL on the Storefront."""
+    return f"{PATH_PREFIX}{page.slug}"
+
+
+def is_public(page: CampaignPage) -> bool:
+    """Published and started; an ended page is still public at its URL."""
+    return _public().filter(pk=page.pk).exists()
+
+
 def _ended(page: CampaignPage, now: datetime) -> bool:
     return page.ends_at is not None and page.ends_at <= now
 

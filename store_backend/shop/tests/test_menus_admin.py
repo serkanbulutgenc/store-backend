@@ -10,6 +10,7 @@ from django.test import Client
 from oscar.apps.catalogue.models import Product
 from oscar.apps.catalogue.models import ProductClass
 
+from store_backend.catalog.models import CampaignPage
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import CollectionStatus
@@ -413,6 +414,7 @@ def test_a_failure_while_writing_rolls_the_whole_save_back(boss, monkeypatch):
         "product_id": None,
         "brand_id": None,
         "collection_id": None,
+        "campaign_page_id": None,
         "include_subcategories": False,
         "legal_page": None,
         "url": None,
@@ -574,6 +576,7 @@ def picked(client, q):
                     "product": "product_id",
                     "brand": "brand_id",
                     "collection": "collection_id",
+                    "campaign_page": "campaign_page_id",
                     "legal_page": "legal_page",
                 }[r["target_type"]]
             ],
@@ -747,3 +750,100 @@ def test_a_collection_in_a_menu_cannot_be_deleted_until_its_item_is_removed(boss
         HTTPStatus.NO_CONTENT
     )
     assert not Collection.objects.filter(pk=collection.pk).exists()
+
+
+# -- Campaign page target and the "Kampanyalar" Built-in page ------------------------
+
+
+def campaign_page_item(pk, **fields):
+    return {"target_type": "campaign_page", "campaign_page_id": pk, **fields}
+
+
+def make_page(title="Yaz indirimi", slug="yaz-indirimi", **fields):
+    fields.setdefault("status", "published")
+    return CampaignPage.objects.create(title=title, slug=slug, **fields)
+
+
+def test_the_owner_saves_a_campaign_page_item_and_the_public_menu_shows_it(boss):
+    page = make_page()
+
+    saved = boss.put(
+        HEADER,
+        {"items": [campaign_page_item(page.pk, label="Yaz fırsatları")]},
+    )
+
+    assert saved.status_code == HTTPStatus.OK, saved.content
+    assert saved.json()["items"][0]["campaign_page_id"] == page.pk
+    assert saved.json()["items"][0]["link"] == "/kampanyalar/yaz-indirimi"
+    assert [(i["label"], i["url"]) for i in public()["header"]] == [
+        ("Yaz fırsatları", "/kampanyalar/yaz-indirimi"),
+    ]
+
+
+def test_the_item_follows_the_page_when_its_slug_or_title_changes(boss):
+    page = make_page()
+    boss.put(HEADER, {"items": [campaign_page_item(page.pk)]})
+
+    page.title, page.slug = "Kış indirimi", "kis-indirimi"
+    page.save()
+
+    assert [(i["label"], i["url"]) for i in public()["header"]] == [
+        ("Kış indirimi", "/kampanyalar/kis-indirimi"),
+    ]
+
+
+def test_an_unknown_campaign_page_id_is_rejected(boss):
+    missing = CampaignPage.objects.count() + 999
+
+    saved = boss.put(HEADER, {"items": [campaign_page_item(missing)]})
+
+    assert rule(saved) == "menu_unknown_target"
+
+
+def test_a_campaign_page_item_cannot_also_carry_another_target(boss):
+    page = make_page()
+    both = campaign_page_item(page.pk, category_id=catalog.create_category("X").pk)
+
+    assert rule(boss.put(HEADER, {"items": [both]})) == "menu_target_mismatch"
+    assert rule(boss.put(HEADER, {"items": [campaign_page_item(None)]})) == (
+        "menu_target_mismatch"
+    )
+
+
+@pytest.mark.parametrize("status", ["draft", "pending_approval", "unpublished"])
+def test_reading_flags_a_campaign_page_that_is_not_published(boss, status):
+    page = make_page(status=status)
+    boss.put(HEADER, {"items": [campaign_page_item(page.pk), LEGAL_INDEX]})
+
+    (flagged, _) = boss.get(HEADER).json()["items"]
+
+    assert flagged["not_shown_reason"] == "target_not_public"
+    assert flagged["target_label"] == "Yaz indirimi"
+    assert "Yaz indirimi" not in [i["label"] for i in public()["header"]]
+
+
+def test_staff_cannot_place_a_campaign_page_in_a_menu(staff):
+    page = make_page()
+
+    saved = staff.put(HEADER, {"items": [campaign_page_item(page.pk)]})
+
+    assert saved.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_the_kampanyalar_built_in_page_links_to_the_list(boss):
+    saved = boss.put(HEADER, {"items": [builtin("campaigns")]})
+
+    assert saved.status_code == HTTPStatus.OK, saved.content
+    assert saved.json()["items"][0]["link"] == "/kampanyalar"
+    assert saved.json()["items"][0]["target_label"] == "Kampanyalar"
+    assert [(i["label"], i["url"]) for i in public()["header"]] == [
+        ("Kampanyalar", "/kampanyalar"),
+    ]
+
+
+def test_the_picker_finds_campaign_pages_by_title(boss):
+    page = make_page("Yaz indirimi")
+
+    found = picked(boss, "yaz")
+
+    assert ("campaign_page", "Yaz indirimi", page.pk) in found

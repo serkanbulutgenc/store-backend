@@ -13,6 +13,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
+from store_backend.services import campaign_pages
 from store_backend.services import categories
 from store_backend.services import collections
 from store_backend.services import legal_pages
@@ -71,7 +72,7 @@ def _subcategories(parent: Category, levels: int) -> list[dict]:
     ]
 
 
-def _leaf(item: MenuItem) -> dict | None:  # noqa: C901
+def _leaf(item: MenuItem) -> dict | None:  # noqa: C901, PLR0912
     """The item itself, without children, or None when its target is not public."""
     if item.target_type == MenuItem.Target.CATEGORY:
         category = categories.visible().filter(pk=item.category_id).first()
@@ -89,6 +90,10 @@ def _leaf(item: MenuItem) -> dict | None:  # noqa: C901
         if not collections.is_public(item.collection):
             return None
         label, url = item.collection.name, collections.path(item.collection)
+    elif item.target_type == MenuItem.Target.CAMPAIGN_PAGE:
+        if not campaign_pages.is_public(item.campaign_page):
+            return None
+        label, url = item.campaign_page.title, campaign_pages.path(item.campaign_page)
     elif item.target_type == MenuItem.Target.LEGAL_PAGE:
         label = legal_pages.current(item.legal_page).title
         url: str | None = f"/yasal/{legal_pages.slug_of(item.legal_page)}"
@@ -140,6 +145,7 @@ def public() -> dict[str, list[dict]]:
             "product__profile",
             "brand",
             "collection",
+            "campaign_page",
         ):
             by_parent.setdefault(item.parent_id, []).append(item)
         for item in by_parent.get(None, []):
