@@ -22,6 +22,7 @@ from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import Product
 
 from store_backend.catalog.sizes import SizeScheme
+from store_backend.staff.models import ApprovalFields
 
 DEFAULT_LOW_STOCK_THRESHOLD = 2
 
@@ -695,3 +696,68 @@ class Campaign(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class CampaignPage(ApprovalFields):
+    """The editorial side of a Campaign: a page with a cover and a markdown text that
+    Staff draft and the Owner publishes (phase 4, section 3). It may link to one
+    discount `Campaign`, which stays an Owner-only price rule and is not changed by
+    this. The content fields are staged by the approval rule; the cover image and the
+    link are not part of a pending change."""
+
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
+    description = models.TextField(
+        blank=True,
+        help_text="Markdown, kept as written; the Storefront renderer sanitises it.",
+    )
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    campaign = models.ForeignKey(
+        Campaign,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    image_original = models.CharField(max_length=255, blank=True)
+    image_width = models.PositiveIntegerField(default=0)
+    image_height = models.PositiveIntegerField(default=0)
+    image_status = models.CharField(
+        max_length=16,
+        choices=CategoryProfile.ImageStatus.choices,
+        blank=True,
+        default="",
+    )
+    image_derivatives = models.JSONField(default=list, blank=True)
+    image_alt = models.CharField(max_length=255, blank=True)
+    image_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(starts_at__isnull=True)
+                | Q(ends_at__isnull=True)
+                | Q(ends_at__gt=models.F("starts_at")),
+                name="catalog_campaignpage_ends_after_start",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def image_file_names(self) -> list[str]:
+        if not self.image_original:
+            return []
+        return [self.image_original, *(d["name"] for d in self.image_derivatives)]
+
+    def image_derivative_urls(self) -> list[dict]:
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        return [
+            {"width": d["width"], "url": media_url(d["name"])}
+            for d in self.image_derivatives
+        ]
