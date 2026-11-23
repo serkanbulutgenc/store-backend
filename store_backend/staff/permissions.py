@@ -34,6 +34,7 @@ class Perm(StrEnum):
     MANAGE_INVOICES = "manage_invoices"
     EDIT_COLLECTIONS = "edit_collections"  # draft, edit, submit, withdraw (ADR 0008)
     EDIT_BANNERS = "edit_banners"  # draft, edit, submit, withdraw
+    EDIT_CAMPAIGN_PAGES = "edit_campaign_pages"  # draft, edit, submit, withdraw
     # Owner only
     MANAGE_SETTINGS = "manage_settings"
     MANAGE_STAFF_USERS = "manage_staff_users"
@@ -57,6 +58,7 @@ class Perm(StrEnum):
     MANAGE_COLLECTIONS = "manage_collections"  # publish, unpublish, approve, reject
     MANAGE_CAMPAIGNS = "manage_campaigns"  # create, edit, activate, deactivate, delete
     MANAGE_BANNERS = "manage_banners"  # publish, unpublish, approve, reject
+    MANAGE_CAMPAIGN_PAGES = "manage_campaign_pages"  # publish, approve, link a Campaign
 
     @property
     def label(self) -> str:
@@ -92,6 +94,7 @@ OWNER_ONLY: frozenset[Perm] = frozenset(
         Perm.MANAGE_COLLECTIONS,
         Perm.MANAGE_CAMPAIGNS,
         Perm.MANAGE_BANNERS,
+        Perm.MANAGE_CAMPAIGN_PAGES,
     },
 )
 

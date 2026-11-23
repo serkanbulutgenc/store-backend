@@ -4,6 +4,7 @@ product page. Public; draft and archived Products are not found."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -15,6 +16,7 @@ from ninja import Schema
 from store_backend.api.money import Money
 from store_backend.services import banners
 from store_backend.services import browse
+from store_backend.services import campaign_pages
 from store_backend.services import collections
 
 router = Router(tags=["catalog"], auth=None)
@@ -343,3 +345,51 @@ def list_banners(request, category: str | None = None):
     `category_top` slot is filled only when a Category slug is given, with the Banners
     tied to that Category and those tied to none; a hidden Category is 404."""
     return banners.public(category)
+
+
+class CampaignPageRowOut(Schema):
+    title: str
+    slug: str
+    image: CardImageOut | None
+    starts_at: datetime | None
+    ends_at: datetime | None
+
+
+class LinkedCampaignOut(Schema):
+    starts_at: datetime | None
+    ends_at: datetime | None
+    active: bool
+
+
+class CampaignPageOut(Schema):
+    title: str
+    slug: str
+    description: str
+    image: CardImageOut | None
+    starts_at: datetime | None
+    ends_at: datetime | None
+    ended: bool
+    campaign: LinkedCampaignOut | None
+    items: list[ProductCardOut]
+
+
+@router.get(
+    "/campaign-pages",
+    operation_id="catalog_list_campaign_pages",
+    response=list[CampaignPageRowOut],
+)
+def list_campaign_pages(request):
+    """Published Campaign pages that have started and not ended, newest first."""
+    return campaign_pages.public_list()
+
+
+@router.get(
+    "/campaign-pages/{slug}",
+    operation_id="catalog_get_campaign_page",
+    response=CampaignPageOut,
+)
+def get_campaign_page(request, slug: str):
+    """A published page. `ended` is true past its end date; a linked page lists its
+    discounted Products while the Campaign is in force. 404 for draft, pending,
+    unpublished and not-yet-started pages."""
+    return campaign_pages.public_page(slug)

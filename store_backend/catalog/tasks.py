@@ -26,6 +26,14 @@ def process_collection_image(collection_id: int) -> None:
 
 
 @shared_task
+def process_campaign_page_image(page_id: int) -> None:
+    """Make the WebP derivatives of a Campaign page's uploaded cover image."""
+    from store_backend.services import campaign_pages  # noqa: PLC0415
+
+    campaign_pages.process_image(page_id)
+
+
+@shared_task
 def process_brand_logo(brand_id: int) -> None:
     """Make the WebP derivatives of a Brand's uploaded logo."""
     from store_backend.services import brand_logo  # noqa: PLC0415

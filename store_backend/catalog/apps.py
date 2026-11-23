@@ -9,4 +9,5 @@ class CatalogConfig(AppConfig):
     def ready(self) -> None:
         from store_backend.catalog import signals  # noqa: F401, PLC0415
         from store_backend.services import banners  # noqa: F401, PLC0415 (approval kind)
+        from store_backend.services import campaign_pages  # noqa: F401, PLC0415 (approval kind)
         from store_backend.services import media  # noqa: F401, PLC0415 (publish rule)
