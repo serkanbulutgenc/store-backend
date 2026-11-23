@@ -20,7 +20,8 @@ LEGAL_PAGES: tuple[str, ...] = (
 )
 
 
-# The public address (slug) and original title of each page. Slugs never change.
+# The original public address (slug) and title of each page. The Owner may change a slug
+# later (`LegalPageSlug` holds the live and the old ones); these are where each starts.
 LEGAL_PAGE_META: dict[str, tuple[str, str]] = {
     "distance_sales_contract": (
         "mesafeli-satis-sozlesmesi",
@@ -163,6 +164,30 @@ class LegalPageVersion(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ImmutableError
+
+
+class LegalPageSlug(models.Model):
+    """One public address of a Legal page. A page has exactly one current slug; the
+    ones it had before stay as rows that redirect to the current one, so a link in an
+    old email or contract keeps working. The page key, its versions and Consent records
+    never move."""
+
+    page = models.CharField(max_length=40, choices=[(p, p) for p in LEGAL_PAGES])
+    slug = models.SlugField(max_length=100, unique=True)
+    is_current = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page"],
+                condition=models.Q(is_current=True),
+                name="shop_legal_slug_one_current_per_page",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.page}: {self.slug}"
 
 
 class PaymentMethod(models.TextChoices):
@@ -792,6 +817,8 @@ MENU_BUILTIN_PAGES: dict[str, tuple[str, str]] = {
     "favorites": ("Favorilerim", "/hesap/favoriler"),
     "basket": ("Sepet", "/sepet"),
     "legal_search": ("Yasal sayfalarda ara", "/yasal"),
+    "campaigns": ("Kampanyalar", "/kampanyalar"),
+    "contact": ("İletişim", "/iletisim"),
 }
 
 
@@ -819,6 +846,7 @@ class MenuItem(models.Model):
         PRODUCT = "product", "Ürün"
         BRAND = "brand", "Marka"
         COLLECTION = "collection", "Koleksiyon"
+        CAMPAIGN_PAGE = "campaign_page", "Kampanya sayfası"
         BUILTIN = "builtin", "Hazır sayfa"
         URL = "url", "Özel bağlantı"
         GROUP = "group", "Grup başlığı"
@@ -862,6 +890,13 @@ class MenuItem(models.Model):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    campaign_page = models.ForeignKey(
+        "store_catalog.CampaignPage",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     legal_page = models.CharField(max_length=40, blank=True)
     builtin = models.CharField(max_length=40, blank=True)
     url = models.CharField(max_length=500, blank=True)
@@ -877,3 +912,141 @@ class MenuItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.menu_id}:{self.target_type}:{self.label}"
+
+
+class ContactCategory(models.Model):
+    """A topic the Shopper picks on the contact form. Owner-managed; one that has
+    threads is deactivated instead of deleted."""
+
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "pk"]
+        verbose_name_plural = "contact categories"
+        constraints = [
+            models.UniqueConstraint(Lower("name"), name="contact_category_name_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ContactThreadStatus(models.TextChoices):
+    NEW = "new", "Yeni"
+    IN_PROGRESS = "in_progress", "Devam ediyor"
+    ANSWERED = "answered", "Yanıtlandı"
+
+
+class ContactThread(models.Model):
+    """One conversation started from the contact form. The Shopper's message and
+    later Staff drafts and replies are its `ContactMessage` rows, in order."""
+
+    category = models.ForeignKey(
+        ContactCategory,
+        on_delete=models.PROTECT,
+        related_name="threads",
+    )
+    name = models.CharField(max_length=100, blank=True)
+    email = models.EmailField(blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The signed-in Shopper who wrote it, if any.",
+    )
+    order_number = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="What the Shopper typed, kept as typed (upper-cased).",
+    )
+    order = models.ForeignKey(
+        "order.Order",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Set only when the typed number matches an Order.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ContactThreadStatus,
+        default=ContactThreadStatus.NEW,
+    )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(auto_now_add=True)
+    anonymised_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_activity_at", "-pk"]
+        indexes = [models.Index(fields=["status", "-last_activity_at"])]
+
+    def __str__(self) -> str:
+        return f"Thread {self.pk} ({self.status})"
+
+
+class ContactMessageKind(models.TextChoices):
+    SHOPPER = "shopper", "Müşteri"
+    REPLY = "reply", "Yanıt"
+
+
+class ContactReplyState(models.TextChoices):
+    """Where a reply is on its way to the Shopper. Shopper messages have no state."""
+
+    DRAFT = "draft", "Taslak"
+    PENDING = "pending", "Onay bekliyor"
+    REJECTED = "rejected", "Reddedildi"
+    SENT = "sent", "Gönderildi"
+
+
+class ContactMessage(models.Model):
+    thread = models.ForeignKey(
+        ContactThread,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    kind = models.CharField(max_length=20, choices=ContactMessageKind)
+    body = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Replies only: the author, the Owner's decision and the text before an edit.
+    state = models.CharField(
+        max_length=20,
+        choices=ContactReplyState,
+        blank=True,
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    rejection_note = models.TextField(blank=True)
+    drafted_body = models.TextField(
+        blank=True,
+        help_text="The Staff text, kept when the Owner edits it before sending.",
+    )
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self) -> str:
+        return f"{self.kind} message in thread {self.thread_id}"

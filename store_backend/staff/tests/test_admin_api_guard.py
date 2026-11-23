@@ -61,6 +61,13 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "collections_publish": Perm.MANAGE_COLLECTIONS,
     "collections_unpublish": Perm.MANAGE_COLLECTIONS,
     "collections_delete": Perm.DELETE_CATALOGUE,
+    "contact_replies_approve": Perm.MANAGE_CONTACT,
+    "contact_replies_reject": Perm.MANAGE_CONTACT,
+    "banners_publish": Perm.MANAGE_BANNERS,
+    "banners_unpublish": Perm.MANAGE_BANNERS,
+    "campaign_pages_publish": Perm.MANAGE_CAMPAIGN_PAGES,
+    "campaign_pages_unpublish": Perm.MANAGE_CAMPAIGN_PAGES,
+    "campaign_pages_link_campaign": Perm.MANAGE_CAMPAIGN_PAGES,
     "campaigns_list": Perm.MANAGE_CAMPAIGNS,
     "campaigns_get": Perm.MANAGE_CAMPAIGNS,
     "campaigns_create": Perm.MANAGE_CAMPAIGNS,
@@ -91,6 +98,7 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "legal_pages_versions": Perm.MANAGE_LEGAL_PAGES,
     "legal_pages_get_version": Perm.MANAGE_LEGAL_PAGES,
     "legal_pages_publish": Perm.MANAGE_LEGAL_PAGES,
+    "legal_pages_change_slug": Perm.MANAGE_LEGAL_PAGES,
 }
 
 # Operations that need the Owner group itself rather than a named permission (a screen
@@ -104,6 +112,15 @@ OWNER_GROUP_OPERATIONS = {
     "reports_returns_csv",
     "reports_campaigns_vouchers",
     "reports_campaigns_vouchers_csv",
+    "contact_categories_list",
+    "contact_categories_create",
+    "contact_categories_update",
+    "contact_categories_delete",
+    "approvals_list",
+    "approvals_get",
+    "approvals_approve",
+    "approvals_reject",
+    "approvals_unpublish",
 }
 
 # Owner-only permissions that no endpoint declares because a service checks them

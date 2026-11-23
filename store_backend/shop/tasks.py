@@ -1,5 +1,6 @@
 from celery import shared_task
 
+from store_backend.services import contact_threads
 from store_backend.services import order_ops
 from store_backend.services import stock
 from store_backend.services import stock_alerts
@@ -23,3 +24,9 @@ def send_low_stock_digest() -> int:
 def purge_stock_alerts() -> dict[str, int]:
     """Remove lapsed Stock alerts and Alert consent records past 3 years."""
     return stock_alerts.purge()
+
+
+@shared_task
+def purge_contact_threads() -> int:
+    """Anonymise contact threads three years after their last activity."""
+    return contact_threads.purge()

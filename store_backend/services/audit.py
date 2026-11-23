@@ -47,6 +47,7 @@ class Action(StrEnum):
     CATALOGUE_IMPORT = "catalogue_import"
     ACCOUNT_DELETION = "account_deletion"
     LEGAL_PAGE_PUBLISHED = "legal_page_published"
+    LEGAL_SLUG_CHANGED = "legal_slug_changed"
     REVIEW_APPROVED = "review_approved"
     REVIEW_REJECTED = "review_rejected"
     REVIEW_DELETED = "review_deleted"
@@ -82,6 +83,20 @@ class Action(StrEnum):
     CAMPAIGN_DELETED = "campaign_deleted"
     SIZE_GUIDE_EDITED = "size_guide_edited"
     FIT_NOTE_EDITED = "fit_note_edited"
+    APPROVAL_SUBMITTED = "approval_submitted"
+    APPROVAL_WITHDRAWN = "approval_withdrawn"
+    APPROVAL_APPROVED = "approval_approved"
+    APPROVAL_REJECTED = "approval_rejected"
+    APPROVAL_PUBLISHED = "approval_published"
+    APPROVAL_UNPUBLISHED = "approval_unpublished"
+    APPROVAL_EDITED = "approval_edited"
+    APPROVAL_CHANGE_SUBMITTED = "approval_change_submitted"
+    APPROVAL_CHANGE_APPROVED = "approval_change_approved"
+    APPROVAL_CHANGE_REJECTED = "approval_change_rejected"
+    CONTACT_REPLY_SUBMITTED = "contact_reply_submitted"
+    CONTACT_REPLY_APPROVED = "contact_reply_approved"
+    CONTACT_REPLY_REJECTED = "contact_reply_rejected"
+    CONTACT_REPLY_SENT = "contact_reply_sent"
 
 
 def record(  # noqa: PLR0913

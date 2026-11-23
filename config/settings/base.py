@@ -383,6 +383,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "store_backend.shop.tasks.purge_stock_alerts",
         "schedule": 60 * 60,
     },
+    "purge-contact-threads": {
+        "task": "store_backend.shop.tasks.purge_contact_threads",
+        "schedule": crontab(hour=3, minute=30),
+    },
     "dispatch-due-messages": {
         "task": "store_backend.messaging.tasks.dispatch_due_messages",
         "schedule": 60,
@@ -444,6 +448,8 @@ TRACKING_RATE_LIMIT = (20, 600)
 # Stock alert subscriptions per client address: (count, window in seconds).
 STOCK_ALERT_RATE_LIMIT = (10, 3600)
 TRACKING_ORDER_RATE_LIMIT = (8, 600)
+# Contact form submissions per client address: (count, window in seconds).
+CONTACT_RATE_LIMIT = (5, 3600)
 # Read the client address from the first `X-Forwarded-For` entry. Only turn this on
 # behind a proxy that sets the header itself; otherwise a client can forge it.
 TRUST_FORWARDED_FOR = False

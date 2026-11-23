@@ -344,6 +344,29 @@
         "title": "AddressIn",
         "type": "object"
       },
+      "AnnouncementOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "message",
+          "link"
+        ],
+        "title": "AnnouncementOut",
+        "type": "object"
+      },
       "AttributeBlockOut": {
         "properties": {
           "name": {
@@ -446,6 +469,46 @@
           "alt"
         ],
         "title": "BannerOut",
+        "type": "object"
+      },
+      "BannersOut": {
+        "properties": {
+          "announcement": {
+            "items": {
+              "$ref": "#/components/schemas/AnnouncementOut"
+            },
+            "title": "Announcement",
+            "type": "array"
+          },
+          "category_top": {
+            "items": {
+              "$ref": "#/components/schemas/PictureBannerOut"
+            },
+            "title": "Category Top",
+            "type": "array"
+          },
+          "home_hero": {
+            "items": {
+              "$ref": "#/components/schemas/PictureBannerOut"
+            },
+            "title": "Home Hero",
+            "type": "array"
+          },
+          "home_mid": {
+            "items": {
+              "$ref": "#/components/schemas/PictureBannerOut"
+            },
+            "title": "Home Mid",
+            "type": "array"
+          }
+        },
+        "required": [
+          "announcement",
+          "home_hero",
+          "home_mid",
+          "category_top"
+        ],
+        "title": "BannersOut",
         "type": "object"
       },
       "BasketLineOut": {
@@ -677,6 +740,145 @@
           "logo_url"
         ],
         "title": "BrandOut",
+        "type": "object"
+      },
+      "CampaignPageOut": {
+        "properties": {
+          "campaign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkedCampaignOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "ended": {
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductCardOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "slug",
+          "description",
+          "image",
+          "starts_at",
+          "ends_at",
+          "ended",
+          "campaign",
+          "items"
+        ],
+        "title": "CampaignPageOut",
+        "type": "object"
+      },
+      "CampaignPageRowOut": {
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "slug",
+          "image",
+          "starts_at",
+          "ends_at"
+        ],
+        "title": "CampaignPageRowOut",
         "type": "object"
       },
       "CardImageOut": {
@@ -993,6 +1195,68 @@
         "title": "ColourOut",
         "type": "object"
       },
+      "ContactCategoryOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ContactCategoryOut",
+        "type": "object"
+      },
+      "ContactIn": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "email": {
+            "maxLength": 254,
+            "title": "Email",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 20000,
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          },
+          "order_number": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Order Number",
+            "type": "string"
+          },
+          "website": {
+            "default": "",
+            "description": "Honeypot: a hidden field that real Shoppers leave empty.",
+            "maxLength": 200,
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "name",
+          "email",
+          "message"
+        ],
+        "title": "ContactIn",
+        "type": "object"
+      },
       "CrumbOut": {
         "properties": {
           "name": {
@@ -1203,6 +1467,45 @@
           "excerpt"
         ],
         "title": "LegalSearchHit",
+        "type": "object"
+      },
+      "LinkedCampaignOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "required": [
+          "starts_at",
+          "ends_at",
+          "active"
+        ],
+        "title": "LinkedCampaignOut",
         "type": "object"
       },
       "MenuNode": {
@@ -1713,6 +2016,52 @@
         ],
         "title": "PaymentMethod",
         "type": "string"
+      },
+      "PictureBannerOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Image",
+            "type": "array"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ImageSizeOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile Image"
+          }
+        },
+        "required": [
+          "id",
+          "alt",
+          "link",
+          "image",
+          "mobile_image"
+        ],
+        "title": "PictureBannerOut",
+        "type": "object"
       },
       "PlacedLineOut": {
         "properties": {
@@ -3836,6 +4185,46 @@
         ]
       }
     },
+    "/api/store/banners": {
+      "get": {
+        "description": "The active Banners per slot, in order: published and inside their dates. The\n`category_top` slot is filled only when a Category slug is given, with the Banners\ntied to that Category and those tied to none; a hidden Category is 404.",
+        "operationId": "catalog_list_banners",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BannersOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Banners",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/store/basket": {
       "get": {
         "operationId": "basket_get",
@@ -4046,6 +4435,66 @@
         ]
       }
     },
+    "/api/store/campaign-pages": {
+      "get": {
+        "description": "Published Campaign pages that have started and not ended, newest first.",
+        "operationId": "catalog_list_campaign_pages",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignPageRowOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Campaign Pages",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/store/campaign-pages/{slug}": {
+      "get": {
+        "description": "A published page. `ended` is true past its end date; a linked page lists its\ndiscounted Products while the Campaign is in force. 404 for draft, pending,\nunpublished and not-yet-started pages.",
+        "operationId": "catalog_get_campaign_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignPageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Campaign Page",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/store/categories": {
       "get": {
         "description": "The category tree for the header menu and the homepage: `depth` levels\n(1 to 5, default 2), each node with its `child_count`\nand the `image_url` of its thumbnail (null until the image is ready).",
@@ -4225,6 +4674,69 @@
         "summary": "Get Collection",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/store/contact": {
+      "post": {
+        "description": "Send a message. Open to Guests and signed-in Shoppers; the Shopper gets an\nacknowledgement email. An order number that matches an Order links the thread to\nit, otherwise it is kept as typed. 422 for a bad field, 429 on too many tries from\none address. A filled `website` honeypot answers 201 and stores nothing.",
+        "operationId": "contact_submit",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "Submit",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/store/contact/categories": {
+      "get": {
+        "description": "The active topics, in the Owner's order.",
+        "operationId": "contact_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactCategoryOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "GuestAuth": []
+          }
+        ],
+        "summary": "List Categories",
+        "tags": [
+          "contact"
         ]
       }
     },
