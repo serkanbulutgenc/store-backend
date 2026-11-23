@@ -16,6 +16,7 @@ from ninja.security.base import AuthBase
 
 from store_backend.api.errors import ForbiddenError
 from store_backend.services import accounts
+from store_backend.staff.permissions import OWNER_GROUP
 from store_backend.users.middleware import TOKEN_HEADER
 
 if TYPE_CHECKING:
@@ -59,11 +60,28 @@ class RequiresPermission(_TokenHeaderAuth):
         if not self.allow_unenrolled_owner and accounts.mfa_blocked(user):
             msg = "Panele girmek için iki adımlı doğrulamayı etkinleştirmelisiniz."
             raise ForbiddenError(msg, code="mfa_enrolment_required")
-        if self.permission is not None and not user.has_perm(
-            self.permission.permission_name,
-        ):
+        if not self.allows(user):
             raise ForbiddenError
         return user
+
+    def allows(self, user) -> bool:
+        return self.permission is None or user.has_perm(
+            self.permission.permission_name,
+        )
+
+
+class RequiresOwner(RequiresPermission):
+    """The Owner group itself, for a screen that is not a grantable permission."""
+
+    def __init__(self) -> None:
+        super().__init__(None)
+
+    def allows(self, user) -> bool:
+        return user.groups.filter(name=OWNER_GROUP).exists()
+
+
+def requires_owner() -> RequiresOwner:
+    return RequiresOwner()
 
 
 def requires(

@@ -33,6 +33,7 @@ class ImportRowOut(Schema):
 class ImportCountsOut(Schema):
     products_to_create: int
     products_to_update: int
+    products_changed: int
     variants_to_create: int
     variants_to_update: int
     variants_unchanged: int

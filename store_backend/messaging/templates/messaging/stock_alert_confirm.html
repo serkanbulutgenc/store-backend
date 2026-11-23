@@ -1,0 +1,7 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>{{ product }} ({{ colour }}, {{ size }}) için stok bildirimi istediniz.</p>
+  <p>Ürün tekrar stoğa girdiğinde size bir kez e-posta göndereceğiz. Bunun için e-posta adresinizi onaylamanız gerekiyor. Onay bağlantısı 48 saat geçerlidir.</p>
+  <p><a href="{{ confirm_url }}" style="color:#6b2d5c;">E-postamı onayla</a></p>
+  <p>Bu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz.</p>
+{% endblock %}

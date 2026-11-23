@@ -124,6 +124,14 @@ def test_public_read_exposes_only_the_safe_subset(owner, api_for, client):
     assert "a@b.co" not in text
 
 
+def test_public_read_says_whether_stock_alerts_are_on(owner, api_for, client):
+    assert client.get(PUBLIC).json()["stock_alerts_enabled"] is False
+
+    api_for(owner, enrol=True).patch(ADMIN, {"stock_alerts_enabled": True})
+
+    assert client.get(PUBLIC).json()["stock_alerts_enabled"] is True
+
+
 def test_public_banner_is_null_when_unset(client):
     assert client.get(PUBLIC).json()["banner"] is None
 

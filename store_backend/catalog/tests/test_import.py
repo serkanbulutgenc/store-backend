@@ -69,6 +69,7 @@ def test_preview_reports_the_plan_and_writes_nothing(colours):
     assert plan.counts() == {
         "products_to_create": 1,
         "products_to_update": 0,
+        "products_changed": 0,
         "variants_to_create": 3,
         "variants_to_update": 0,
         "variants_unchanged": 0,
@@ -492,3 +493,72 @@ def test_a_size_guide_column_is_ignored_because_guides_are_not_importable(
     assert product.profile.size_guide == ""
     assert product.profile.fit_note == ""
     assert product.product_class.profile.size_guide == ""
+
+
+# --- the preview sees Product-level changes --------------------------------------
+
+
+def test_a_description_only_file_previews_as_a_changed_product(owner, colours):
+    catalog_import.run(owner, "a.csv", with_description("Eski", "", ""))
+
+    plan = catalog_import.preview(with_description("Yeni", "", ""))
+
+    assert plan.counts()["products_changed"] == 1
+    assert plan.counts()["variants_to_update"] == 0  # the variants really are unchanged
+    assert plan.counts()["variants_unchanged"] == 3  # noqa: PLR2004
+
+
+def test_a_fit_note_only_file_previews_as_a_changed_product(owner, colours):
+    catalog_import.run(owner, "a.csv", with_fit_note("Dar kalıp", "", ""))
+
+    plan = catalog_import.preview(with_fit_note("Bol kalıp", "", ""))
+
+    assert plan.counts()["products_changed"] == 1
+
+
+def test_the_same_description_or_a_blank_one_is_not_a_change(owner, colours):
+    catalog_import.run(owner, "a.csv", with_description("Aynı", "", ""))
+
+    assert (
+        catalog_import.preview(with_description("Aynı", "", "")).counts()[
+            "products_changed"
+        ]
+        == 0
+    )
+    assert (
+        catalog_import.preview(with_description("", "", "")).counts()[
+            "products_changed"
+        ]
+        == 0
+    )
+    assert catalog_import.preview(csv_bytes()).counts()["products_changed"] == 0
+
+
+def test_a_new_product_is_created_not_changed(colours):
+    plan = catalog_import.preview(with_description("Yeni", "", ""))
+
+    assert plan.counts()["products_to_create"] == 1
+    assert plan.counts()["products_changed"] == 0
+
+
+def test_a_kdv_only_change_previews_as_a_changed_product(owner, colours):
+    catalog_import.run(owner, "a.csv", csv_bytes())
+    rate = parent_product().profile.kdv_rate
+    other = "10" if rate != Decimal(10) else "20"
+    rows = ROWS.replace(",,5,", f",{other},5,")
+    rows = rows.replace(",,3,", f",{other},3,").replace(",,2,", f",{other},2,")
+
+    plan = catalog_import.preview(csv_bytes(rows))
+
+    assert plan.errors == []
+    assert plan.counts()["products_changed"] == 1
+
+
+def test_the_preview_endpoint_reports_products_changed(api_for, owner, colours):
+    catalog_import.run(owner, "a.csv", with_description("Eski", "", ""))
+    api = api_for(owner, enrol=True)
+
+    preview = upload(api, f"{BASE}/preview", with_description("Yeni", "", ""))
+
+    assert preview.status_code == HTTPStatus.OK
+    assert preview.json()["counts"]["products_changed"] == 1

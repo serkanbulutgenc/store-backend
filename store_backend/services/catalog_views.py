@@ -15,6 +15,7 @@ from store_backend.services import catalog_policy
 from store_backend.services import categories
 from store_backend.services import media
 from store_backend.services import stock
+from store_backend.services import stock_alerts
 
 if TYPE_CHECKING:
     from oscar.apps.catalogue.models import Category
@@ -113,7 +114,14 @@ def product_class_dict(pc: ProductClass, product_count: int | None = None) -> di
     }
 
 
-def variant_dict(v: Product) -> dict:
+def variant_dicts(variants) -> list[dict]:
+    """`variant_dict` for each, with the waiting counts in one query."""
+    variants = list(variants)
+    counts = stock_alerts.waiting_counts(v.pk for v in variants)
+    return [variant_dict(v, waiting=counts.get(v.pk, 0)) for v in variants]
+
+
+def variant_dict(v: Product, waiting: int | None = None) -> dict:
     vp = v.variant_profile
     records = list(v.stockrecords.all())
     record = records[0] if records else None
@@ -128,7 +136,15 @@ def variant_dict(v: Product) -> dict:
         "colour": colour_dict(vp.colour),
         "size": vp.size,
         "price_override": vp.price_override,
-        "stock": {"on_hand": on_hand, "allocated": allocated},
+        "stock": {
+            "on_hand": on_hand,
+            "allocated": allocated,
+            "waiting": (
+                stock_alerts.waiting_counts([v.pk]).get(v.pk, 0)
+                if waiting is None
+                else waiting
+            ),
+        },
         "is_low_stock": stock.is_low(record, threshold),
     }
 
@@ -158,7 +174,7 @@ def product_dict(user: Any, product: Product) -> dict:
         "description": product.description or "",
         "size_guide": profile.size_guide or None,
         "fit_note": profile.fit_note,
-        "variants": [variant_dict(v) for v in variants],
+        "variants": variant_dicts(variants),
         "attribute_values": attributes.values_for(product),
         "cost_price": profile.cost_price,
         "supplier": None

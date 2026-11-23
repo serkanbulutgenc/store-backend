@@ -4,6 +4,7 @@ import unicodedata
 
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 # The fixed Legal pages. Their text lives in `LegalPageVersion` rows (an edit adds the
 # next version, never changes one); `services.legal_pages` knows each page's current
@@ -61,6 +62,12 @@ class StoreSettings(models.Model):
         help_text="KDV rate for shipping and COD lines (pending accountant).",
     )
     low_stock_default = models.PositiveIntegerField(default=2)
+
+    stock_alerts_enabled = models.BooleanField(
+        default=False,
+        help_text="Stock alerts are commercial messages (ETK): leave off until the "
+        "Owner has confirmed the İYS registration.",
+    )
 
     # Bank transfer details shown to Shoppers who pick transfer.
     bank_name = models.CharField(max_length=100, blank=True)
@@ -639,6 +646,82 @@ class Favorite(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} -> {self.product_id}"
+
+
+class StockAlert(models.Model):
+    """A live request to be emailed once when a sold-out Variant is back.
+
+    Deleted when the email is sent, rejected, lapsed or the account is deleted. The
+    proof of consent lives on in `AlertConsent`. `expires_at` is 48 h after
+    subscribing while unconfirmed and 90 days after confirming.
+    """
+
+    email = models.EmailField()
+    variant = models.ForeignKey(
+        "catalogue.Product",
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="stock_alerts",
+    )
+    notice_version = models.CharField(
+        max_length=10,
+        help_text="Version of the privacy notice the Shopper saw when subscribing.",
+    )
+    confirm_token = models.CharField(max_length=64, unique=True)
+    confirm_sent_at = models.DateTimeField(null=True, blank=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                "variant",
+                name="one_stock_alert_per_email_and_variant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.email} -> variant {self.variant_id}"
+
+
+class AlertConsent(models.Model):
+    """The record that a Shopper agreed to a Stock alert email. Kept 3 years.
+
+    Separate from `StockAlert` so it outlives the live row. The Variant link is
+    nulled, not cascaded, if the Variant is deleted.
+    """
+
+    class HowGiven(models.TextChoices):
+        CONFIRM_LINK = "confirm_link", "Onay bağlantısı"
+        SIGNED_IN = "signed_in", "Oturum açmış müşteri"
+
+    email = models.EmailField()
+    variant = models.ForeignKey(
+        "catalogue.Product",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    consented_at = models.DateTimeField()
+    notice_version = models.CharField(max_length=10)
+    how_given = models.CharField(max_length=20, choices=HowGiven.choices)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-consented_at", "-pk"]
+        indexes = [models.Index(fields=["consented_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.email} -> variant {self.variant_id}"
 
 
 class ReviewStatus(models.TextChoices):

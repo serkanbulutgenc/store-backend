@@ -996,6 +996,47 @@
         "title": "CampaignPatch",
         "type": "object"
       },
+      "CampaignReportRowOut": {
+        "properties": {
+          "campaign_id": {
+            "title": "Campaign Id",
+            "type": "integer"
+          },
+          "discount": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "campaign_id",
+          "name",
+          "orders",
+          "discount",
+          "revenue"
+        ],
+        "title": "CampaignReportRowOut",
+        "type": "object"
+      },
       "CampaignRowOut": {
         "properties": {
           "ends_at": {
@@ -1063,6 +1104,42 @@
           "status"
         ],
         "title": "CampaignRowOut",
+        "type": "object"
+      },
+      "CampaignsVouchersReportOut": {
+        "properties": {
+          "campaigns": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignReportRowOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
+          "kdv": {
+            "$ref": "#/components/schemas/Kdv"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "range": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "vouchers": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherReportRowOut"
+            },
+            "title": "Vouchers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "range",
+          "previous",
+          "kdv",
+          "campaigns",
+          "vouchers"
+        ],
+        "title": "CampaignsVouchersReportOut",
         "type": "object"
       },
       "CarrierOut": {
@@ -2057,6 +2134,42 @@
         "title": "ExpiringTransfers",
         "type": "object"
       },
+      "FeesOut": {
+        "properties": {
+          "cod": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Cod",
+            "type": "string"
+          },
+          "shipping": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Shipping",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipping",
+          "cod"
+        ],
+        "title": "FeesOut",
+        "type": "object"
+      },
+      "Group": {
+        "description": "How Sales rows are bucketed. Weeks start on Monday.",
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ],
+        "title": "Group",
+        "type": "string"
+      },
       "HomeOrderRow": {
         "properties": {
           "customer": {
@@ -2225,6 +2338,10 @@
       },
       "ImportCountsOut": {
         "properties": {
+          "products_changed": {
+            "title": "Products Changed",
+            "type": "integer"
+          },
           "products_to_create": {
             "title": "Products To Create",
             "type": "integer"
@@ -2249,6 +2366,7 @@
         "required": [
           "products_to_create",
           "products_to_update",
+          "products_changed",
           "variants_to_create",
           "variants_to_update",
           "variants_unchanged"
@@ -2678,6 +2796,69 @@
         ],
         "title": "InvoiceStatus",
         "type": "string"
+      },
+      "Kdv": {
+        "description": "Which price column a Report adds up: with KDV (default) or without.",
+        "enum": [
+          "incl",
+          "excl"
+        ],
+        "title": "Kdv",
+        "type": "string"
+      },
+      "KdvRangeParams": {
+        "properties": {
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "kdv": {
+            "allOf": [
+              {
+                "description": "Which price column a Report adds up: with KDV (default) or without.",
+                "enum": [
+                  "incl",
+                  "excl"
+                ],
+                "title": "Kdv",
+                "type": "string"
+              }
+            ],
+            "default": "incl"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "KdvRangeParams",
+        "type": "object"
       },
       "LowStock": {
         "properties": {
@@ -4597,6 +4778,28 @@
         "title": "PendingChangeOut",
         "type": "object"
       },
+      "PendingOut": {
+        "properties": {
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orders",
+          "revenue"
+        ],
+        "title": "PendingOut",
+        "type": "object"
+      },
       "PersonOut": {
         "properties": {
           "id": {
@@ -4614,6 +4817,17 @@
         ],
         "title": "PersonOut",
         "type": "object"
+      },
+      "Preset": {
+        "enum": [
+          "today",
+          "7d",
+          "30d",
+          "this_month",
+          "last_month"
+        ],
+        "title": "Preset",
+        "type": "string"
       },
       "ProductClassIn": {
         "properties": {
@@ -5494,6 +5708,59 @@
         "title": "ProductPatch",
         "type": "object"
       },
+      "ProductRowOut": {
+        "properties": {
+          "previous_revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Previous Revenue",
+            "type": "string"
+          },
+          "previous_units": {
+            "title": "Previous Units",
+            "type": "integer"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "title",
+          "units",
+          "revenue",
+          "previous_units",
+          "previous_revenue"
+        ],
+        "title": "ProductRowOut",
+        "type": "object"
+      },
       "ProductStatus": {
         "enum": [
           "draft",
@@ -5502,6 +5769,106 @@
         ],
         "title": "ProductStatus",
         "type": "string"
+      },
+      "ProductsParams": {
+        "properties": {
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "kdv": {
+            "allOf": [
+              {
+                "description": "Which price column a Report adds up: with KDV (default) or without.",
+                "enum": [
+                  "incl",
+                  "excl"
+                ],
+                "title": "Kdv",
+                "type": "string"
+              }
+            ],
+            "default": "incl"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort": {
+            "allOf": [
+              {
+                "description": "What the Products report ranks by.",
+                "enum": [
+                  "revenue",
+                  "units"
+                ],
+                "title": "Sort",
+                "type": "string"
+              }
+            ],
+            "default": "revenue"
+          }
+        },
+        "title": "ProductsParams",
+        "type": "object"
+      },
+      "ProductsReportOut": {
+        "properties": {
+          "kdv": {
+            "$ref": "#/components/schemas/Kdv"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "range": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ProductRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/Sort"
+          }
+        },
+        "required": [
+          "range",
+          "previous",
+          "kdv",
+          "sort",
+          "rows"
+        ],
+        "title": "ProductsReportOut",
+        "type": "object"
       },
       "ProductsWithoutPhotos": {
         "properties": {
@@ -5576,6 +5943,46 @@
           "body"
         ],
         "title": "PublishIn",
+        "type": "object"
+      },
+      "RangeParams": {
+        "properties": {
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "RangeParams",
         "type": "object"
       },
       "RateOut": {
@@ -5686,6 +6093,45 @@
           }
         },
         "title": "RatePatch",
+        "type": "object"
+      },
+      "ReasonsOut": {
+        "description": "Returned units by why they came back; `unspecified` is a whole-order return.",
+        "properties": {
+          "changed_mind": {
+            "title": "Changed Mind",
+            "type": "integer"
+          },
+          "defective": {
+            "title": "Defective",
+            "type": "integer"
+          },
+          "other": {
+            "title": "Other",
+            "type": "integer"
+          },
+          "unspecified": {
+            "title": "Unspecified",
+            "type": "integer"
+          },
+          "wrong_item": {
+            "title": "Wrong Item",
+            "type": "integer"
+          },
+          "wrong_size": {
+            "title": "Wrong Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wrong_size",
+          "changed_mind",
+          "defective",
+          "wrong_item",
+          "other",
+          "unspecified"
+        ],
+        "title": "ReasonsOut",
         "type": "object"
       },
       "RefundMethod": {
@@ -5855,6 +6301,57 @@
         "title": "ReturnLineAdminOut",
         "type": "object"
       },
+      "ReturnProductRowOut": {
+        "properties": {
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "reasons": {
+            "$ref": "#/components/schemas/ReasonsOut"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipped",
+          "returned",
+          "rate",
+          "reasons",
+          "product_id",
+          "title"
+        ],
+        "title": "ReturnProductRowOut",
+        "type": "object"
+      },
       "ReturnReason": {
         "enum": [
           "wrong_size",
@@ -5959,6 +6456,45 @@
         "title": "ReturnRow",
         "type": "object"
       },
+      "ReturnSizeRowOut": {
+        "properties": {
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "reasons": {
+            "$ref": "#/components/schemas/ReasonsOut"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipped",
+          "returned",
+          "rate",
+          "reasons",
+          "size"
+        ],
+        "title": "ReturnSizeRowOut",
+        "type": "object"
+      },
       "ReturnStatus": {
         "enum": [
           "requested",
@@ -5969,6 +6505,197 @@
         ],
         "title": "ReturnStatus",
         "type": "string"
+      },
+      "ReturnsReportOut": {
+        "properties": {
+          "by_product": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnProductRowOut"
+            },
+            "title": "By Product",
+            "type": "array"
+          },
+          "by_size": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnSizeRowOut"
+            },
+            "title": "By Size",
+            "type": "array"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "range": {
+            "$ref": "#/components/schemas/SpanOut"
+          }
+        },
+        "required": [
+          "range",
+          "previous",
+          "by_product",
+          "by_size"
+        ],
+        "title": "ReturnsReportOut",
+        "type": "object"
+      },
+      "SalesParams": {
+        "properties": {
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "group": {
+            "allOf": [
+              {
+                "description": "How Sales rows are bucketed. Weeks start on Monday.",
+                "enum": [
+                  "day",
+                  "week",
+                  "month"
+                ],
+                "title": "Group",
+                "type": "string"
+              }
+            ],
+            "default": "day"
+          },
+          "kdv": {
+            "allOf": [
+              {
+                "description": "Which price column a Report adds up: with KDV (default) or without.",
+                "enum": [
+                  "incl",
+                  "excl"
+                ],
+                "title": "Kdv",
+                "type": "string"
+              }
+            ],
+            "default": "incl"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "SalesParams",
+        "type": "object"
+      },
+      "SalesReportOut": {
+        "properties": {
+          "fees": {
+            "$ref": "#/components/schemas/FeesOut"
+          },
+          "group": {
+            "$ref": "#/components/schemas/Group"
+          },
+          "kdv": {
+            "$ref": "#/components/schemas/Kdv"
+          },
+          "pending": {
+            "$ref": "#/components/schemas/PendingOut"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "previous_totals": {
+            "$ref": "#/components/schemas/TotalsOut"
+          },
+          "range": {
+            "$ref": "#/components/schemas/SpanOut"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SalesRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsOut"
+          }
+        },
+        "required": [
+          "range",
+          "previous",
+          "kdv",
+          "group",
+          "totals",
+          "previous_totals",
+          "pending",
+          "fees",
+          "rows"
+        ],
+        "title": "SalesReportOut",
+        "type": "object"
+      },
+      "SalesRowOut": {
+        "properties": {
+          "average_order": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Average Order",
+            "type": "string"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "period": {
+            "format": "date",
+            "title": "Period",
+            "type": "string"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orders",
+          "items",
+          "revenue",
+          "average_order",
+          "period"
+        ],
+        "title": "SalesRowOut",
+        "type": "object"
       },
       "SettingsOut": {
         "properties": {
@@ -6076,6 +6803,10 @@
             "pattern": "^-?\\d+\\.\\d{2}$",
             "title": "Shipping Fee",
             "type": "string"
+          },
+          "stock_alerts_enabled": {
+            "title": "Stock Alerts Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6084,6 +6815,7 @@
           "cod_fee",
           "fee_kdv_rate",
           "low_stock_default",
+          "stock_alerts_enabled",
           "bank_name",
           "bank_account_holder",
           "bank_iban",
@@ -6317,6 +7049,17 @@
               }
             ],
             "title": "Shipping Fee"
+          },
+          "stock_alerts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Alerts Enabled"
           }
         },
         "title": "SettingsPatch",
@@ -6513,6 +7256,35 @@
         "title": "SkippedCombinationOut",
         "type": "object"
       },
+      "Sort": {
+        "description": "What the Products report ranks by.",
+        "enum": [
+          "revenue",
+          "units"
+        ],
+        "title": "Sort",
+        "type": "string"
+      },
+      "SpanOut": {
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "SpanOut",
+        "type": "object"
+      },
       "StaffUserOut": {
         "properties": {
           "email": {
@@ -6653,11 +7425,17 @@
           "on_hand": {
             "title": "On Hand",
             "type": "integer"
+          },
+          "waiting": {
+            "description": "Shoppers waiting for a Stock alert on this Variant (confirmed, not lapsed). Never their addresses.",
+            "title": "Waiting",
+            "type": "integer"
           }
         },
         "required": [
           "on_hand",
-          "allocated"
+          "allocated",
+          "waiting"
         ],
         "title": "StockOut",
         "type": "object"
@@ -6747,6 +7525,42 @@
           "name"
         ],
         "title": "TargetOut",
+        "type": "object"
+      },
+      "TotalsOut": {
+        "properties": {
+          "average_order": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Average Order",
+            "type": "string"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orders",
+          "items",
+          "revenue",
+          "average_order"
+        ],
+        "title": "TotalsOut",
         "type": "object"
       },
       "UnphotographedRow": {
@@ -7290,6 +8104,42 @@
         "title": "VoucherPatch",
         "type": "object"
       },
+      "VoucherReportRowOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "discount": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "orders",
+          "discount",
+          "revenue"
+        ],
+        "title": "VoucherReportRowOut",
+        "type": "object"
+      },
       "WinningCampaignOut": {
         "properties": {
           "id": {
@@ -7355,6 +8205,11 @@
       }
     },
     "securitySchemes": {
+      "RequiresOwner": {
+        "in": "header",
+        "name": "X-Session-Token",
+        "type": "apiKey"
+      },
       "RequiresPermission": {
         "in": "header",
         "name": "X-Session-Token",
@@ -12177,6 +13032,826 @@
         "summary": "Generate Variants",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/admin/reports/campaigns-vouchers": {
+      "get": {
+        "description": "Owner only. Per Campaign and per Voucher code: orders, the discount given\nand revenue, over the same sale rules as Sales. Prices include KDV unless\n`kdv=excl`.",
+        "operationId": "reports_campaigns_vouchers",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignsVouchersReportOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Campaigns Vouchers",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/campaigns-vouchers.csv": {
+      "get": {
+        "description": "Owner only. Campaigns and Vouchers as one CSV, for the same query as the\nreport. Audit-logged.",
+        "operationId": "reports_campaigns_vouchers_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Campaigns Vouchers Csv",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/products": {
+      "get": {
+        "description": "Owner only. Products ranked by `sort` (revenue or units), best first, over\nthe same ranges, KDV choice and sale rules as Sales.",
+        "operationId": "reports_products",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "What the Products report ranks by.",
+                  "enum": [
+                    "revenue",
+                    "units"
+                  ],
+                  "title": "Sort",
+                  "type": "string"
+                }
+              ],
+              "default": "revenue"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductsReportOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Products",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/products.csv": {
+      "get": {
+        "description": "Owner only. The Products ranking as CSV, for the same query as the report.\nAudit-logged.",
+        "operationId": "reports_products_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "What the Products report ranks by.",
+                  "enum": [
+                    "revenue",
+                    "units"
+                  ],
+                  "title": "Sort",
+                  "type": "string"
+                }
+              ],
+              "default": "revenue"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Products Csv",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/returns": {
+      "get": {
+        "description": "Owner only. Return rate by Product: returned units over units shipped, by\norder date. A row under 5 shipped units carries counts only (no rate).",
+        "operationId": "reports_returns",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnsReportOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Returns Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/returns.csv": {
+      "get": {
+        "description": "Owner only. Both Returns views as one CSV, for the same query as the\nreport. Audit-logged.",
+        "operationId": "reports_returns_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Returns Csv",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/sales": {
+      "get": {
+        "description": "Owner only. A custom `date_from`..`date_to` (at most 366 days) or a `preset`\n(default 30 days), compared with the same number of days just before it.\nPrices include KDV unless `kdv=excl`. `rows` are by `group` (day, week from\nMonday, or month).",
+        "operationId": "reports_sales",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "How Sales rows are bucketed. Weeks start on Monday.",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "title": "Group",
+                  "type": "string"
+                }
+              ],
+              "default": "day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesReportOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Sales",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/admin/reports/sales.csv": {
+      "get": {
+        "description": "Owner only. The Sales rows as CSV, for the same query as the report.\nAudit-logged.",
+        "operationId": "reports_sales_csv",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Preset"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kdv",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "Which price column a Report adds up: with KDV (default) or without.",
+                  "enum": [
+                    "incl",
+                    "excl"
+                  ],
+                  "title": "Kdv",
+                  "type": "string"
+                }
+              ],
+              "default": "incl"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "description": "How Sales rows are bucketed. Weeks start on Monday.",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "title": "Group",
+                  "type": "string"
+                }
+              ],
+              "default": "day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresOwner": []
+          }
+        ],
+        "summary": "Sales Csv",
+        "tags": [
+          "reports"
         ]
       }
     },

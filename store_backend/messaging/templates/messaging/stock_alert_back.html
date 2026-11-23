@@ -1,0 +1,8 @@
+{% extends "messaging/base.html" %}
+{% block content %}
+  <p>İstediğiniz ürün yeniden stokta.</p>
+  <p><strong>{{ product }}</strong><br>{{ colour }}, {{ size }}<br>{{ price }}</p>
+  <p><a href="{{ product_url }}" style="color:#6b2d5c;">Ürüne git</a></p>
+  <p>Sınırlı stok var.</p>
+  <p style="font-size:12px;"><a href="{{ reject_url }}" style="color:#6b2d5c;">Bu tür bildirimleri artık almak istemiyorum</a></p>
+{% endblock %}

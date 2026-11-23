@@ -194,7 +194,7 @@ def test_create_product_and_variant_via_api(staff_api, seed):
         {"colour_id": seed["colour"].pk, "size": "L", "stock": 3},
     )
     assert response.status_code == HTTPStatus.CREATED
-    assert response.json()["stock"] == {"on_hand": 3, "allocated": 0}
+    assert response.json()["stock"] == {"on_hand": 3, "allocated": 0, "waiting": 0}
     bad = staff_api.post(
         f"{BASE}/products/{created['id']}/variants",
         {"colour_id": seed["colour"].pk, "size": "42"},

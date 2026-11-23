@@ -1,0 +1,12 @@
+{% extends "messaging/base.txt" %}
+{% block content %}İstediğiniz ürün yeniden stokta.
+
+{{ product }}
+{{ colour }}, {{ size }}
+{{ price }}
+
+Ürüne git: {{ product_url }}
+
+Sınırlı stok var.
+
+Bu tür bildirimleri artık almak istemiyorum: {{ reject_url }}{% endblock %}

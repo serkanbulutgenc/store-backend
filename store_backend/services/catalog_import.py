@@ -116,6 +116,7 @@ class ProductPlan:
     description: str | None = None
     fit_note: str = ""
     product: Product | None = None  # the matched existing Product
+    changed: bool = False  # an existing Product whose own fields the file would change
     lines: list[Line] = field(default_factory=list)
 
 
@@ -140,6 +141,7 @@ class Plan:
             "products_to_update": sum(
                 1 for p in self.products if p.product is not None
             ),
+            "products_changed": sum(1 for p in self.products if p.changed),
             "variants_to_create": sum(1 for ln in self.lines if ln.action == "create"),
             "variants_to_update": sum(1 for ln in self.lines if ln.action == "update"),
             "variants_unchanged": sum(
@@ -515,6 +517,28 @@ def _match_variants(  # noqa: C901
             plan.price = plan.product.profile.shelf_price
 
 
+def _product_changes(p: ProductPlan) -> dict[str, object]:
+    """The Product-level fields the file would change on an existing Product.
+
+    One rule for the preview and for `apply`. A blank description or Fit note, or a
+    missing KDV, never clears what is stored, so only a non-blank, different value
+    counts.
+    """
+    if p.product is None:
+        return {}
+    profile = p.product.profile
+    changes: dict[str, object] = {}
+    if profile.shelf_price != p.price:
+        changes["shelf_price"] = p.price
+    if p.kdv is not None and profile.kdv_rate != p.kdv:
+        changes["kdv_rate"] = p.kdv
+    if p.description and p.product.description != p.description:
+        changes["description"] = p.description
+    if p.fit_note and profile.fit_note != p.fit_note:
+        changes["fit_note"] = p.fit_note
+    return changes
+
+
 def _classify(
     plans: list[ProductPlan],
     errors: list[RowError],
@@ -524,6 +548,7 @@ def _classify(
     records: dict[int, StockRecord] = stock.records_for(variant_ids)
     for plan in plans:
         profile = plan.product.profile if plan.product else None
+        plan.changed = bool(_product_changes(plan))
         for ln in plan.lines:
             if (
                 profile is not None
@@ -626,7 +651,7 @@ def _ensure_parents(plan: Plan) -> tuple[dict, dict, dict]:
     return brands, suppliers, categories
 
 
-def _apply_product(  # noqa: C901
+def _apply_product(
     actor: User,
     p: ProductPlan,
     refs: tuple[dict, dict, dict],
@@ -646,15 +671,7 @@ def _apply_product(  # noqa: C901
             fit_note=p.fit_note,
         )
     else:
-        changes: dict[str, object] = {}
-        if p.product.profile.shelf_price != p.price:
-            changes["shelf_price"] = p.price
-        if p.kdv is not None and p.product.profile.kdv_rate != p.kdv:
-            changes["kdv_rate"] = p.kdv
-        if p.description and p.product.description != p.description:
-            changes["description"] = p.description
-        if p.fit_note and p.product.profile.fit_note != p.fit_note:
-            changes["fit_note"] = p.fit_note
+        changes = _product_changes(p)
         if changes:
             catalog.update_product(actor, p.product, **changes)
     for ln in p.lines:
