@@ -20,7 +20,8 @@ LEGAL_PAGES: tuple[str, ...] = (
 )
 
 
-# The public address (slug) and original title of each page. Slugs never change.
+# The original public address (slug) and title of each page. The Owner may change a slug
+# later (`LegalPageSlug` holds the live and the old ones); these are where each starts.
 LEGAL_PAGE_META: dict[str, tuple[str, str]] = {
     "distance_sales_contract": (
         "mesafeli-satis-sozlesmesi",
@@ -163,6 +164,30 @@ class LegalPageVersion(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ImmutableError
+
+
+class LegalPageSlug(models.Model):
+    """One public address of a Legal page. A page has exactly one current slug; the
+    ones it had before stay as rows that redirect to the current one, so a link in an
+    old email or contract keeps working. The page key, its versions and Consent records
+    never move."""
+
+    page = models.CharField(max_length=40, choices=[(p, p) for p in LEGAL_PAGES])
+    slug = models.SlugField(max_length=100, unique=True)
+    is_current = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page"],
+                condition=models.Q(is_current=True),
+                name="shop_legal_slug_one_current_per_page",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.page}: {self.slug}"
 
 
 class PaymentMethod(models.TextChoices):
