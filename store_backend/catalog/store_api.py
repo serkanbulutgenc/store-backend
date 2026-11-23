@@ -14,6 +14,7 @@ from ninja import Router
 from ninja import Schema
 
 from store_backend.api.money import Money
+from store_backend.services import banners
 from store_backend.services import browse
 from store_backend.services import campaign_pages
 from store_backend.services import collections
@@ -311,6 +312,39 @@ def get_recently_viewed(request, slugs: str = ""):
     separated and in that order. Products that are gone or sold out are left out."""
     wanted = (part.strip() for part in slugs.split(","))
     return browse.recently_viewed([slug for slug in wanted if slug])
+
+
+class AnnouncementOut(Schema):
+    id: int
+    message: str
+    link: str
+
+
+class PictureBannerOut(Schema):
+    id: int
+    alt: str
+    link: str
+    image: list[ImageSizeOut]
+    mobile_image: list[ImageSizeOut] | None
+
+
+class BannersOut(Schema):
+    announcement: list[AnnouncementOut]
+    home_hero: list[PictureBannerOut]
+    home_mid: list[PictureBannerOut]
+    category_top: list[PictureBannerOut]
+
+
+@router.get(
+    "/banners",
+    operation_id="catalog_list_banners",
+    response=BannersOut,
+)
+def list_banners(request, category: str | None = None):
+    """The active Banners per slot, in order: published and inside their dates. The
+    `category_top` slot is filled only when a Category slug is given, with the Banners
+    tied to that Category and those tied to none; a hidden Category is 404."""
+    return banners.public(category)
 
 
 class CampaignPageRowOut(Schema):

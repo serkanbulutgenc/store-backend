@@ -761,3 +761,89 @@ class CampaignPage(ApprovalFields):
             {"width": d["width"], "url": media_url(d["name"])}
             for d in self.image_derivatives
         ]
+
+
+class Banner(ApprovalFields):
+    """A promotion in one fixed Storefront slot (phase 4, section 4): an image (plus an
+    optional mobile image) with alt text, or a message for the announcement bar. Staff
+    draft and the Owner approves the slot and content. The images are not staged by
+    the approval rule: Staff change them on a draft only, the Owner any time."""
+
+    class Slot(models.TextChoices):
+        ANNOUNCEMENT = "announcement", "Announcement bar"
+        HOME_HERO = "home_hero", "Home hero"
+        HOME_MID = "home_mid", "Home mid-page"
+        CATEGORY_TOP = "category_top", "Category page top"
+
+    slot = models.CharField(max_length=16, choices=Slot.choices)
+    message = models.CharField(max_length=200, blank=True)
+    link = models.CharField(max_length=500, blank=True)
+    position = models.PositiveIntegerField(default=0)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    # Only for the category slot: the banner shows on that Category's page. Empty
+    # means every Category page. Deleting the Category deletes its banners.
+    category = models.ForeignKey(
+        Category,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    image_alt = models.CharField(max_length=255, blank=True)
+    image_original = models.CharField(max_length=255, blank=True)
+    image_width = models.PositiveIntegerField(default=0)
+    image_height = models.PositiveIntegerField(default=0)
+    image_status = models.CharField(
+        max_length=16,
+        choices=CategoryProfile.ImageStatus.choices,
+        blank=True,
+        default="",
+    )
+    image_derivatives = models.JSONField(default=list, blank=True)
+    image_error = models.TextField(blank=True)
+    mobile_original = models.CharField(max_length=255, blank=True)
+    mobile_width = models.PositiveIntegerField(default=0)
+    mobile_height = models.PositiveIntegerField(default=0)
+    mobile_status = models.CharField(
+        max_length=16,
+        choices=CategoryProfile.ImageStatus.choices,
+        blank=True,
+        default="",
+    )
+    mobile_derivatives = models.JSONField(default=list, blank=True)
+    mobile_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["slot", "position", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(starts_at__isnull=True)
+                | Q(ends_at__isnull=True)
+                | Q(ends_at__gt=models.F("starts_at")),
+                name="catalog_banner_ends_after_start",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.message or f"{self.slot} #{self.pk}"
+
+    def image_file_names(self, which: str = "image") -> list[str]:
+        """Files of one image: `image` or `mobile`."""
+        prefix = "image_" if which == "image" else "mobile_"
+        original = getattr(self, f"{prefix}original")
+        if not original:
+            return []
+        derivatives = getattr(self, f"{prefix}derivatives")
+        return [original, *(d["name"] for d in derivatives)]
+
+    def image_derivative_urls(self, which: str = "image") -> list[dict]:
+        from store_backend.services.media import media_url  # noqa: PLC0415
+
+        prefix = "image_" if which == "image" else "mobile_"
+        return [
+            {"width": d["width"], "url": media_url(d["name"])}
+            for d in getattr(self, f"{prefix}derivatives")
+        ]
