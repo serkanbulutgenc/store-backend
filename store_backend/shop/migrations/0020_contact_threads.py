@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('order', '0021_billingaddress_code_shippingaddress_code'),
-        ('shop', '0018_stock_alerts'),
+        ('shop', '0019_legal_page_slugs'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

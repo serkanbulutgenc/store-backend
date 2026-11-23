@@ -91,6 +91,7 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "legal_pages_versions": Perm.MANAGE_LEGAL_PAGES,
     "legal_pages_get_version": Perm.MANAGE_LEGAL_PAGES,
     "legal_pages_publish": Perm.MANAGE_LEGAL_PAGES,
+    "legal_pages_change_slug": Perm.MANAGE_LEGAL_PAGES,
 }
 
 # Operations that need the Owner group itself rather than a named permission (a screen
@@ -108,6 +109,11 @@ OWNER_GROUP_OPERATIONS = {
     "contact_categories_create",
     "contact_categories_update",
     "contact_categories_delete",
+    "approvals_list",
+    "approvals_get",
+    "approvals_approve",
+    "approvals_reject",
+    "approvals_unpublish",
 }
 
 # Owner-only permissions that no endpoint declares because a service checks them

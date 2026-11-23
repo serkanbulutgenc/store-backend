@@ -22,10 +22,16 @@ class AdminLegalRow(Schema):
     version: int
     created_at: datetime
     created_by: str | None = None
+    # Earlier addresses of the page; each redirects to `slug`.
+    redirects: list[str] = []
 
 
 class AdminLegalVersion(AdminLegalRow):
     body: str
+
+
+class SlugIn(Schema):
+    slug: str
 
 
 class PublishIn(Schema):
@@ -51,8 +57,9 @@ def _row(v) -> dict:
     response=list[AdminLegalRow],
 )
 def list_pages(request):
-    """The current version of every page."""
-    return [_row(v) for v in legal_pages.current_all()]
+    """The current version of every page, with the earlier addresses that redirect."""
+    old = legal_pages.redirects_by_page()
+    return [{**_row(v), "redirects": old[v.page]} for v in legal_pages.current_all()]
 
 
 @router.get(
@@ -87,3 +94,17 @@ def publish_version(request, page: str, data: PublishIn):
     """Save the next version. It is live on the Storefront at once; 422 if unchanged."""
     v = legal_pages.publish(request.auth, page, title=data.title, body=data.body)
     return 201, {**_row(v), "body": v.body}
+
+
+@router.put(
+    "/legal-pages/{page}/slug",
+    auth=requires(Perm.MANAGE_LEGAL_PAGES),
+    operation_id="legal_pages_change_slug",
+    response=AdminLegalRow,
+)
+def change_slug(request, page: str, payload: SlugIn):
+    """Give a page a new address. The old one keeps redirecting to it; the page's
+    versions and the Consent records that point at them do not move."""
+    legal_pages.change_slug(request.user, page, payload.slug)
+    current = legal_pages.current(page)
+    return {**_row(current), "redirects": legal_pages.redirects(page)}
