@@ -16,6 +16,7 @@ from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
 from store_backend.services import contact
+from store_backend.services import contact_threads
 from store_backend.services import outbox
 from store_backend.shop.models import MAX_SAVED_ADDRESSES
 from store_backend.shop.models import AccountDeletionRequest
@@ -217,6 +218,8 @@ def anonymise(user: User) -> None:
     """Strip personal fields. Orders stay, with the name and billing address frozen
     on them at placement (and the guest email they were placed with).
     """
+    # Their contact threads go too, matched on the address they have now.
+    contact_threads.anonymise_for(user, email=user.email)
     user.email = f"deleted-{user.pk}@{ANONYMISED_DOMAIN}"
     user.name = ""
     user.phone = ""

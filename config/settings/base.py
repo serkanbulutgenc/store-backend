@@ -383,6 +383,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "store_backend.shop.tasks.purge_stock_alerts",
         "schedule": 60 * 60,
     },
+    "purge-contact-threads": {
+        "task": "store_backend.shop.tasks.purge_contact_threads",
+        "schedule": crontab(hour=3, minute=30),
+    },
     "dispatch-due-messages": {
         "task": "store_backend.messaging.tasks.dispatch_due_messages",
         "schedule": 60,
