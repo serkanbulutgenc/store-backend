@@ -13798,7 +13798,7 @@
     },
     "/api/admin/menu-targets": {
       "get": {
-        "description": "Categories, Legal pages, Products, Brands, Collections, Campaign pages matching `q` by name.",
+        "description": "Categories, Legal pages, Products, Brands, Collections and Campaign pages\nmatching `q` by name.",
         "operationId": "menus_search_targets",
         "parameters": [
           {
