@@ -12,7 +12,9 @@ from http import HTTPStatus
 from ninja import Field
 from ninja import Router
 from ninja import Schema
+from ninja.pagination import paginate
 
+from store_backend.api.pagination import PageOffsetPagination
 from store_backend.api.permissions import requires
 from store_backend.api.permissions import requires_owner
 from store_backend.catalog.collections_api import PersonOut  # noqa: TC001
@@ -118,6 +120,27 @@ class ThreadRow(Schema):
     anonymised: bool
 
 
+class ThreadSummary(ThreadRow):
+    snippet: str
+    pending_reply_count: int
+
+    @staticmethod
+    def resolve_category(obj) -> str:
+        return obj.category.name
+
+    @staticmethod
+    def resolve_assignee(obj) -> dict | None:
+        return _person(obj.assignee)
+
+    @staticmethod
+    def resolve_anonymised(obj) -> bool:
+        return obj.anonymised_at is not None
+
+    @staticmethod
+    def resolve_snippet(obj) -> str:
+        return contact_threads.snippet(obj)
+
+
 class ReplyOut(Schema):
     id: int
     kind: str
@@ -201,14 +224,35 @@ def _thread_out(thread) -> dict:
     "/contact-threads",
     auth=requires(Perm.EDIT_CONTACT),
     operation_id="contact_threads_list",
-    response=list[ThreadRow],
+    response=list[ThreadSummary],
 )
-def list_threads(request, status: str | None = None, assignee_id: int | None = None):
-    """Every thread, latest activity first; `status` and `assignee_id` narrow it."""
-    return [
-        _thread_row(t)
-        for t in contact_threads.threads(status=status, assignee_id=assignee_id)
-    ]
+@paginate(PageOffsetPagination)
+def list_threads(  # noqa: PLR0913, PLR0917
+    request,
+    q: str | None = None,
+    status: str | None = None,
+    assignee_id: int | None = None,
+    category_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    has_pending_reply: bool | None = None,  # noqa: FBT001
+):
+    """Threads, latest activity first, as a page. Filters combine.
+
+    `q` searches name, email, order number, category and message text (anonymised
+    threads never match it). `date_from`/`date_to` (YYYY-MM-DD) bound the last activity,
+    both days included. `has_pending_reply` finds threads with a reply waiting for the
+    Owner.
+    """
+    return contact_threads.threads(
+        q=q,
+        status=status,
+        assignee_id=assignee_id,
+        category_id=category_id,
+        date_from=date_from,
+        date_to=date_to,
+        has_pending_reply=has_pending_reply,
+    )
 
 
 @router.get(

@@ -5838,6 +5838,37 @@
         "title": "PagedStaffUserOut",
         "type": "object"
       },
+      "PagedThreadSummary": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PagedThreadSummary",
+        "type": "object"
+      },
       "PagedVoucherAdminOut": {
         "properties": {
           "items": {
@@ -9067,7 +9098,7 @@
         "title": "ThreadPatch",
         "type": "object"
       },
-      "ThreadRow": {
+      "ThreadSummary": {
         "properties": {
           "anonymised": {
             "title": "Anonymised",
@@ -9113,6 +9144,14 @@
             "title": "Order Number",
             "type": "string"
           },
+          "pending_reply_count": {
+            "title": "Pending Reply Count",
+            "type": "integer"
+          },
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -9128,9 +9167,11 @@
           "assignee",
           "created_at",
           "last_activity_at",
-          "anonymised"
+          "anonymised",
+          "snippet",
+          "pending_reply_count"
         ],
-        "title": "ThreadRow",
+        "title": "ThreadSummary",
         "type": "object"
       },
       "TotalsOut": {
@@ -13727,9 +13768,25 @@
     },
     "/api/admin/contact-threads": {
       "get": {
-        "description": "Every thread, latest activity first; `status` and `assignee_id` narrow it.",
+        "description": "Threads, latest activity first, as a page. Filters combine.\n\n`q` searches name, email, order number, category and message text (anonymised\nthreads never match it). `date_from`/`date_to` (YYYY-MM-DD) bound the last activity,\nboth days included. `has_pending_reply` finds threads with a reply waiting for the\nOwner.",
         "operationId": "contact_threads_list",
         "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
           {
             "in": "query",
             "name": "status",
@@ -13761,6 +13818,93 @@
               ],
               "title": "Assignee Id"
             }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_pending_reply",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Pending Reply"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -13768,11 +13912,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ThreadRow"
-                  },
-                  "title": "Response",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagedThreadSummary"
                 }
               }
             },
