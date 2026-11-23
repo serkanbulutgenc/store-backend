@@ -179,6 +179,23 @@ def list_categories(request, depth: int = Query(2, ge=1, le=5)):
     return browse.category_tree(depth)
 
 
+class HomeCategoryOut(Schema):
+    name: str
+    slug: str
+    image_url: str | None
+    image_alt: str
+
+
+@router.get(
+    "/home-categories",
+    operation_id="catalog_list_home_categories",
+    response=list[HomeCategoryOut],
+)
+def list_home_categories(request):
+    """The Categories the Owner picked for the homepage row, in the Owner's order."""
+    return browse.home_categories()
+
+
 class CategoryPageOut(Schema):
     name: str
     slug: str

@@ -203,6 +203,18 @@ def unpublish_banner(request, banner_id: int):
     return banners.get(banner_id)
 
 
+@router.delete(
+    "/banners/{banner_id}",
+    auth=requires(Perm.EDIT_BANNERS),
+    operation_id="banners_delete",
+    response={204: None},
+)
+def delete_banner(request, banner_id: int):
+    """The Owner deletes any Banner; Staff only a draft."""
+    banners.delete(request.auth, banner_id)
+    return 204, None
+
+
 @router.post(
     "/banners/{banner_id}/image",
     auth=requires(Perm.EDIT_BANNERS),

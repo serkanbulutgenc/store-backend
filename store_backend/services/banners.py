@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -32,6 +33,8 @@ from store_backend.services import audit
 from store_backend.services import categories
 from store_backend.services import media
 from store_backend.staff.models import ApprovalStatus
+from store_backend.staff.models import ApprovedVersion
+from store_backend.staff.models import PendingChange
 from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
@@ -332,9 +335,9 @@ def upload_image(
     file: UploadedFile,
     alt_text: str | None = None,
 ) -> Banner:
-    """Validate and store the `image` or `mobile` image (JPEG, PNG or WebP), replacing
-    any old one; derivatives follow in the background. `alt_text`, when given, is the
-    Banner's alt text (it covers both images)."""
+    """Validate and store the `image` or `mobile` image (JPEG, PNG, WebP or GIF),
+    replacing any old one; derivatives follow in the background. `alt_text`, when
+    given, is the Banner's alt text (it covers both images)."""
     prefix = _prefix(which)
     banner = _locked(banner_id)
     _guard_image_edit(actor, banner)
@@ -343,7 +346,10 @@ def upload_image(
         raise ConflictError(msg, code="banner_no_image_slot")
     alt = _clean_alt(alt_text) if alt_text is not None else None
     data = file.read(media.MAX_BYTES + 1)
-    data, extension, width, height = media._inspect(data)  # noqa: SLF001
+    data, extension, width, height = media._inspect(  # noqa: SLF001
+        data,
+        allow_gif=True,
+    )
     old = banner.image_file_names(which)
     name = f"banners/{uuid.uuid4().hex}{extension}"
     default_storage.save(name, ContentFile(data))
@@ -364,6 +370,39 @@ def upload_image(
         raise
     transaction.on_commit(lambda: _enqueue_image(banner_id, which))
     return banner
+
+
+@transaction.atomic
+def delete(actor: User, banner_id: int) -> None:
+    """Delete a Banner and its image files. The Owner may delete any; Staff only a
+    draft, because a live or pending Banner is the Owner's to take down."""
+    banner = _locked(banner_id)
+    if not _is_owner(actor):
+        if banner.status == ApprovalStatus.PENDING:
+            msg = "Onay bekleyen banner silinemez; önce geri çekin."
+            raise ConflictError(msg, code="approval_state")
+        if banner.status != ApprovalStatus.DRAFT:
+            msg = "Yayındaki bannerı yalnızca sahip silebilir."
+            raise ForbiddenError(msg, code="approval_owner_only")
+    title = _title(banner)
+    files = [*banner.image_file_names("image"), *banner.image_file_names("mobile")]
+    content_type = ContentType.objects.get_for_model(Banner)
+    PendingChange.objects.filter(
+        content_type=content_type,
+        object_id=banner.pk,
+    ).delete()
+    ApprovedVersion.objects.filter(
+        content_type=content_type,
+        object_id=banner.pk,
+    ).delete()
+    audit.record(
+        actor,
+        audit.Action.APPROVAL_DELETED,
+        target=banner,
+        summary=f"Banner silindi: {title}",
+    )
+    banner.delete()
+    media._schedule_names(files)  # noqa: SLF001
 
 
 def _enqueue_image(banner_id: int, which: str) -> None:
@@ -412,11 +451,17 @@ def process_image(banner_id: int, which: str) -> None:
     written: list[str] = []
     still_current = {"pk": banner_id, f"{prefix}original": original}
     try:
-        derivatives, width, height = media.make_derivatives(
-            original,
-            "banners",
-            written,
-        )
+        if original.endswith(".gif"):
+            # Re-encoding would flatten the animation: serve the GIF itself.
+            width = getattr(banner, f"{prefix}width")
+            height = getattr(banner, f"{prefix}height")
+            derivatives = [{"width": width, "name": original}]
+        else:
+            derivatives, width, height = media.make_derivatives(
+                original,
+                "banners",
+                written,
+            )
     except Exception as exc:  # noqa: BLE001
         media.logger.exception("Banner %s image could not be processed", banner_id)
         media._schedule_names(written)  # noqa: SLF001
