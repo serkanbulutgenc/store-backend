@@ -841,6 +841,18 @@ def test_the_kampanyalar_built_in_page_links_to_the_list(boss):
     ]
 
 
+def test_the_iletisim_built_in_page_links_to_the_contact_form(boss):
+    # The footer always keeps the legal index link; the contact page sits beside it.
+    saved = boss.put(FOOTER, {"items": [LEGAL_INDEX, builtin("contact")]})
+
+    assert saved.status_code == HTTPStatus.OK, saved.content
+    assert saved.json()["items"][1]["link"] == "/iletisim"
+    assert saved.json()["items"][1]["target_label"] == "İletişim"
+    assert ("İletişim", "/iletisim") in [
+        (i["label"], i["url"]) for i in public()["footer"]
+    ]
+
+
 def test_the_picker_finds_campaign_pages_by_title(boss):
     page = make_page("Yaz indirimi")
 

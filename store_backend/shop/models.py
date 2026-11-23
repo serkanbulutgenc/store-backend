@@ -818,6 +818,7 @@ MENU_BUILTIN_PAGES: dict[str, tuple[str, str]] = {
     "basket": ("Sepet", "/sepet"),
     "legal_search": ("Yasal sayfalarda ara", "/yasal"),
     "campaigns": ("Kampanyalar", "/kampanyalar"),
+    "contact": ("İletişim", "/iletisim"),
 }
 
 
