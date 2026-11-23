@@ -902,3 +902,105 @@ class MenuItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.menu_id}:{self.target_type}:{self.label}"
+
+
+class ContactCategory(models.Model):
+    """A topic the Shopper picks on the contact form. Owner-managed; one that has
+    threads is deactivated instead of deleted."""
+
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "pk"]
+        verbose_name_plural = "contact categories"
+        constraints = [
+            models.UniqueConstraint(Lower("name"), name="contact_category_name_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ContactThreadStatus(models.TextChoices):
+    NEW = "new", "Yeni"
+    IN_PROGRESS = "in_progress", "Devam ediyor"
+    ANSWERED = "answered", "Yanıtlandı"
+
+
+class ContactThread(models.Model):
+    """One conversation started from the contact form. The Shopper's message and
+    later Staff drafts and replies are its `ContactMessage` rows, in order."""
+
+    category = models.ForeignKey(
+        ContactCategory,
+        on_delete=models.PROTECT,
+        related_name="threads",
+    )
+    name = models.CharField(max_length=100, blank=True)
+    email = models.EmailField(blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The signed-in Shopper who wrote it, if any.",
+    )
+    order_number = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="What the Shopper typed, kept as typed (upper-cased).",
+    )
+    order = models.ForeignKey(
+        "order.Order",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Set only when the typed number matches an Order.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ContactThreadStatus,
+        default=ContactThreadStatus.NEW,
+    )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(auto_now_add=True)
+    anonymised_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_activity_at", "-pk"]
+        indexes = [models.Index(fields=["status", "-last_activity_at"])]
+
+    def __str__(self) -> str:
+        return f"Thread {self.pk} ({self.status})"
+
+
+class ContactMessageKind(models.TextChoices):
+    SHOPPER = "shopper", "Müşteri"
+
+
+class ContactMessage(models.Model):
+    thread = models.ForeignKey(
+        ContactThread,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    kind = models.CharField(max_length=20, choices=ContactMessageKind)
+    body = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self) -> str:
+        return f"{self.kind} message in thread {self.thread_id}"
