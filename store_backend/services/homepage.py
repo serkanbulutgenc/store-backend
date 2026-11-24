@@ -12,6 +12,7 @@ from typing import Annotated
 from typing import Any
 from typing import Literal
 
+from django.db import transaction
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -22,6 +23,7 @@ from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import HomepageLayout
+from store_backend.services import audit
 from store_backend.services import banners
 from store_backend.services import browse
 from store_backend.services import collections
@@ -275,3 +277,42 @@ def public() -> dict[str, list[dict[str, Any]]]:
     mid = banners.public()["home_mid"]
     resolved = (_resolve(s, mid) for s in sections if s.visible)
     return {"sections": [r for r in resolved if r is not None]}
+
+
+# --- editing -----------------------------------------------------------------------
+
+
+def for_editing() -> dict[str, list[Section]]:
+    """The saved layout as the Dashboard edits it: every section, hidden ones too, with
+    its settings, unresolved."""
+    return {"sections": validate(get().sections)}
+
+
+def _normalised(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The stored sections with defaults filled in, for the audit trail. A document
+    that no longer validates is recorded as it is, so it can still be replaced."""
+    try:
+        return [s.model_dump() for s in validate(raw)]
+    except UnprocessableError:
+        return raw
+
+
+@transaction.atomic
+def save(actor: Any, raw_sections: list[dict[str, Any]]) -> dict[str, list[Section]]:
+    """Replace the whole layout and audit the change. Live at once (Owner only; Staff
+    drafts and approval come later)."""
+    sections = validate(raw_sections)
+    get()
+    layout = HomepageLayout.objects.select_for_update().get(pk=1)
+    before = _normalised(layout.sections)
+    layout.sections = [s.model_dump() for s in sections]
+    layout.save()
+    audit.record(
+        actor,
+        audit.Action.HOMEPAGE_SAVED,
+        target=layout,
+        summary="Vitrin düzeni kaydedildi",
+        before={"sections": before},
+        after={"sections": layout.sections},
+    )
+    return {"sections": sections}
