@@ -913,3 +913,23 @@ class Banner(ApprovalFields):
             {"width": d["width"], "url": media_url(d["name"])}
             for d in getattr(self, f"{prefix}derivatives")
         ]
+
+
+class HomepageLayout(models.Model):
+    """The Storefront home page: one document for the whole shop, always row 1 (see
+    `store_backend.services.homepage`; ADR 0012). `sections` is the ordered list of
+    Homepage sections as JSON; their shape is checked in code, never trusted here."""
+
+    sections = models.JSONField(default=list)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(pk=1),
+                name="catalog_homepage_layout_singleton",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return "Homepage layout"

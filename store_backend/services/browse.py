@@ -494,26 +494,21 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # 
     return qs.order_by("-has_stock", "-product_id")
 
 
+def cards(f: Filters, *, sort: str = "newest", limit: int = PAGE_SIZE) -> list[dict]:
+    """The first `limit` cards of a listing, without its count or facets."""
+    f = resolve(f)
+    qs = _order(matching(f).select_related("product"), sort, f)
+    return cards_for(list(qs[:limit]))
+
+
 def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
     f = resolve(f)
     qs = _order(matching(f).select_related("product"), sort, f)
     total = qs.count()
     offset = (page - 1) * PAGE_SIZE
     profiles = list(qs[offset : offset + PAGE_SIZE])
-    ids = [p.product_id for p in profiles]
-    variants = variants_by_product(ids)
-    photos = photos_by_product(ids)
-    ratings = reviews.ratings_for(ids)
     return {
-        "items": [
-            product_card(
-                p,
-                variants[p.product_id],
-                photos[p.product_id],
-                ratings[p.product_id],
-            )
-            for p in profiles
-        ],
+        "items": cards_for(profiles),
         "total": total,
         "page": page,
         "page_size": PAGE_SIZE,
@@ -773,7 +768,7 @@ def _similar(slug: str) -> list[dict]:
         score=_similar_score(profile, own_ids),
         units_sold=_units_sold(),
     ).order_by("-score", "-units_sold", "-product_id")
-    return _cards(list(ranked[:SIMILAR_MAX]))
+    return cards_for(list(ranked[:SIMILAR_MAX]))
 
 
 def _similar_candidates(
@@ -849,7 +844,7 @@ def _similar_score(profile: ProductProfile, own_category_ids: list[int]) -> Any:
     )
 
 
-def _cards(profiles: list[ProductProfile]) -> list[dict]:
+def cards_for(profiles: list[ProductProfile]) -> list[dict]:
     ids = [p.product_id for p in profiles]
     variants = variants_by_product(ids)
     photos = photos_by_product(ids)
@@ -879,4 +874,4 @@ def recently_viewed(slugs: list[str]) -> list[dict]:
         raise UnprocessableError(msg, fields={"slugs": [msg]})
     found = {p.slug: p for p in published().filter(slug__in=slugs)}
     ordered = [found[s] for s in dict.fromkeys(slugs) if s in found]
-    return [card for card in _cards(ordered) if not card["sold_out"]]
+    return [card for card in cards_for(ordered) if not card["sold_out"]]
