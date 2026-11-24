@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+from store_backend.services import basket_campaigns
 from store_backend.services import campaign_pricing
 from store_backend.services import catalog
 from store_backend.services import pricing
@@ -50,6 +51,9 @@ class Quote:
     priced: dict[int, campaign_pricing.Priced] = field(default_factory=dict)
     skipped_voucher: Voucher | None = None  # on the basket, but not applied
     voucher_problem: str | None = None  # why it was not applied
+    # The Basket Campaigns this basket gets (ADR 0011), applied before any Voucher: at
+    # most one discount and one free shipping.
+    campaigns: tuple[basket_campaigns.Applied, ...] = ()
     totals: pricing.OrderTotals = field(init=False)
 
     def __post_init__(self) -> None:
@@ -59,10 +63,15 @@ class Quote:
         object.__setattr__(self, "totals", pricing.order_totals(priced))
 
     @property
+    def campaign_discount(self) -> Decimal:
+        """What the Basket Campaign discount took off the items (0 if none)."""
+        return sum((c.discount for c in self.campaigns), pricing.ZERO)
+
+    @property
     def items_total(self) -> Decimal:
-        """What the items cost before any Voucher discount."""
+        """What the items cost at Campaign prices, before any discount of the basket."""
         paid = sum((s.total_incl for s in self.snapshots.values()), pricing.ZERO)
-        return paid + self.discount
+        return paid + self.discount + self.campaign_discount
 
 
 def _priced(lines: list[BasketLine]) -> dict[int, campaign_pricing.Priced]:
@@ -97,16 +106,12 @@ def _shipping_amount(
 
 
 def _fees(
-    lines: list[BasketLine],
     method: PaymentMethod,
     store: StoreSettings,
-    province: str | None,
+    shipping_amount: Decimal,
 ) -> Fees:
     rate = store.fee_kdv_rate
-    shipping_fee = pricing.fee_line(
-        _shipping_amount(lines, store, province),
-        kdv_rate=rate,
-    )
+    shipping_fee = pricing.fee_line(shipping_amount, kdv_rate=rate)
     cod = (
         pricing.fee_line(store.cod_fee, kdv_rate=rate)
         if method == PaymentMethod.COD
@@ -125,27 +130,44 @@ def quote(
     """Price `lines` for a payment method under `store`'s fees. No writes.
 
     `province` is the destination il; without a known one (or desi) shipping is the
-    flat Settings fee. A `voucher` discounts the items only; fees are never discounted.
+    flat Settings fee. The Basket Campaigns for the items apply first (a discount and
+    free shipping together when both qualify), then a `voucher` discounts the items
+    only; fees are never discounted (free shipping waives the shipping fee instead).
     """
     priced = _priced(lines)
     snapshots = gross = _snapshots(lines, priced)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
+    shipping_amount = _shipping_amount(lines, store, province)
+    # The Basket Campaign is decided on the items at Campaign prices, before a Voucher.
+    campaigns = basket_campaigns.applied(items_total, shipping_amount)
+    campaign_discount = sum((c.discount for c in campaigns), pricing.ZERO)
+    if campaign_discount:
+        discounted = pricing.apply_discount(list(snapshots.values()), campaign_discount)
+        snapshots = dict(zip(snapshots, discounted, strict=True))
     discount = pricing.ZERO
     if voucher is not None:
         offer = voucher.offers.get()
-        if items_total < offer.condition.value:
+        if items_total < offer.condition.value:  # measured before both
             raise VoucherNotApplicableError
         benefit = offer.benefit
-        discount = pricing.voucher_discount(items_total, benefit.type, benefit.value)
+        # A percentage takes its share of what the Basket Campaign left.
+        discount = pricing.voucher_discount(
+            items_total - campaign_discount,
+            benefit.type,
+            benefit.value,
+        )
         discounted = pricing.apply_discount(list(snapshots.values()), discount)
         snapshots = dict(zip(snapshots, discounted, strict=True))
+    if any(c.free_shipping for c in campaigns):
+        shipping_amount = pricing.ZERO
     return Quote(
         lines,
         snapshots,
-        _fees(lines, method, store, province),
+        _fees(method, store, shipping_amount),
         store,
         discount,
         voucher,
         gross,
         priced=priced,
+        campaigns=tuple(campaigns),
     )

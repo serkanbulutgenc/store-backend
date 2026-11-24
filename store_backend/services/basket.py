@@ -18,10 +18,12 @@ from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import ProductStatus
+from store_backend.services import basket_campaigns
 from store_backend.services import browse
 from store_backend.services import campaign_pricing
 from store_backend.services import catalog
 from store_backend.services import pricing
+from store_backend.services import shop_settings
 from store_backend.services import stock
 from store_backend.services import vouchers
 
@@ -152,7 +154,11 @@ def _items_total(basket: Basket) -> Decimal:
     )
 
 
-def _voucher_view(basket: Basket, subtotal: Decimal) -> dict | None:
+def _voucher_view(
+    basket: Basket,
+    subtotal: Decimal,
+    after_campaign: Decimal,
+) -> dict | None:
     voucher = basket.vouchers.first() if basket.id else None
     if voucher is None:
         return None
@@ -176,7 +182,7 @@ def _voucher_view(basket: Basket, subtotal: Decimal) -> dict | None:
         "discount": (
             pricing.ZERO
             if problem
-            else pricing.voucher_discount(subtotal, benefit.type, benefit.value)
+            else pricing.voucher_discount(after_campaign, benefit.type, benefit.value)
         ),
         "minimum": minimum or None,
         "problem": problem,
@@ -279,10 +285,15 @@ def view(basket: Basket) -> dict:
                 ),
             },
         )
+    # The Basket Campaign is decided on the items at Campaign prices, before a Voucher.
+    # The destination is not known here, so free shipping is judged on the flat fee.
+    applied = basket_campaigns.applied(subtotal, shop_settings.get().shipping_fee)
+    off = sum((a.discount for a in applied), pricing.ZERO)
     return {
         "lines": out,
         "item_count": sum(line["quantity"] for line in out),
         "subtotal": subtotal,
         "has_problems": any(line["problem"] for line in out),
-        "voucher": _voucher_view(basket, subtotal),
+        "campaigns": basket_campaigns.applied_views(applied),
+        "voucher": _voucher_view(basket, subtotal, subtotal - off),
     }

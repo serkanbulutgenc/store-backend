@@ -14,6 +14,7 @@ from typing import Any
 from django.conf import settings
 from django.utils import timezone
 
+from store_backend.services import basket_campaigns
 from store_backend.services import payment
 from store_backend.services import pre_information
 from store_backend.services import tracking
@@ -25,6 +26,17 @@ if TYPE_CHECKING:
     from store_backend.shop.models import StoreSettings
 
 PAYMENT_WINDOW = timedelta(hours=48)
+
+
+def _campaigns(order: Order) -> list[dict[str, Any]]:
+    return [
+        {
+            "label": found["label"],
+            "discount": pre_information.format_try(found["discount"]),
+            "free_shipping": found["free_shipping"],
+        }
+        for found in basket_campaigns.frozen(order)
+    ]
 
 
 def build(order: Order, store: StoreSettings) -> dict[str, Any]:
@@ -54,7 +66,8 @@ def build(order: Order, store: StoreSettings) -> dict[str, Any]:
             and tracking.payment_status_of(order) == "unpaid"
         ),
         "lines": lines,
-        # Lines show their price before the Voucher, so the figures add up.
+        # Lines show their price before any discount, so the figures add up.
+        "campaigns": _campaigns(order),
         "voucher": (
             {
                 "code": discounts[0].voucher_code,
