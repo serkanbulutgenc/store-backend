@@ -29,6 +29,7 @@ from store_backend.shop.models import InvoiceStatus
 from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import datetime
 
     from django.db.models import QuerySet
@@ -168,15 +169,20 @@ def open_returns() -> dict:
 
 
 #: Widget key -> the list that fills it. A Widget that is off is never queried.
-WIDGET_BUILDERS = {"open_returns": open_returns}
+WIDGET_BUILDERS: dict[str, Callable[[datetime], dict]] = {
+    "new_orders": lambda _now: new_orders(),
+    "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry,
+    "open_returns": lambda _now: open_returns(),
+    "low_stock": lambda _now: low_stock(),
+}
 
 
 def build(user, *, now: datetime | None = None) -> dict:
     """The Ana sayfa for `user`: their layout, what they may add, and the data of each
     Widget they have turned on.
 
-    The sections that are not Widgets yet (everything but `open_returns`) keep being
-    returned to anyone who may view Orders, as before, until they become Widgets.
+    The sections that are not Widgets yet (invoices, Products without photos) keep being
+    returned to anyone who may view Orders, as before, until they are decided on.
     """
     now = now or timezone.now()
     keys, is_default = home_layout.current(user)
@@ -186,12 +192,9 @@ def build(user, *, now: datetime | None = None) -> dict:
         "is_default": is_default,
     }
     for key in keys:
-        page[key] = WIDGET_BUILDERS[key]()
+        page[key] = WIDGET_BUILDERS[key](now)
     if user.has_perm(Perm.VIEW_ORDERS.permission_name):
         page.update(
-            new_orders=new_orders(),
-            unpaid_transfers_near_expiry=unpaid_transfers_near_expiry(now),
-            low_stock=low_stock(),
             shipped_without_invoice=shipped_without_invoice(),
             invoice_attention=invoice_attention(),
             products_without_photos=products_without_photos(),
