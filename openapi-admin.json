@@ -1206,6 +1206,86 @@
         "title": "BannerRowOut",
         "type": "object"
       },
+      "BannerSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BannerSettings"
+              }
+            ],
+            "default": {
+              "index": 0,
+              "slot": "home_mid"
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "banner",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "BannerSection",
+        "type": "object"
+      },
+      "BannerSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "default": 0,
+            "maximum": 9,
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "slot": {
+            "const": "home_mid",
+            "default": "home_mid",
+            "title": "Slot",
+            "type": "string"
+          }
+        },
+        "title": "BannerSettings",
+        "type": "object"
+      },
       "BasketCampaignIn": {
         "properties": {
           "benefit": {
@@ -2510,6 +2590,86 @@
           "name"
         ],
         "title": "CarrierOut",
+        "type": "object"
+      },
+      "CategoriesSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CategoriesSettings"
+              }
+            ],
+            "default": {
+              "count": 12,
+              "source": "home"
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "categories",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "CategoriesSection",
+        "type": "object"
+      },
+      "CategoriesSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "default": 12,
+            "maximum": 24,
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "source": {
+            "const": "home",
+            "default": "home",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "CategoriesSettings",
         "type": "object"
       },
       "CategoryImageOut": {
@@ -3989,6 +4149,91 @@
           "item_count"
         ],
         "title": "HomeReturnRow",
+        "type": "object"
+      },
+      "HomepageLayoutIn": {
+        "description": "The sections in page order. Hidden ones are kept, with their settings.",
+        "properties": {
+          "sections": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "banner": "#/components/schemas/BannerSection",
+                  "categories": "#/components/schemas/CategoriesSection",
+                  "products": "#/components/schemas/ProductsSection",
+                  "rich_text": "#/components/schemas/RichTextSection",
+                  "slider": "#/components/schemas/SliderSection"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SliderSection"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductsSection"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoriesSection"
+                },
+                {
+                  "$ref": "#/components/schemas/BannerSection"
+                },
+                {
+                  "$ref": "#/components/schemas/RichTextSection"
+                }
+              ]
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageLayoutIn",
+        "type": "object"
+      },
+      "HomepageLayoutOut": {
+        "properties": {
+          "sections": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "banner": "#/components/schemas/BannerSection",
+                  "categories": "#/components/schemas/CategoriesSection",
+                  "products": "#/components/schemas/ProductsSection",
+                  "rich_text": "#/components/schemas/RichTextSection",
+                  "slider": "#/components/schemas/SliderSection"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SliderSection"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductsSection"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoriesSection"
+                },
+                {
+                  "$ref": "#/components/schemas/BannerSection"
+                },
+                {
+                  "$ref": "#/components/schemas/RichTextSection"
+                }
+              ]
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageLayoutOut",
         "type": "object"
       },
       "ImageAltIn": {
@@ -7736,6 +7981,91 @@
         "title": "ProductsReportOut",
         "type": "object"
       },
+      "ProductsSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductsSettings"
+              }
+            ],
+            "default": {
+              "count": 12,
+              "source": "latest"
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "products",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "ProductsSection",
+        "type": "object"
+      },
+      "ProductsSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "default": 12,
+            "maximum": 24,
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "source": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "best_selling",
+              "on_sale",
+              "recently_viewed"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "ProductsSettings",
+        "type": "object"
+      },
       "ProductsWithoutPhotos": {
         "properties": {
           "count": {
@@ -8718,6 +9048,78 @@
         "title": "ReturnsReportOut",
         "type": "object"
       },
+      "RichTextSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RichTextSettings"
+              }
+            ],
+            "default": {
+              "body": ""
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "rich_text",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "RichTextSection",
+        "type": "object"
+      },
+      "RichTextSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "title": "RichTextSettings",
+        "type": "object"
+      },
       "SalesParams": {
         "properties": {
           "date_from": {
@@ -9333,6 +9735,86 @@
           "size"
         ],
         "title": "SkippedCombinationOut",
+        "type": "object"
+      },
+      "SliderSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SliderSettings"
+              }
+            ],
+            "default": {
+              "count": 5,
+              "source": "home"
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "slider",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "SliderSection",
+        "type": "object"
+      },
+      "SliderSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "default": 5,
+            "maximum": 24,
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "source": {
+            "const": "home",
+            "default": "home",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "SliderSettings",
         "type": "object"
       },
       "SlugIn": {
@@ -15298,6 +15780,70 @@
         "summary": "Save Layout",
         "tags": [
           "home"
+        ]
+      }
+    },
+    "/api/admin/homepage": {
+      "get": {
+        "description": "Every section of the layout, hidden ones included, with its settings.",
+        "operationId": "homepage_get_for_editing",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageLayoutOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Homepage",
+        "tags": [
+          "homepage"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole layout atomically. Live at once; written to the Audit log.\nSection ids must be unique and there are at most 20 sections.",
+        "operationId": "homepage_save",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomepageLayoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageLayoutOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Save Homepage",
+        "tags": [
+          "homepage"
         ]
       }
     },
