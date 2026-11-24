@@ -14,30 +14,27 @@ from django.db import transaction
 
 from store_backend.api.errors import UnprocessableError
 from store_backend.services import audit
+from store_backend.shop.models import BankAccount
 from store_backend.shop.models import StoreSettings
 
 if TYPE_CHECKING:
     from store_backend.users.models import User
 
-MONEY_FIELDS = ("shipping_fee", "free_shipping_threshold", "cod_fee")
+MONEY_FIELDS = ("shipping_fee", "cod_fee")
 MAX_KDV_RATE = Decimal(100)
 MAX_MONEY = Decimal("99999999.99")
 MAX_LOW_STOCK = 10_000
 MAX_EMAILS = 20
-URL_FIELDS = ("banner_image_url", "banner_link")
+MAX_BANK_ACCOUNTS = 10
+MAX_BANK_NAME = 100
+MAX_ACCOUNT_HOLDER = 150
 IBAN = re.compile(r"^TR\d{24}$")
 EDITABLE = (
     *MONEY_FIELDS,
     "fee_kdv_rate",
     "low_stock_default",
     "stock_alerts_enabled",
-    "bank_name",
-    "bank_account_holder",
-    "bank_iban",
     "notification_emails",
-    "banner_image_url",
-    "banner_link",
-    "banner_alt",
     "seller_name",
     "seller_tax_number",
     "seller_address",
@@ -77,8 +74,6 @@ def _decimal(field: str, value: Any, *, upper: Decimal | None = None) -> Decimal
 
 def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
     if field in MONEY_FIELDS:
-        if value is None and field == "free_shipping_threshold":
-            return None
         return _decimal(field, value)
     if field == "fee_kdv_rate":
         return _decimal(field, value, upper=MAX_KDV_RATE)
@@ -90,14 +85,6 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
         if not isinstance(value, bool):
             raise _invalid(field, "Geçerli bir değer girin.")
         return value
-    if field == "bank_iban":
-        iban = re.sub(r"\s+", "", str(value)).upper()
-        if iban and not IBAN.match(iban):
-            raise _invalid(
-                field,
-                "Geçerli bir IBAN girin (TR ile başlayan 26 karakter).",
-            )
-        return iban
     if field == "notification_emails":
         if len(value) > MAX_EMAILS:
             raise _invalid(field, "En fazla 20 alıcı girilebilir.")
@@ -120,9 +107,55 @@ def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
     limit = StoreSettings._meta.get_field(field).max_length  # noqa: SLF001
     if limit and len(text) > limit:
         raise _invalid(field, f"En fazla {limit} karakter girilebilir.")
-    if field in URL_FIELDS and text and not re.match(r"^(https?://|/(?!/))", text):
-        raise _invalid(field, "Adres http(s):// ile veya / ile başlamalı.")
     return text
+
+
+def bank_accounts() -> list[BankAccount]:
+    """The accounts a Shopper may pay into, in the order the Owner set."""
+    return list(BankAccount.objects.all())
+
+
+def _account_rows(accounts: Any) -> list[dict[str, str]]:
+    """Check the Owner's list and return it cleaned, in order."""
+    field = "bank_accounts"
+    if not isinstance(accounts, list):
+        raise _invalid(field, "Geçerli bir hesap listesi girin.")
+    if len(accounts) > MAX_BANK_ACCOUNTS:
+        raise _invalid(field, f"En fazla {MAX_BANK_ACCOUNTS} hesap girilebilir.")
+    rows: list[dict[str, str]] = []
+    for number, raw in enumerate(accounts, start=1):
+        where = f"{number}. hesap: "
+        data = raw if isinstance(raw, dict) else {}
+        name = str(data.get("name", "")).strip()
+        holder = str(data.get("account_holder", "")).strip()
+        iban = re.sub(r"\s+", "", str(data.get("iban", ""))).upper()
+        if not name:
+            raise _invalid(field, where + "Banka adı gerekli.")
+        if not holder:
+            raise _invalid(field, where + "Hesap sahibi gerekli.")
+        if not IBAN.match(iban):
+            raise _invalid(
+                field,
+                where + "Geçerli bir IBAN girin (TR ile başlayan 26 karakter).",
+            )
+        if len(name) > MAX_BANK_NAME or len(holder) > MAX_ACCOUNT_HOLDER:
+            msg = f"Banka adı en fazla {MAX_BANK_NAME}, hesap sahibi en fazla "
+            raise _invalid(
+                field,
+                where + msg + f"{MAX_ACCOUNT_HOLDER} karakter olabilir.",
+            )
+        rows.append({"name": name, "account_holder": holder, "iban": iban})
+    ibans = [r["iban"] for r in rows]
+    if len(set(ibans)) != len(ibans):
+        raise _invalid(field, "Aynı IBAN birden fazla kez girilemez.")
+    return rows
+
+
+def _account_snapshot() -> list[dict[str, str]]:
+    return [
+        {"name": a.name, "account_holder": a.account_holder, "iban": a.iban}
+        for a in bank_accounts()
+    ]
 
 
 def _snapshot(settings: StoreSettings, fields) -> dict[str, Any]:
@@ -135,24 +168,39 @@ def _snapshot(settings: StoreSettings, fields) -> dict[str, Any]:
 @transaction.atomic
 def update(actor: User, **changes: Any) -> StoreSettings:
     """Apply a partial update and audit what changed."""
+    accounts = changes.pop("bank_accounts", None)
     unknown = set(changes) - set(EDITABLE)
     if unknown:
         raise _invalid(sorted(unknown)[0], "Bilinmeyen ayar.")
     settings = _row(lock=True)
     cleaned = {f: _clean(f, v) for f, v in changes.items()}
     changed = [f for f, v in cleaned.items() if getattr(settings, f) != v]
-    if not changed:
+    rows = None if accounts is None else _account_rows(accounts)
+    accounts_before = _account_snapshot()
+    accounts_changed = rows is not None and rows != accounts_before
+    if not changed and not accounts_changed:
         return settings
     before = _snapshot(settings, changed)
-    for f in changed:
-        setattr(settings, f, cleaned[f])
-    settings.save(update_fields=changed)
+    after_extra: dict[str, Any] = {}
+    if changed:
+        for f in changed:
+            setattr(settings, f, cleaned[f])
+        settings.save(update_fields=changed)
+    if accounts_changed and rows is not None:
+        BankAccount.objects.all().delete()
+        BankAccount.objects.bulk_create(
+            [BankAccount(position=i, **row) for i, row in enumerate(rows)],
+        )
+        before["bank_accounts"] = accounts_before
+        after_extra["bank_accounts"] = rows
+        changed = [*changed, "bank_accounts"]
+    scalars = [f for f in changed if f != "bank_accounts"]
     audit.record(
         actor,
         audit.Action.SETTINGS_CHANGE,
         target=("shop.storesettings", settings.pk),
         summary="Ayarlar değişti: " + ", ".join(changed),
         before=before,
-        after=_snapshot(settings, changed),
+        after={**_snapshot(settings, scalars), **after_extra},
     )
     return settings

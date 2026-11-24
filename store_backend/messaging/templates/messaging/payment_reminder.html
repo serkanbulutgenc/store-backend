@@ -3,11 +3,13 @@
   <p>Sipariş no: {{ number }}</p>
   <p>Havale/EFT ödemenizi henüz almadık. Siparişiniz {{ pay_by|date:"d.m.Y H:i" }} tarihine kadar ödenmezse iptal edilir.</p>
   <p>Toplam: {{ total }}</p>
-  <p>Açıklama kısmına {{ number }} yazarak aşağıdaki hesaba ödeme yapabilirsiniz.</p>
-  <p>Banka: {{ store.bank_name }}
+  <p>Açıklama kısmına {{ number }} yazarak {% if bank_accounts|length > 1 %}aşağıdaki hesaplardan birine{% else %}aşağıdaki hesaba{% endif %} ödeme yapabilirsiniz.</p>
+  {% for account in bank_accounts %}
+  <p>Banka: {{ account.name }}
     <br>
-    Hesap sahibi: {{ store.bank_account_holder }}
+    Hesap sahibi: {{ account.account_holder }}
     <br>
-    IBAN: {{ store.bank_iban }}</p>
+    IBAN: {{ account.iban }}</p>
+  {% endfor %}
   <p><a href="{{ tracking_url }}" style="color:#6b2d5c;">Sipariş durumu</a></p>
 {% endblock %}

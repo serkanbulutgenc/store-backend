@@ -27,7 +27,7 @@ VOUCHER = "/api/store/basket/voucher"
 
 
 def test_the_quote_discounts_the_items_and_keeps_the_fees(guest, owner):  # noqa: F811
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
     guest.post(VOUCHER, {"code": "YAZ10"})  # the basket holds 2 x 100.00
 
@@ -44,7 +44,7 @@ def test_a_basket_that_fell_below_the_minimum_is_quoted_without_the_discount(
     shop,
     owner,
 ):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     make_voucher(Benefit.PERCENTAGE, "10", code="BIG10", minimum="250.00")
     shopper = Guest()
     fill(shopper, shop[1]["M"], quantity=3)  # 300.00
@@ -63,7 +63,7 @@ def test_a_basket_that_fell_below_the_minimum_is_quoted_without_the_discount(
 
 
 def test_an_expired_voucher_is_quoted_without_it(guest, owner):  # noqa: F811
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
     guest.post(VOUCHER, {"code": "YAZ10"})
     Voucher.objects.update(
@@ -85,7 +85,7 @@ def test_a_customer_who_used_a_once_per_customer_code_meanwhile_is_told(
     customer,
     log_in,
 ):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     voucher = make_voucher(
         Benefit.PERCENTAGE,
         "10",
@@ -102,16 +102,3 @@ def test_a_customer_who_used_a_once_per_customer_code_meanwhile_is_told(
     assert quoted["discount"] == "0.00"
     assert quoted["voucher_problem"] == "already_used"
     assert quoted["total"] == "230.00"
-
-
-def test_free_shipping_is_decided_before_the_voucher(guest, owner):  # noqa: F811
-    # The items cost exactly 200.00, so shipping is free despite the 30.00 fee.
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold="200.00")
-    make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
-    guest.post(VOUCHER, {"code": "YAZ10"})
-
-    quoted = guest.post(QUOTE, quote_body("")).json()
-
-    assert quoted["free_shipping"] is True
-    assert quoted["shipping_fee"] == "0.00"
-    assert quoted["total"] == "180.00"

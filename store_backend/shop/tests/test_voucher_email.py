@@ -21,7 +21,7 @@ def test_the_email_adds_up_with_the_voucher_between_the_lines_and_the_shipping(
     guest,  # noqa: F811
     owner,
 ):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
     guest.post(VOUCHER, {"code": "YAZ10"})  # 2 x 100.00
 
@@ -38,7 +38,7 @@ def test_the_email_adds_up_with_the_voucher_between_the_lines_and_the_shipping(
 
 
 def test_an_order_without_a_voucher_gets_the_email_it_always_did(guest, owner):  # noqa: F811
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
 
     assert guest.post(CHECKOUT, payload()).status_code == 201  # noqa: PLR2004
     mail = Message.objects.get(template="order_placed")

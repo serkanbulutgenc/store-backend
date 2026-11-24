@@ -93,9 +93,6 @@ class QuoteOut(Schema):
     shipping_fee: Money
     cod_fee: Money
     total: Money
-    free_shipping: bool = Field(
-        description="True when the items total reached the free-shipping threshold.",
-    )
 
 
 def _basket_voucher_code(basket) -> str | None:
@@ -119,10 +116,16 @@ class PlacedLineOut(Schema):
     )
 
 
-class BankOut(Schema):
+class BankAccountOut(Schema):
     name: str
     account_holder: str
     iban: str
+
+
+class BankOut(Schema):
+    accounts: list[BankAccountOut] = Field(
+        description="Any one of these will do, in the order the Owner set.",
+    )
     reference: str = Field(description="Write this Order number in the transfer.")
 
 
@@ -174,11 +177,8 @@ def placed_summary(order) -> dict:
     discounts = list(order.discounts.all())
     bank = None
     if method == PaymentMethod.BANK_TRANSFER:
-        store = shop_settings.get()
         bank = {
-            "name": store.bank_name,
-            "account_holder": store.bank_account_holder,
-            "iban": store.bank_iban,
+            "accounts": shop_settings.bank_accounts(),
             "reference": order.number,
         }
     return {
@@ -273,5 +273,4 @@ def quote_order(request, data: QuoteIn):
         "shipping_fee": quote.fees.shipping.total_incl,
         "cod_fee": cod.total_incl if cod else pricing.ZERO,
         "total": quote.totals.total_incl,
-        "free_shipping": quote.free_shipping,
     }

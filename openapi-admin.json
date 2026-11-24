@@ -649,6 +649,52 @@
         "title": "AuditLogQuery",
         "type": "object"
       },
+      "BankAccountIn": {
+        "properties": {
+          "account_holder": {
+            "title": "Account Holder",
+            "type": "string"
+          },
+          "iban": {
+            "title": "Iban",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "account_holder",
+          "iban"
+        ],
+        "title": "BankAccountIn",
+        "type": "object"
+      },
+      "BankAccountOut": {
+        "properties": {
+          "account_holder": {
+            "title": "Account Holder",
+            "type": "string"
+          },
+          "iban": {
+            "title": "Iban",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "account_holder",
+          "iban"
+        ],
+        "title": "BankAccountOut",
+        "type": "object"
+      },
       "BannerCategoryOut": {
         "properties": {
           "id": {
@@ -8454,29 +8500,12 @@
       },
       "SettingsOut": {
         "properties": {
-          "bank_account_holder": {
-            "title": "Bank Account Holder",
-            "type": "string"
-          },
-          "bank_iban": {
-            "title": "Bank Iban",
-            "type": "string"
-          },
-          "bank_name": {
-            "title": "Bank Name",
-            "type": "string"
-          },
-          "banner_alt": {
-            "title": "Banner Alt",
-            "type": "string"
-          },
-          "banner_image_url": {
-            "title": "Banner Image Url",
-            "type": "string"
-          },
-          "banner_link": {
-            "title": "Banner Link",
-            "type": "string"
+          "bank_accounts": {
+            "items": {
+              "$ref": "#/components/schemas/BankAccountOut"
+            },
+            "title": "Bank Accounts",
+            "type": "array"
           },
           "cod_fee": {
             "examples": [
@@ -8493,21 +8522,6 @@
           "fee_kdv_rate": {
             "title": "Fee Kdv Rate",
             "type": "string"
-          },
-          "free_shipping_threshold": {
-            "anyOf": [
-              {
-                "examples": [
-                  "349.90"
-                ],
-                "pattern": "^-?\\d+\\.\\d{2}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Shipping Threshold"
           },
           "legal_versions": {
             "additionalProperties": {
@@ -8566,18 +8580,12 @@
         },
         "required": [
           "shipping_fee",
-          "free_shipping_threshold",
           "cod_fee",
           "fee_kdv_rate",
           "low_stock_default",
           "stock_alerts_enabled",
-          "bank_name",
-          "bank_account_holder",
-          "bank_iban",
+          "bank_accounts",
           "notification_emails",
-          "banner_image_url",
-          "banner_link",
-          "banner_alt",
           "seller_name",
           "seller_tax_number",
           "seller_address",
@@ -8593,71 +8601,19 @@
       "SettingsPatch": {
         "description": "Every field optional; only the ones sent change. Money arrives as strings.",
         "properties": {
-          "bank_account_holder": {
+          "bank_accounts": {
             "anyOf": [
               {
-                "type": "string"
+                "items": {
+                  "$ref": "#/components/schemas/BankAccountIn"
+                },
+                "type": "array"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Bank Account Holder"
-          },
-          "bank_iban": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bank Iban"
-          },
-          "bank_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bank Name"
-          },
-          "banner_alt": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Banner Alt"
-          },
-          "banner_image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Banner Image Url"
-          },
-          "banner_link": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Banner Link"
+            "title": "Bank Accounts"
           },
           "cod_fee": {
             "anyOf": [
@@ -8691,17 +8647,6 @@
               }
             ],
             "title": "Fee Kdv Rate"
-          },
-          "free_shipping_threshold": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Shipping Threshold"
           },
           "low_stock_default": {
             "anyOf": [

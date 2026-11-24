@@ -38,16 +38,18 @@
     <p>Ödemeyi ürünler size ulaştığında kargo görevlisine nakit olarak yapacaksınız.</p>
   {% elif awaiting_payment %}
     <p>
-      Ödemenizi aşağıdaki hesaba, açıklama kısmına <strong>{{ number }}</strong> sipariş numarasını yazarak
+      Ödemenizi {% if bank_accounts|length > 1 %}aşağıdaki hesaplardan birine{% else %}aşağıdaki hesaba{% endif %}, açıklama kısmına <strong>{{ number }}</strong> sipariş numarasını yazarak
       <strong>{{ pay_by|date:"d.m.Y H:i" }}</strong> tarihine kadar yapın. Aksi halde siparişiniz iptal edilir.
     </p>
+{% for account in bank_accounts %}
     <p>
-      Banka: {{ store.bank_name }}
+      Banka: {{ account.name }}
       <br>
-      Hesap sahibi: {{ store.bank_account_holder }}
+      Hesap sahibi: {{ account.account_holder }}
       <br>
-      IBAN: {{ store.bank_iban }}
+      IBAN: {{ account.iban }}
     </p>
+    {% endfor %}
   {% endif %}
   <p>
     Siparişinizin durumunu <a href="{{ tracking_url }}" style="color:#6b2d5c;">buradan</a> takip edebilirsiniz.
