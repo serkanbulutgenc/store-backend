@@ -18,6 +18,7 @@ from oscar.apps.order.models import Order
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import checkout
+from store_backend.services import home_layout
 from store_backend.services import invoicing
 from store_backend.services import order_context
 from store_backend.services import order_ops
@@ -25,6 +26,7 @@ from store_backend.services import returns
 from store_backend.services import stock
 from store_backend.shop.models import Invoice
 from store_backend.shop.models import InvoiceStatus
+from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -165,14 +167,33 @@ def open_returns() -> dict:
     )
 
 
-def build(*, now: datetime | None = None) -> dict:
+#: Widget key -> the list that fills it. A Widget that is off is never queried.
+WIDGET_BUILDERS = {"open_returns": open_returns}
+
+
+def build(user, *, now: datetime | None = None) -> dict:
+    """The Ana sayfa for `user`: their layout, what they may add, and the data of each
+    Widget they have turned on.
+
+    The sections that are not Widgets yet (everything but `open_returns`) keep being
+    returned to anyone who may view Orders, as before, until they become Widgets.
+    """
     now = now or timezone.now()
-    return {
-        "new_orders": new_orders(),
-        "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry(now),
-        "low_stock": low_stock(),
-        "shipped_without_invoice": shipped_without_invoice(),
-        "invoice_attention": invoice_attention(),
-        "products_without_photos": products_without_photos(),
-        "open_returns": open_returns(),
+    keys, is_default = home_layout.current(user)
+    page: dict = {
+        "layout": keys,
+        "available": [w.key for w in home_layout.available(user)],
+        "is_default": is_default,
     }
+    for key in keys:
+        page[key] = WIDGET_BUILDERS[key]()
+    if user.has_perm(Perm.VIEW_ORDERS.permission_name):
+        page.update(
+            new_orders=new_orders(),
+            unpaid_transfers_near_expiry=unpaid_transfers_near_expiry(now),
+            low_stock=low_stock(),
+            shipped_without_invoice=shipped_without_invoice(),
+            invoice_attention=invoice_attention(),
+            products_without_photos=products_without_photos(),
+        )
+    return page
