@@ -295,3 +295,15 @@ def test_nothing_is_copied_when_no_account_was_set():
     )
     migration.copy_the_single_account(apps, None)
     assert not BankAccount.objects.exists()
+
+
+def test_an_old_account_without_an_iban_is_not_copied():
+    migration = importlib.import_module(
+        "store_backend.shop.migrations.0023_bank_account",
+    )
+    StoreSettings.objects.update_or_create(
+        pk=1,
+        defaults={"bank_name": "Ziraat", "bank_account_holder": "Aura Tekstil"},
+    )
+    migration.copy_the_single_account(apps, None)
+    assert not BankAccount.objects.exists()

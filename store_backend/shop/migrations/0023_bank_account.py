@@ -4,11 +4,15 @@ from django.db import migrations, models
 
 
 def copy_the_single_account(apps, schema_editor):
-    """The one account kept in Store settings becomes the first bank account."""
+    """The one account kept in Store settings becomes the first bank account.
+
+    An account with no IBAN is left behind: nothing can be paid into it, and the new
+    Settings form would refuse to save while it was listed.
+    """
     StoreSettings = apps.get_model("shop", "StoreSettings")
     BankAccount = apps.get_model("shop", "BankAccount")
     row = StoreSettings.objects.filter(pk=1).first()
-    if row and (row.bank_name or row.bank_account_holder or row.bank_iban):
+    if row and row.bank_iban.strip():
         BankAccount.objects.create(
             name=row.bank_name,
             account_holder=row.bank_account_holder,
