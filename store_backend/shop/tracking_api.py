@@ -22,6 +22,7 @@ from store_backend.api.ratelimit import is_limited
 from store_backend.services import order_ops
 from store_backend.services import returns
 from store_backend.services import tracking
+from store_backend.shop.campaign_schemas import AppliedCampaignOut
 from store_backend.shop.checkout_api import PlacedLineOut
 from store_backend.shop.checkout_api import placed_summary
 from store_backend.shop.models import PaymentMethod
@@ -81,7 +82,10 @@ class TrackingOut(Schema):
     payment_status: str
     payment_method: PaymentMethod
     lines: list[TrackingLineOut]
-    items_total: Money = Field(description="What the items cost before any Voucher.")
+    items_total: Money = Field(description="What the items cost before any discount.")
+    campaigns: list[AppliedCampaignOut] = Field(
+        description="The Basket Campaigns this Order was placed under, discount first.",
+    )
     discount: Money = Field(description="What the Voucher took off the items.")
     voucher_code: str | None = Field(
         None,

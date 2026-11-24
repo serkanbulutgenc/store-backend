@@ -133,3 +133,58 @@ def test_a_category_reaches_its_subcategories_only_when_flagged():
 )
 def test_the_price_is_rounded_half_up_to_kurus(shelf, percentage, price):
     assert campaign_pricing.discounted(D(shelf), D(percentage)) == D(price)
+
+
+# --- whole store ---------------------------------------------------------------------
+
+
+def test_a_whole_store_campaign_reaches_every_product():
+    first = make_product("Elbise")
+    second = make_product("Etek")
+    made = campaign(15, whole_store=True)
+
+    winners = campaign_pricing.winners([first.pk, second.pk])
+
+    assert {pk: w.campaign_id for pk, w in winners.items()} == {
+        first.pk: made.pk,
+        second.pk: made.pk,
+    }
+    assert campaign_pricing.discounted(D("100.00"), winners[first.pk].percentage) == D(
+        "85.00",
+    )
+
+
+def test_a_product_added_after_a_whole_store_campaign_is_covered_too():
+    made = campaign(15, whole_store=True)
+    later = make_product("Sonradan")
+
+    assert campaign_pricing.winners([later.pk])[later.pk].campaign_id == made.pk
+
+
+def test_a_whole_store_campaign_competes_by_the_largest_discount():
+    product = make_product()
+    other = make_product("Etek")
+    campaign(10, whole_store=True)
+    big = campaign(30, products=[product], name="Sadece elbise")
+
+    winners = campaign_pricing.winners([product.pk, other.pk])
+
+    assert winners[product.pk].campaign_id == big.pk  # the larger one wins
+    assert winners[other.pk].percentage == D(
+        10,
+    )  # the other Product keeps the store-wide one
+
+
+def test_a_whole_store_campaign_ignores_its_listed_targets():
+    listed = make_product("Listed")
+    other = make_product("Other")
+    campaign(10, whole_store=True, products=[listed])
+
+    assert set(campaign_pricing.winners()) == {listed.pk, other.pk}
+
+
+def test_an_ended_or_switched_off_whole_store_campaign_prices_nothing():
+    product = make_product()
+    campaign(10, whole_store=True, is_active=False)
+
+    assert campaign_pricing.winners([product.pk]) == {}

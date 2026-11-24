@@ -681,6 +681,9 @@ class Campaign(models.Model):
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     include_subcategories = models.BooleanField(default=False)
+    # Reaches every Product, including ones added later. The listed targets below are
+    # then ignored (but kept, so switching this off restores them).
+    whole_store = models.BooleanField(default=False)
     products = models.ManyToManyField(Product, related_name="+", blank=True)
     categories = models.ManyToManyField(Category, related_name="+", blank=True)
     collections = models.ManyToManyField(Collection, related_name="+", blank=True)
@@ -699,6 +702,60 @@ class Campaign(models.Model):
                 | Q(ends_at__isnull=True)
                 | Q(ends_at__gt=models.F("starts_at")),
                 name="catalog_campaign_ends_after_start",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class BasketCampaign(models.Model):
+    """An automatic, code-free offer on the whole basket (GLOSSARY.md, ADR 0011).
+
+    Once the items reach `minimum_amount` it takes a fixed TL amount or a percentage
+    off, or waives the shipping fee. A separate kind from `Campaign`, which prices
+    items. Only the rule is stored; the quote decides per basket, and the Order
+    freezes what was applied."""
+
+    class Benefit(models.TextChoices):
+        FIXED = "fixed", "TL off"
+        PERCENTAGE = "percentage", "Percentage off"
+        FREE_SHIPPING = "free_shipping", "Free shipping"
+
+    name = models.CharField(
+        max_length=200,
+        help_text="Internal; Shoppers see a label built from the rule.",
+    )
+    minimum_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    benefit = models.CharField(max_length=20, choices=Benefit.choices)
+    # TL for `fixed`, percent for `percentage`, empty for `free_shipping`.
+    value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(minimum_amount__gt=0),
+                name="catalog_basketcampaign_minimum_positive",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(benefit="free_shipping", value__isnull=True)
+                    | Q(benefit="fixed", value__gt=0)
+                    | Q(benefit="percentage", value__gte=1, value__lte=99)
+                ),
+                name="catalog_basketcampaign_benefit_value",
+            ),
+            models.CheckConstraint(
+                condition=Q(starts_at__isnull=True)
+                | Q(ends_at__isnull=True)
+                | Q(ends_at__gt=models.F("starts_at")),
+                name="catalog_basketcampaign_ends_after_start",
             ),
         ]
 

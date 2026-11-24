@@ -17,12 +17,14 @@ from store_backend.api.errors import BadRequestError
 from store_backend.api.money import Money
 from store_backend.api.ratelimit import Rate
 from store_backend.api.ratelimit import count_attempt
+from store_backend.services import basket_campaigns
 from store_backend.services import checkout as checkout_service
 from store_backend.services import contact
 from store_backend.services import payment
 from store_backend.services import pricing
 from store_backend.services import shop_settings
 from store_backend.services import tracking
+from store_backend.shop.campaign_schemas import AppliedCampaignOut
 from store_backend.shop.models import PaymentMethod
 
 router = Router(tags=["checkout"], auth=GuestAuth())
@@ -78,7 +80,11 @@ class QuoteIn(Schema):
 
 
 class QuoteOut(Schema):
-    items_total: Money = Field(description="What the items cost before any Voucher.")
+    items_total: Money = Field(description="What the items cost before any discount.")
+    campaigns: list[AppliedCampaignOut] = Field(
+        description="The Basket Campaigns this basket gets: a discount and/or free "
+        "shipping, discount first.",
+    )
     discount: Money = Field(
         description="What the basket's Voucher takes off the items.",
     )
@@ -136,7 +142,10 @@ class OrderPlacedOut(Schema):
     payment_method: PaymentMethod
     email: str
     lines: list[PlacedLineOut]
-    items_total: Money = Field(description="What the items cost before any Voucher.")
+    items_total: Money = Field(description="What the items cost before any discount.")
+    campaigns: list[AppliedCampaignOut] = Field(
+        description="The Basket Campaigns this Order was placed under, discount first.",
+    )
     discount: Money = Field(description="What the Voucher took off the items.")
     voucher_code: str | None = Field(
         None,
@@ -192,6 +201,7 @@ def placed_summary(order) -> dict:
             (line.line_price_before_discounts_incl_tax for line in order_lines),
             pricing.ZERO,
         ),
+        "campaigns": basket_campaigns.frozen(order),
         "discount": sum((d.amount for d in discounts), pricing.ZERO),
         "voucher_code": next(
             (d.voucher_code for d in discounts if d.voucher_code),
@@ -267,6 +277,7 @@ def quote_order(request, data: QuoteIn):
     voucher = quote.voucher or quote.skipped_voucher
     return {
         "items_total": quote.items_total,
+        "campaigns": basket_campaigns.applied_views(list(quote.campaigns)),
         "discount": quote.discount,
         "voucher_code": voucher.code if voucher else None,
         "voucher_problem": quote.voucher_problem,

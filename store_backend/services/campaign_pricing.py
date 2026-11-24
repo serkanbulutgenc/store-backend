@@ -111,7 +111,7 @@ def winners(
     wanted = None if product_ids is None else set(product_ids)
     best: dict[int, Winner] = {}
     for campaign in active(now).order_by("pk"):
-        reached = campaign_admin.affected_product_ids(campaign)
+        reached = campaign_admin.affected_product_ids(campaign, among=wanted)
         for product_id in reached if wanted is None else reached & wanted:
             current = best.get(product_id)
             if current is None or campaign.percentage > current.percentage:

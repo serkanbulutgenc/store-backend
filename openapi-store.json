@@ -3,6 +3,14 @@
     "schemas": {
       "AccountOrderOut": {
         "properties": {
+          "campaigns": {
+            "description": "The Basket Campaigns this Order was placed under, discount first.",
+            "items": {
+              "$ref": "#/components/schemas/AppliedCampaignOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
           "can_cancel": {
             "description": "The Shopper may still cancel the Order.",
             "title": "Can Cancel",
@@ -37,7 +45,7 @@
             "type": "string"
           },
           "items_total": {
-            "description": "What the items cost before any Voucher.",
+            "description": "What the items cost before any discount.",
             "examples": [
               "349.90"
             ],
@@ -150,6 +158,7 @@
           "payment_method",
           "lines",
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
@@ -365,6 +374,36 @@
           "link"
         ],
         "title": "AnnouncementOut",
+        "type": "object"
+      },
+      "AppliedCampaignOut": {
+        "properties": {
+          "discount": {
+            "description": "What it took off the items; 0 when it waives the shipping fee.",
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Discount",
+            "type": "string"
+          },
+          "free_shipping": {
+            "description": "True when it waives the shipping fee.",
+            "title": "Free Shipping",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "Built from the rule: \"500 \u20ba \u00fczeri 50 \u20ba indirim\".",
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "discount",
+          "free_shipping"
+        ],
+        "title": "AppliedCampaignOut",
         "type": "object"
       },
       "AttributeBlockOut": {
@@ -627,6 +666,14 @@
       },
       "BasketOut": {
         "properties": {
+          "campaigns": {
+            "description": "The Basket Campaigns this basket gets, discount first (shipping unknown here: free shipping is judged on the flat fee).",
+            "items": {
+              "$ref": "#/components/schemas/AppliedCampaignOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
           "has_problems": {
             "title": "Has Problems",
             "type": "boolean"
@@ -666,7 +713,8 @@
           "lines",
           "item_count",
           "subtotal",
-          "has_problems"
+          "has_problems",
+          "campaigns"
         ],
         "title": "BasketOut",
         "type": "object"
@@ -1765,6 +1813,14 @@
               }
             ]
           },
+          "campaigns": {
+            "description": "The Basket Campaigns this Order was placed under, discount first.",
+            "items": {
+              "$ref": "#/components/schemas/AppliedCampaignOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
           "cod_fee": {
             "examples": [
               "349.90"
@@ -1787,7 +1843,7 @@
             "type": "string"
           },
           "items_total": {
-            "description": "What the items cost before any Voucher.",
+            "description": "What the items cost before any discount.",
             "examples": [
               "349.90"
             ],
@@ -1867,6 +1923,7 @@
           "email",
           "lines",
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
@@ -2708,6 +2765,14 @@
       },
       "QuoteOut": {
         "properties": {
+          "campaigns": {
+            "description": "The Basket Campaigns this basket gets: a discount and/or free shipping, discount first.",
+            "items": {
+              "$ref": "#/components/schemas/AppliedCampaignOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
           "cod_fee": {
             "examples": [
               "349.90"
@@ -2726,7 +2791,7 @@
             "type": "string"
           },
           "items_total": {
-            "description": "What the items cost before any Voucher.",
+            "description": "What the items cost before any discount.",
             "examples": [
               "349.90"
             ],
@@ -2777,6 +2842,7 @@
         },
         "required": [
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
@@ -3371,6 +3437,14 @@
       "TrackingOut": {
         "description": "What a Shopper may see: no phone, address or email.",
         "properties": {
+          "campaigns": {
+            "description": "The Basket Campaigns this Order was placed under, discount first.",
+            "items": {
+              "$ref": "#/components/schemas/AppliedCampaignOut"
+            },
+            "title": "Campaigns",
+            "type": "array"
+          },
           "can_cancel": {
             "description": "The Shopper may still cancel the Order.",
             "title": "Can Cancel",
@@ -3405,7 +3479,7 @@
             "type": "string"
           },
           "items_total": {
-            "description": "What the items cost before any Voucher.",
+            "description": "What the items cost before any discount.",
             "examples": [
               "349.90"
             ],
@@ -3508,6 +3582,7 @@
           "payment_method",
           "lines",
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",

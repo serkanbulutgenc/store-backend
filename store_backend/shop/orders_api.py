@@ -26,6 +26,7 @@ from store_backend.services import pricing
 from store_backend.services import returns
 from store_backend.services import tracking
 from store_backend.shop.models import InvoiceStatus
+from store_backend.shop.models import OrderBasketCampaign
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import RefundMethod
 from store_backend.shop.models import ReturnReason
@@ -196,6 +197,16 @@ class OrderVoucherOut(Schema):
     discount: Money
 
 
+class OrderBasketCampaignOut(Schema):
+    """The Basket Campaign the Order was placed under, as it was then."""
+
+    campaign_id: int | None
+    name: str
+    label: str
+    discount: Money
+    free_shipping: bool
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -207,6 +218,7 @@ class OrderDetail(Schema):
     shipping_address: OrderShippingOut | None
     lines: list[OrderLineOut]
     items_total: Money
+    basket_campaigns: list[OrderBasketCampaignOut]
     voucher: OrderVoucherOut | None
     shipping_fee: Money
     cod_fee: Money
@@ -274,6 +286,23 @@ def _campaign(line) -> dict | None:
         "percentage": snap.campaign_percentage,
         "shelf_unit_price": snap.shelf_unit_price,
     }
+
+
+def _basket_campaigns(order) -> list[dict]:
+    rows = OrderBasketCampaign.objects.filter(order=order).order_by(
+        "free_shipping",
+        "pk",
+    )
+    return [
+        {
+            "campaign_id": r.campaign_id,
+            "name": r.name,
+            "label": r.label,
+            "discount": r.discount,
+            "free_shipping": r.free_shipping,
+        }
+        for r in rows
+    ]
 
 
 def _voucher(order) -> dict | None:
@@ -349,6 +378,7 @@ def order_detail(order) -> dict:
         "shipping_address": _shipping(order),
         "lines": lines,
         "items_total": sum((line["line_total"] for line in lines), pricing.ZERO),
+        "basket_campaigns": _basket_campaigns(order),
         "voucher": _voucher(order),
         "shipping_fee": order.shipping_incl_tax,
         "cod_fee": cod_fee,

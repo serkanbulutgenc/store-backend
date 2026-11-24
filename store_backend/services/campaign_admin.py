@@ -106,8 +106,10 @@ def _require_a_target(
     product_ids: list[int],
     category_ids: list[int],
     collection_ids: list[int],
+    *,
+    whole_store: bool = False,
 ) -> None:
-    if not (product_ids or category_ids or collection_ids):
+    if not (whole_store or product_ids or category_ids or collection_ids):
         msg = "En az bir ürün, kategori veya koleksiyon seçin."
         _refuse("product_ids", msg)
 
@@ -130,16 +132,23 @@ def create(  # noqa: PLR0913
     category_ids: list[int],
     collection_ids: list[int],
     include_subcategories: bool = False,
+    whole_store: bool = False,
     starts_at: datetime | None = None,
     ends_at: datetime | None = None,
     is_active: bool = True,
 ) -> Campaign:
-    _require_a_target(product_ids, category_ids, collection_ids)
+    _require_a_target(
+        product_ids,
+        category_ids,
+        collection_ids,
+        whole_store=whole_store,
+    )
     _check_schedule(starts_at, ends_at)
     campaign = Campaign.objects.create(
         name=_clean_name(name),
         percentage=_check_percentage(percentage),
         include_subcategories=include_subcategories,
+        whole_store=whole_store,
         starts_at=starts_at,
         ends_at=ends_at,
         is_active=is_active,
@@ -172,8 +181,10 @@ def edit(actor: User, campaign_id: int, **changes) -> Campaign:
     for field in ("starts_at", "ends_at", "include_subcategories"):
         if field in changes:
             setattr(campaign, field, changes[field])
+    if changes.get("whole_store") is not None:
+        campaign.whole_store = changes["whole_store"]
     _check_schedule(campaign.starts_at, campaign.ends_at)
-    if targets:
+    if targets or changes.get("whole_store") is not None:
         products, categories, collections = _target_ids(campaign)
         merged = {
             "product_ids": products,
@@ -181,9 +192,10 @@ def edit(actor: User, campaign_id: int, **changes) -> Campaign:
             "collection_ids": collections,
             **targets,
         }
-        _require_a_target(**merged)
+        _require_a_target(**merged, whole_store=campaign.whole_store)
         campaign.save()
-        _set_targets(campaign, **merged)
+        if targets:
+            _set_targets(campaign, **merged)
     else:
         campaign.save()
     audit.record(
@@ -261,9 +273,19 @@ def status(campaign: Campaign) -> str:
     return "active"
 
 
-def affected_product_ids(campaign: Campaign) -> set[int]:
-    """The Products (parents) the Campaign's targets reach: the chosen Products, those
-    in a chosen Category (and its subcategories if flagged) or a chosen Collection."""
+def affected_product_ids(
+    campaign: Campaign,
+    among: set[int] | None = None,
+) -> set[int]:
+    """The Products (parents) the Campaign's targets reach: every Product for a
+    whole-store Campaign, else the chosen Products, those in a chosen Category (and its
+    subcategories if flagged) or a chosen Collection. `among` narrows a whole-store
+    Campaign's answer to the Products asked about, not the whole catalogue."""
+    if campaign.whole_store:
+        everyone = Product.objects.filter(structure=Product.PARENT)
+        if among is not None:
+            everyone = everyone.filter(pk__in=among)
+        return set(everyone.values_list("pk", flat=True))
     ids = set(campaign.products.values_list("pk", flat=True))
     categories = list(campaign.categories.all())
     if campaign.include_subcategories:
@@ -327,6 +349,7 @@ def _snapshot(campaign: Campaign) -> dict:
         "ends_at": campaign.ends_at.isoformat() if campaign.ends_at else None,
         "is_active": campaign.is_active,
         "include_subcategories": campaign.include_subcategories,
+        "whole_store": campaign.whole_store,
         "product_ids": products,
         "category_ids": categories,
         "collection_ids": collections,
@@ -341,6 +364,7 @@ def _row(campaign: Campaign) -> dict:
         "starts_at": campaign.starts_at,
         "ends_at": campaign.ends_at,
         "is_active": campaign.is_active,
+        "whole_store": campaign.whole_store,
         "status": status(campaign),
     }
 
@@ -368,7 +392,7 @@ def get(campaign_id: int) -> Campaign:
     return _get(campaign_id)
 
 
-def _in_status(campaigns: QuerySet[Campaign], wanted: str) -> QuerySet[Campaign]:
+def in_status(campaigns: QuerySet[Campaign], wanted: str) -> QuerySet[Campaign]:
     now = timezone.now()
     live = Q(is_active=True)
     started = Q(starts_at__isnull=True) | Q(starts_at__lte=now)
@@ -389,5 +413,5 @@ def listing(wanted: str | None = None) -> list[dict]:
         _refuse("status", msg)
     campaigns = Campaign.objects.all()
     if wanted:
-        campaigns = _in_status(campaigns, wanted)
+        campaigns = in_status(campaigns, wanted)
     return [_row(c) for c in campaigns]
