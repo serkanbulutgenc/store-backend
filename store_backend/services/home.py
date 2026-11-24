@@ -23,6 +23,7 @@ from store_backend.services import home_layout
 from store_backend.services import invoicing
 from store_backend.services import order_context
 from store_backend.services import order_ops
+from store_backend.services import reports
 from store_backend.services import returns
 from store_backend.services import stock
 from store_backend.shop.models import ContactMessage
@@ -171,6 +172,30 @@ def open_returns() -> dict:
     )
 
 
+#: The windows the Report summary shows, each as the Raporlar screen's own preset.
+SUMMARY_PRESETS = (
+    reports.Preset.TODAY,
+    reports.Preset.LAST_7_DAYS,
+    reports.Preset.LAST_30_DAYS,
+)
+
+
+def report_summary() -> dict:
+    """Orders and revenue for a few windows. The figures are the Sales report's own
+    totals (same preset, KDV included, same cache), so the two can never disagree."""
+    periods = []
+    for preset in SUMMARY_PRESETS:
+        totals = reports.sales(reports.resolve(preset))["totals"]
+        periods.append(
+            {
+                "preset": preset.value,
+                "orders": totals["orders"],
+                "revenue": totals["revenue"],
+            },
+        )
+    return {"periods": periods}
+
+
 EXCERPT = 160
 
 
@@ -225,6 +250,7 @@ def approvals() -> dict:
 WIDGET_BUILDERS: dict[str, Callable[[datetime], dict]] = {
     "approvals": lambda _now: approvals(),
     "contact_replies": lambda _now: contact_replies(),
+    "report_summary": lambda _now: report_summary(),
     "new_orders": lambda _now: new_orders(),
     "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry,
     "open_returns": lambda _now: open_returns(),

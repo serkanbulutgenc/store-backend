@@ -109,6 +109,16 @@ class ContactRepliesWaiting(Schema):
     rows: list[ContactReplyRow]
 
 
+class ReportPeriodRow(Schema):
+    preset: Literal["today", "7d", "30d"]
+    orders: int
+    revenue: Money
+
+
+class ReportSummary(Schema):
+    periods: list[ReportPeriodRow]
+
+
 class ApprovalsWaiting(Schema):
     count: int
     rows: list[QueueItemOut]
@@ -123,6 +133,7 @@ class HomeOut(Schema):
     is_default: bool
     approvals: ApprovalsWaiting | None = None
     contact_replies: ContactRepliesWaiting | None = None
+    report_summary: ReportSummary | None = None
     open_returns: OpenReturns | None = None
     new_orders: NewOrders | None = None
     unpaid_transfers_near_expiry: ExpiringTransfers | None = None

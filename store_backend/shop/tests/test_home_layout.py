@@ -24,6 +24,7 @@ pytestmark = pytest.mark.django_db
 OWNER_ALL = [
     "approvals",
     "contact_replies",
+    "report_summary",
     "new_orders",
     "unpaid_transfers_near_expiry",
     "open_returns",
@@ -239,3 +240,12 @@ def test_approving_from_the_widget_empties_it(boss, staff_user):
     url = f"/api/admin/contact-replies/{reply.pk}/approve"
     assert boss.post(url).status_code == HTTPStatus.OK
     assert boss.get(HOME).json()["contact_replies"] == {"count": 0, "rows": []}
+
+
+def test_the_report_summary_is_revenue_data_for_the_owner_alone(boss, staff):
+    assert "report_summary" in boss.get(HOME).json()["available"]
+    body = staff.get(HOME).json()
+    assert "report_summary" not in body["available"]
+    assert "report_summary" not in body
+    refused = staff.put(LAYOUT, {"widgets": ["report_summary"]})
+    assert refused.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
