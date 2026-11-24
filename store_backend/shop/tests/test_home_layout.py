@@ -7,6 +7,8 @@ import pytest
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
 
+from store_backend.catalog.models import Collection
+from store_backend.catalog.models import CollectionStatus
 from store_backend.staff.models import HomeLayout
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
 from store_backend.staff.tests.conftest import owner  # noqa: F401
@@ -14,6 +16,13 @@ from store_backend.staff.tests.conftest import staff_user  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
+OWNER_ALL = [
+    "approvals",
+    "new_orders",
+    "unpaid_transfers_near_expiry",
+    "open_returns",
+    "low_stock",
+]
 ALL = ["new_orders", "unpaid_transfers_near_expiry", "open_returns", "low_stock"]
 HOME = "/api/admin/home"
 LAYOUT = "/api/admin/home/layout"
@@ -46,7 +55,7 @@ def test_saving_turns_widgets_off_and_stores_them_per_user(staff, staff_user, bo
     assert "open_returns" not in body  # a Widget that is off is not queried
     assert staff.get(HOME).json()["layout"] == []
     other = boss.get(HOME).json()  # another user is unaffected
-    assert other["layout"] == ALL
+    assert other["layout"] == OWNER_ALL
 
 
 def test_turning_a_widget_back_on(staff):
@@ -127,3 +136,32 @@ def test_a_saved_widget_whose_permission_was_revoked_is_dropped(
 def test_a_retired_key_in_a_saved_layout_is_dropped(staff, staff_user):
     HomeLayout.objects.create(user=staff_user, widgets=["retired", "open_returns"])
     assert staff.get(HOME).json()["layout"] == ["open_returns"]
+
+
+def test_approvals_are_the_owners_alone(boss, staff, staff_user):
+    assert boss.get(HOME).json()["available"][0] == "approvals"
+    assert "approvals" not in staff.get(HOME).json()["available"]
+    refused = staff.put(LAYOUT, {"widgets": ["approvals"]})
+    assert refused.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    # A saved layout cannot smuggle it in either.
+    HomeLayout.objects.create(user=staff_user, widgets=["approvals", "low_stock"])
+    body = staff.get(HOME).json()
+    assert body["layout"] == ["low_stock"]
+    assert "approvals" not in body
+
+
+def test_the_approvals_widget_lists_what_staff_submitted(boss, staff_user):
+    Collection.objects.create(
+        name="Yaz",
+        slug="yaz",
+        status=CollectionStatus.PENDING,
+        submitted_by=staff_user,
+    )
+    widget = boss.get(HOME).json()["approvals"]
+    assert widget["count"] == 1
+    row = widget["rows"][0]
+    assert (row["type"], row["title"], row["is_change"]) == ("collection", "Yaz", False)
+    assert row["submitted_by"]["id"] == staff_user.pk
+    url = f"/api/admin/approvals/collection/{row['id']}/approve"
+    assert boss.post(url).status_code == HTTPStatus.OK
+    assert boss.get(HOME).json()["approvals"] == {"count": 0, "rows": []}
