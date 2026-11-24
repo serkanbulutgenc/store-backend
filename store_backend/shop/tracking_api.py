@@ -84,7 +84,6 @@ class TrackingOut(Schema):
     lines: list[TrackingLineOut]
     items_total: Money = Field(description="What the items cost before any discount.")
     campaigns: list[AppliedCampaignOut] = Field(
-        default_factory=list,
         description="The Basket Campaigns this Order was placed under, discount first.",
     )
     discount: Money = Field(description="What the Voucher took off the items.")

@@ -71,7 +71,6 @@ class BasketOut(Schema):
     subtotal: Money
     has_problems: bool
     campaigns: list[AppliedCampaignOut] = Field(
-        default_factory=list,
         description="The Basket Campaigns this basket gets, discount first (shipping "
         "unknown here: free shipping is judged on the flat fee).",
     )

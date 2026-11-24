@@ -158,6 +158,7 @@
           "payment_method",
           "lines",
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
@@ -712,7 +713,8 @@
           "lines",
           "item_count",
           "subtotal",
-          "has_problems"
+          "has_problems",
+          "campaigns"
         ],
         "title": "BasketOut",
         "type": "object"
@@ -1921,6 +1923,7 @@
           "email",
           "lines",
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
@@ -2839,6 +2842,7 @@
         },
         "required": [
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
@@ -3578,6 +3582,7 @@
           "payment_method",
           "lines",
           "items_total",
+          "campaigns",
           "discount",
           "shipping_fee",
           "cod_fee",
