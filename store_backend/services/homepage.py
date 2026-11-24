@@ -22,15 +22,19 @@ from pydantic import TypeAdapter
 from pydantic import ValidationError
 from pydantic import model_validator
 
+from store_backend.api.errors import ConflictError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import HomepageLayout
+from store_backend.services import approval
 from store_backend.services import audit
 from store_backend.services import banners
 from store_backend.services import browse
 from store_backend.services import categories
 from store_backend.services import collections
+from store_backend.staff.models import ApprovalStatus
+from store_backend.staff.permissions import Perm
 
 MAX_SECTIONS = 20
 MAX_ITEMS = 24
@@ -242,7 +246,7 @@ def get() -> HomepageLayout:
     """The layout row; created with the default layout if it is missing."""
     layout, _ = HomepageLayout.objects.get_or_create(
         pk=1,
-        defaults={"sections": default_sections()},
+        defaults={"sections": default_sections(), "status": ApprovalStatus.PUBLISHED},
     )
     return layout
 
@@ -390,12 +394,52 @@ def _drawn(sections: list[Section]) -> dict[str, list[dict[str, Any]]]:
 
 
 # --- editing -----------------------------------------------------------------------
+#
+# The layout is under the Approval rule (ADR 0008, 0012). It is always live, so a Staff
+# edit is never a draft: it is the layout's one pending change, which the Owner approves
+# or rejects in the approval queue. The Owner saves live, unless a change is waiting.
 
 
-def for_editing() -> dict[str, list[Section]]:
-    """The saved layout as the Dashboard edits it: every section, hidden ones too, with
-    its settings, unresolved."""
-    return {"sections": validate(get().sections)}
+def _clean(changes: dict[str, Any], _item: Any) -> dict[str, Any]:
+    """The sections of a change, checked and written out in full."""
+    if "sections" not in changes:
+        return {}
+    return {"sections": [s.model_dump() for s in validate(changes["sections"])]}
+
+
+KIND = approval.register(
+    approval.Kind(
+        key="homepage",
+        label="Vitrin",
+        model=HomepageLayout,
+        manage_perm=Perm.MANAGE_HOMEPAGE,
+        edit_perm=Perm.EDIT_HOMEPAGE,
+        fields=("sections",),
+        title=lambda _item: "Vitrin düzeni",
+        clean=_clean,
+    ),
+)
+
+
+def for_editing() -> dict[str, Any]:
+    """The live layout as the Dashboard edits it (every section, hidden ones too, with
+    its settings, unresolved), plus the waiting change, if any, and why the last one
+    was rejected."""
+    layout = get()
+    change = approval.pending_change(KIND, layout.pk)
+    pending = None
+    if change is not None:
+        submitter = change.submitted_by
+        pending = {
+            "sections": validate(change.payload["sections"]),
+            "submitted_by": (submitter.name or submitter.email) if submitter else None,
+            "submitted_at": change.updated_at,
+        }
+    return {
+        "sections": validate(layout.sections),
+        "pending": pending,
+        "rejection_reason": layout.rejection_reason,
+    }
 
 
 def _normalised(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -408,14 +452,21 @@ def _normalised(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 @transaction.atomic
-def save(actor: Any, raw_sections: list[dict[str, Any]]) -> dict[str, list[Section]]:
-    """Replace the whole layout and audit the change. Live at once (Owner only; Staff
-    drafts and approval come later)."""
+def save(actor: Any, raw_sections: list[dict[str, Any]]) -> dict[str, Any]:
+    """Save the whole layout. The Owner's save is live at once; a Staff save is held as
+    the layout's pending change (a second one amends it)."""
+    layout = get()
+    if not approval.can_manage(actor, KIND):
+        approval.edit(actor, KIND, layout.pk, sections=raw_sections)
+        return for_editing()
     sections = validate(raw_sections)
-    get()
     layout = HomepageLayout.objects.select_for_update().get(pk=1)
+    if approval.has_pending_change(KIND, layout.pk):
+        message = "Bekleyen bir değişiklik var; önce onaylayın veya reddedin."
+        raise ConflictError(message, code="approval_has_pending_change")
     before = _normalised(layout.sections)
     layout.sections = [s.model_dump() for s in sections]
+    layout.rejection_reason = ""
     layout.save()
     audit.record(
         actor,
@@ -425,4 +476,4 @@ def save(actor: Any, raw_sections: list[dict[str, Any]]) -> dict[str, list[Secti
         before={"sections": before},
         after={"sections": layout.sections},
     )
-    return {"sections": sections}
+    return for_editing()

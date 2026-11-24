@@ -62,8 +62,6 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "menus_get_for_editing": Perm.MANAGE_MENUS,
     "menus_save": Perm.MANAGE_MENUS,
     "menus_search_targets": Perm.MANAGE_MENUS,
-    "homepage_get_for_editing": Perm.MANAGE_HOMEPAGE,
-    "homepage_save": Perm.MANAGE_HOMEPAGE,
     "homepage_preview": Perm.MANAGE_HOMEPAGE,
     "collections_edit_pending_change": Perm.MANAGE_COLLECTIONS,
     "collections_approve": Perm.MANAGE_COLLECTIONS,
@@ -145,6 +143,7 @@ OWNER_GROUP_OPERATIONS = {
 CHECKED_IN_SERVICES = {
     Perm.ARCHIVE_PRODUCTS,
     Perm.CANCEL_PAID_ORDERS,
+    Perm.MANAGE_HOMEPAGE,  # approving goes through the generic approval queue
     Perm.VIEW_COST_PRICES,
 }
 

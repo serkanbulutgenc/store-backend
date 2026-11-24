@@ -1,6 +1,9 @@
-"""The Owner's Homepage layout API: read it for editing, save the whole list."""
+"""The Homepage layout API: read it for editing, save the whole list. The Owner's save
+is live; a Staff save waits for the Owner (the approval queue)."""
 
 from __future__ import annotations
+
+from datetime import datetime  # noqa: TC003 (pydantic needs it)
 
 from ninja import Router
 from ninja import Schema
@@ -20,13 +23,24 @@ class HomepageLayoutIn(Schema):
     sections: list[Section]
 
 
-class HomepageLayoutOut(Schema):
+class PendingLayoutOut(Schema):
     sections: list[Section]
+    submitted_by: str | None
+    submitted_at: datetime
+
+
+class HomepageLayoutOut(Schema):
+    """`sections` is the live layout. `pending` is the Staff change waiting for the
+    Owner; `rejection_reason` says why the last one was turned down."""
+
+    sections: list[Section]
+    pending: PendingLayoutOut | None = None
+    rejection_reason: str = ""
 
 
 @router.get(
     "/homepage",
-    auth=requires(Perm.MANAGE_HOMEPAGE),
+    auth=requires(Perm.EDIT_HOMEPAGE),
     operation_id="homepage_get_for_editing",
     response=HomepageLayoutOut,
 )
@@ -37,13 +51,14 @@ def get_homepage(request):
 
 @router.put(
     "/homepage",
-    auth=requires(Perm.MANAGE_HOMEPAGE),
+    auth=requires(Perm.EDIT_HOMEPAGE),
     operation_id="homepage_save",
     response=HomepageLayoutOut,
 )
 def save_homepage(request, data: HomepageLayoutIn):
-    """Replace the whole layout atomically. Live at once; written to the Audit log.
-    Section ids must be unique and there are at most 20 sections."""
+    """Replace the whole layout atomically. The Owner's save is live at once; a Staff
+    save is held as a pending change. Every step is written to the Audit log. Section
+    ids must be unique and there are at most 20 sections."""
     return homepage.save(request.auth, data.model_dump()["sections"])
 
 
