@@ -70,13 +70,16 @@ class StoreSettings(models.Model):
         "Owner has confirmed the İYS registration.",
     )
 
-    # Bank transfer details shown to Shoppers who pick transfer.
+    # Superseded by `BankAccount`; no longer read or written. The columns stay for one
+    # release so the previous release still runs on this database, then are dropped.
     bank_name = models.CharField(max_length=100, blank=True)
     bank_account_holder = models.CharField(max_length=150, blank=True)
     bank_iban = models.CharField(max_length=34, blank=True)
 
     notification_emails = models.JSONField(default=list, blank=True)
 
+    # The home page banner now lives in Banners (`home_hero`). Unused; drop these in the
+    # release after this one, with the old bank columns above.
     banner_image_url = models.CharField(max_length=500, blank=True)
     banner_link = models.CharField(max_length=500, blank=True)
     banner_alt = models.CharField(max_length=200, blank=True)
@@ -101,6 +104,23 @@ class StoreSettings(models.Model):
 
     def __str__(self) -> str:
         return "Store settings"
+
+
+class BankAccount(models.Model):
+    """One account a Shopper may pay a bank transfer into, shown in the order's
+    confirmation and the payment emails. The Owner keeps the list in Settings; its order
+    is the order the Shopper sees."""
+
+    name = models.CharField(max_length=100)
+    account_holder = models.CharField(max_length=150)
+    iban = models.CharField(max_length=34)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.name} {self.iban}"
 
 
 USER_AGENT_MAX = 500

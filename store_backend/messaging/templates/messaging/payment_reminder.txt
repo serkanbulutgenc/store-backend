@@ -5,10 +5,12 @@ Havale/EFT ödemenizi henüz almadık. Siparişiniz {{ pay_by|date:"d.m.Y H:i" }
 
 Toplam: {{ total }}
 
-Açıklama kısmına {{ number }} yazarak aşağıdaki hesaba ödeme yapabilirsiniz.
+Açıklama kısmına {{ number }} yazarak {% if bank_accounts|length > 1 %}aşağıdaki hesaplardan birine{% else %}aşağıdaki hesaba{% endif %} ödeme yapabilirsiniz.
 
-Banka: {{ store.bank_name }}
-Hesap sahibi: {{ store.bank_account_holder }}
-IBAN: {{ store.bank_iban }}
+{% for account in bank_accounts %}Banka: {{ account.name }}
+Hesap sahibi: {{ account.account_holder }}
+IBAN: {{ account.iban }}
+{% if not forloop.last %}
+{% endif %}{% endfor %}
 
 Sipariş durumu: {{ tracking_url }}{% endblock %}

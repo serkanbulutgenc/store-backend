@@ -13,12 +13,6 @@ from store_backend.services import shop_settings
 router = Router(tags=["settings"])
 
 
-class BannerOut(Schema):
-    image_url: str
-    link: str
-    alt: str
-
-
 class SellerOut(Schema):
     name: str
     tax_number: str
@@ -33,7 +27,6 @@ class PublicSettingsOut(Schema):
     shipping_fee: Money
     free_shipping_threshold: Money | None
     cod_fee: Money
-    banner: BannerOut | None
     seller: SellerOut
     legal_versions: dict[str, str]
     stock_alerts_enabled: bool
@@ -46,7 +39,7 @@ class PublicSettingsOut(Schema):
     response=PublicSettingsOut,
 )
 def get_public_settings(request):
-    """What the storefront needs: fees, banner, seller identity, Legal versions and
+    """What the storefront needs: fees, seller identity, Legal versions and
     whether Stock alerts are on.
     Bank details, KDV rate, recipients and the stock default stay private.
     """
@@ -55,15 +48,6 @@ def get_public_settings(request):
         "shipping_fee": s.shipping_fee,
         "free_shipping_threshold": s.free_shipping_threshold,
         "cod_fee": s.cod_fee,
-        "banner": (
-            {
-                "image_url": s.banner_image_url,
-                "link": s.banner_link,
-                "alt": s.banner_alt,
-            }
-            if s.banner_image_url
-            else None
-        ),
         "seller": {
             "name": s.seller_name,
             "tax_number": s.seller_tax_number,

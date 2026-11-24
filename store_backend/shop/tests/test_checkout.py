@@ -89,9 +89,18 @@ def test_guest_places_a_bank_transfer_order(guest, shop, owner):
     set_fees(
         owner,
         shipping_fee="30.00",
-        bank_name="Ziraat",
-        bank_account_holder="Aura Tekstil",
-        bank_iban="TR330006100519786457841326",
+        bank_accounts=[
+            {
+                "name": "Ziraat",
+                "account_holder": "Aura Tekstil",
+                "iban": "TR330006100519786457841326",
+            },
+            {
+                "name": "İş Bankası",
+                "account_holder": "Aura Tekstil",
+                "iban": "TR320010009999901234567890",
+            },
+        ],
     )
 
     response = guest.post(CHECKOUT, payload())
@@ -107,9 +116,18 @@ def test_guest_places_a_bank_transfer_order(guest, shop, owner):
     assert body["cod_fee"] == "0.00"
     assert body["total"] == "230.00"
     assert body["bank"] == {
-        "name": "Ziraat",
-        "account_holder": "Aura Tekstil",
-        "iban": "TR330006100519786457841326",
+        "accounts": [
+            {
+                "name": "Ziraat",
+                "account_holder": "Aura Tekstil",
+                "iban": "TR330006100519786457841326",
+            },
+            {
+                "name": "İş Bankası",
+                "account_holder": "Aura Tekstil",
+                "iban": "TR320010009999901234567890",
+            },
+        ],
         "reference": body["number"],
     }
     assert [(line["sku"], line["quantity"]) for line in body["lines"]] == [

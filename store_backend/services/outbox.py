@@ -19,6 +19,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.functional import SimpleLazyObject
 
 from store_backend.api.errors import ConflictError
 from store_backend.api.errors import NotFoundError
@@ -82,7 +83,13 @@ def _subject(template: str, context: dict[str, Any]) -> str:
 def render(template: str, context: dict[str, Any]) -> tuple[str, str, str]:
     """(subject, text, html) for a template, with shop details from Store settings."""
     store = shop_settings.get()
-    full = {"store": store, "shop_name": shop_name(store), **context}
+    full = {
+        "store": store,
+        "shop_name": shop_name(store),
+        # What a Shopper may pay a transfer into, for the emails that ask for one.
+        "bank_accounts": SimpleLazyObject(shop_settings.bank_accounts),
+        **context,
+    }
     return (
         _subject(template, full),
         render_to_string(f"messaging/{template}.txt", full).strip(),

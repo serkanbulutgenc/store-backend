@@ -419,7 +419,7 @@
         "title": "AttributeFacet",
         "type": "object"
       },
-      "BankOut": {
+      "BankAccountOut": {
         "properties": {
           "account_holder": {
             "title": "Account Holder",
@@ -432,6 +432,25 @@
           "name": {
             "title": "Name",
             "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "account_holder",
+          "iban"
+        ],
+        "title": "BankAccountOut",
+        "type": "object"
+      },
+      "BankOut": {
+        "properties": {
+          "accounts": {
+            "description": "Any one of these will do, in the order the Owner set.",
+            "items": {
+              "$ref": "#/components/schemas/BankAccountOut"
+            },
+            "title": "Accounts",
+            "type": "array"
           },
           "reference": {
             "description": "Write this Order number in the transfer.",
@@ -440,35 +459,10 @@
           }
         },
         "required": [
-          "name",
-          "account_holder",
-          "iban",
+          "accounts",
           "reference"
         ],
         "title": "BankOut",
-        "type": "object"
-      },
-      "BannerOut": {
-        "properties": {
-          "alt": {
-            "title": "Alt",
-            "type": "string"
-          },
-          "image_url": {
-            "title": "Image Url",
-            "type": "string"
-          },
-          "link": {
-            "title": "Link",
-            "type": "string"
-          }
-        },
-        "required": [
-          "image_url",
-          "link",
-          "alt"
-        ],
-        "title": "BannerOut",
         "type": "object"
       },
       "BannersOut": {
@@ -2637,16 +2631,6 @@
       },
       "PublicSettingsOut": {
         "properties": {
-          "banner": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/BannerOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "cod_fee": {
             "examples": [
               "349.90"
@@ -2697,7 +2681,6 @@
           "shipping_fee",
           "free_shipping_threshold",
           "cod_fee",
-          "banner",
           "seller",
           "legal_versions",
           "stock_alerts_enabled"
@@ -5402,7 +5385,7 @@
     },
     "/api/store/settings": {
       "get": {
-        "description": "What the storefront needs: fees, banner, seller identity, Legal versions and\nwhether Stock alerts are on.\nBank details, KDV rate, recipients and the stock default stay private.",
+        "description": "What the storefront needs: fees, seller identity, Legal versions and\nwhether Stock alerts are on.\nBank details, KDV rate, recipients and the stock default stay private.",
         "operationId": "settings_get_public",
         "parameters": [],
         "responses": {

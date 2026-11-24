@@ -119,10 +119,16 @@ class PlacedLineOut(Schema):
     )
 
 
-class BankOut(Schema):
+class BankAccountOut(Schema):
     name: str
     account_holder: str
     iban: str
+
+
+class BankOut(Schema):
+    accounts: list[BankAccountOut] = Field(
+        description="Any one of these will do, in the order the Owner set.",
+    )
     reference: str = Field(description="Write this Order number in the transfer.")
 
 
@@ -174,11 +180,8 @@ def placed_summary(order) -> dict:
     discounts = list(order.discounts.all())
     bank = None
     if method == PaymentMethod.BANK_TRANSFER:
-        store = shop_settings.get()
         bank = {
-            "name": store.bank_name,
-            "account_holder": store.bank_account_holder,
-            "iban": store.bank_iban,
+            "accounts": shop_settings.bank_accounts(),
             "reference": order.number,
         }
     return {
