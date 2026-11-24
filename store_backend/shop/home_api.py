@@ -125,10 +125,12 @@ class ApprovalsWaiting(Schema):
 
 
 class HomeOut(Schema):
-    """`layout` is the Widgets turned on, in order; `available` is what the user
-    may add. Each Widget's list is present only while it is turned on."""
+    """`layout` is the Widgets turned on, in order and `collapsed` the ones folded to
+    their header; `available` is what the user may add. Each Widget's list is present
+    only while it is turned on."""
 
     layout: list[str]
+    collapsed: list[str]
     available: list[str]
     is_default: bool
     approvals: ApprovalsWaiting | None = None
@@ -145,6 +147,8 @@ class HomeOut(Schema):
 
 class HomeLayoutIn(Schema):
     widgets: list[str]
+    # Which of them are folded; leave it out to keep what was folded.
+    collapsed: list[str] | None = None
 
 
 # Open to every Dashboard user: `home_layout` filters each Widget by the permission it
@@ -169,8 +173,9 @@ def get_home(request):
     exclude_none=True,
 )
 def save_layout(request, data: HomeLayoutIn):
-    """Choose which Widgets are on, and their order. Unavailable ones are refused."""
-    home_layout.save(request.auth, data.widgets)
+    """Choose which Widgets are on, their order and which are folded. Unavailable
+    ones are refused."""
+    home_layout.save(request.auth, data.widgets, data.collapsed)
     return home.build(request.auth)
 
 

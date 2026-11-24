@@ -249,3 +249,66 @@ def test_the_report_summary_is_revenue_data_for_the_owner_alone(boss, staff):
     assert "report_summary" not in body
     refused = staff.put(LAYOUT, {"widgets": ["report_summary"]})
     assert refused.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_a_user_who_never_configured_has_nothing_collapsed(staff):
+    assert staff.get(HOME).json()["collapsed"] == []
+
+
+def test_collapsed_widgets_are_remembered_per_user(staff, boss):
+    body = staff.put(
+        LAYOUT,
+        {"widgets": ALL, "collapsed": ["low_stock", "new_orders"]},
+    ).json()
+    assert body["collapsed"] == ["low_stock", "new_orders"]
+    assert body["is_default"] is False
+    assert staff.get(HOME).json()["collapsed"] == ["low_stock", "new_orders"]
+    assert boss.get(HOME).json()["collapsed"] == []  # another user is unaffected
+
+
+def test_saving_without_collapsed_keeps_what_was_folded(staff):
+    staff.put(LAYOUT, {"widgets": ALL, "collapsed": ["low_stock"]})
+    body = staff.put(LAYOUT, {"widgets": ["low_stock", "new_orders"]}).json()
+    assert body["layout"] == ["low_stock", "new_orders"]
+    assert body["collapsed"] == ["low_stock"]
+
+
+def test_an_empty_collapsed_list_unfolds_everything(staff):
+    staff.put(LAYOUT, {"widgets": ALL, "collapsed": ["low_stock"]})
+    body = staff.put(LAYOUT, {"widgets": ALL, "collapsed": []}).json()
+    assert body["collapsed"] == []
+
+
+def test_turning_a_widget_off_forgets_that_it_was_folded(staff):
+    staff.put(LAYOUT, {"widgets": ALL, "collapsed": ["low_stock"]})
+    off = [k for k in ALL if k != "low_stock"]
+    assert staff.put(LAYOUT, {"widgets": off}).json()["collapsed"] == []
+    back = staff.put(LAYOUT, {"widgets": ALL}).json()
+    assert back["collapsed"] == []  # it comes back open
+
+
+def test_an_unknown_or_unavailable_collapsed_key_is_refused(staff):
+    for key in ("nope", "approvals"):
+        response = staff.put(LAYOUT, {"widgets": ALL, "collapsed": [key]})
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+        assert response.json()["code"] == "widget_not_available"
+
+
+def test_reset_unfolds_everything(staff):
+    staff.put(LAYOUT, {"widgets": ALL, "collapsed": ["low_stock"]})
+    body = staff.delete(LAYOUT).json()
+    assert body["collapsed"] == []
+    assert body["is_default"] is True
+
+
+def test_a_collapsed_key_whose_permission_was_revoked_is_dropped(staff, staff_user):
+    staff.put(LAYOUT, {"widgets": ALL, "collapsed": ["low_stock"]})
+    staff_user.groups.clear()
+    perm = Permission.objects.get(
+        content_type__app_label="staff",
+        codename="view_orders",
+    )
+    staff_user.user_permissions.add(perm)
+    body = staff.get(HOME).json()
+    assert "low_stock" not in body["layout"]
+    assert body["collapsed"] == []
