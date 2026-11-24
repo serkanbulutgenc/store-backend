@@ -55,7 +55,7 @@ def public() -> QuerySet[Collection]:
     ).filter(Exists(_visible_places().filter(collection=OuterRef("pk"))))
 
 
-def _visible_products(collection: Collection) -> list[ProductProfile]:
+def visible_products(collection: Collection) -> list[ProductProfile]:
     """The visible Products in the Owner's order."""
     profiles = browse.published().select_related("product")
     by_product = {
@@ -93,7 +93,7 @@ def page(slug: str) -> dict:
     ).first()
     if collection is None:
         raise NotFoundError
-    profiles = _visible_products(collection)
+    profiles = visible_products(collection)
     if not profiles:
         raise NotFoundError
     ids = [p.product_id for p in profiles]

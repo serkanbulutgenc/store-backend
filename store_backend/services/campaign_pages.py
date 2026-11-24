@@ -497,7 +497,7 @@ def _discounted_cards(campaign: Campaign) -> list[dict]:
         .select_related("product")
         .order_by("-product_id")[:ITEMS_MAX],
     )
-    return browse._cards(profiles)  # noqa: SLF001
+    return browse.cards_for(profiles)
 
 
 def public_page(slug: str) -> dict[str, Any]:

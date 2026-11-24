@@ -18,6 +18,7 @@ from store_backend.services import banners
 from store_backend.services import browse
 from store_backend.services import campaign_pages
 from store_backend.services import collections
+from store_backend.services import homepage
 
 router = Router(tags=["catalog"], auth=None)
 
@@ -362,6 +363,37 @@ def list_banners(request, category: str | None = None):
     `category_top` slot is filled only when a Category slug is given, with the Banners
     tied to that Category and those tied to none; a hidden Category is 404."""
     return banners.public(category)
+
+
+class HomepageSectionOut(Schema):
+    id: str
+    type: Literal["slider", "products", "categories", "banner", "rich_text"]
+    title: str
+    link: str
+    display: Literal["grid", "carousel", "list"]
+    products: list[ProductCardOut] | None = None
+    banners: list[PictureBannerOut] | None = None
+    categories: list[HomeCategoryOut] | None = None
+    body: str | None = None
+    client_resolved: bool = Field(
+        default=False,
+        description="Recently viewed: the Shopper's browser fills it in.",
+    )
+
+
+class HomepageOut(Schema):
+    sections: list[HomepageSectionOut]
+
+
+@router.get(
+    "/homepage",
+    operation_id="catalog_get_homepage",
+    response=HomepageOut,
+)
+def get_homepage(request):
+    """The home page: the Owner's visible sections in order, each already resolved.
+    A section with nothing to show is left out."""
+    return homepage.public()
 
 
 class CampaignPageRowOut(Schema):
