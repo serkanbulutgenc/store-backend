@@ -37,8 +37,7 @@ if TYPE_CHECKING:
 
 Benefit = BasketCampaign.Benefit
 
-#: What the Owner may create today. Free shipping is added when its slice lands.
-ALLOWED_BENEFITS = (Benefit.FIXED, Benefit.PERCENTAGE)
+ALLOWED_BENEFITS = (Benefit.FIXED, Benefit.PERCENTAGE, Benefit.FREE_SHIPPING)
 NAME_MAX = 200
 MAX_AMOUNT = Decimal("99999999.99")
 MIN_PERCENTAGE = Decimal(1)

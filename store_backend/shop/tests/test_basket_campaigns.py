@@ -26,6 +26,7 @@ from store_backend.shop.tests.test_checkout import guest  # noqa: F401
 from store_backend.shop.tests.test_checkout import payload
 from store_backend.shop.tests.test_checkout import quote_body
 from store_backend.shop.tests.test_checkout import set_fees
+from store_backend.shop.tests.test_checkout import ship_to
 from store_backend.staff.models import AuditEntry
 
 pytestmark = pytest.mark.django_db
@@ -109,7 +110,7 @@ def test_the_label_reads_a_percentage_and_thousands(boss):
         ({"value": "500"}, "value"),  # as much as the minimum: the basket could go to 0
         ({"benefit": "percentage", "value": "0"}, "value"),
         ({"benefit": "percentage", "value": "100"}, "value"),
-        ({"benefit": "free_shipping", "value": None}, "benefit"),  # not offered yet
+        ({"benefit": "free_shipping", "value": "5"}, "value"),  # takes no amount
         ({"benefit": "nope"}, "benefit"),
     ],
 )
@@ -404,3 +405,141 @@ def test_order_tracking_shows_the_campaign_the_order_was_placed_under(guest):
     assert tracked["campaign"]["label"] == "200 ₺ üzeri 20 ₺ indirim"
     assert tracked["campaign"]["discount"] == "20.00"
     assert tracked["total"] == placed["total"]
+
+
+# --- free shipping -------------------------------------------------------------------
+
+
+def free_shipping(minimum="200", **fields):
+    return make(minimum=minimum, benefit="free_shipping", value=None, **fields)
+
+
+def test_the_owner_creates_a_free_shipping_campaign(boss):
+    made = create(boss, benefit="free_shipping", value=None, minimum_amount="750")
+
+    assert made["label"] == "750 ₺ üzeri ücretsiz kargo"
+    assert made["value"] is None
+    assert made["benefit"] == "free_shipping"
+
+
+def test_a_free_shipping_campaign_can_be_switched_to_and_from(boss):
+    made = create(boss)  # 500 -> 50 off
+    item = f"{ADMIN}/{made['id']}"
+
+    to_free = boss.patch(item, {"benefit": "free_shipping", "value": None})
+    assert to_free.status_code == HTTPStatus.OK
+    assert (to_free.json()["benefit"], to_free.json()["value"]) == (
+        "free_shipping",
+        None,
+    )
+
+    back = boss.patch(item, {"benefit": "fixed"})  # no amount to go with it
+    assert back.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_at_the_minimum_shipping_is_free_and_the_items_are_untouched(guest):
+    free_shipping("200")
+
+    quoted = guest.post(QUOTE, quote_body("")).json()
+
+    assert quoted["campaign"] == {
+        "label": "200 ₺ üzeri ücretsiz kargo",
+        "discount": "0.00",
+        "free_shipping": True,
+    }
+    assert quoted["shipping_fee"] == "0.00"
+    assert quoted["total"] == "200.00"  # just the items
+
+
+def test_below_the_minimum_shipping_is_charged(guest):
+    free_shipping("200.01")
+
+    quoted = guest.post(QUOTE, quote_body("")).json()
+
+    assert quoted["campaign"] is None
+    assert quoted["shipping_fee"] == "30.00"
+
+
+def test_free_shipping_waives_the_shipping_fee_but_not_the_cod_fee(guest, owner):
+    set_fees(owner, cod_fee="15.00")
+    free_shipping("200")
+
+    placed = guest.post(
+        CHECKOUT,
+        payload(payment_method="cod", cod_fee_consent=True),
+    ).json()
+
+    assert placed["shipping_fee"] == "0.00"
+    assert placed["cod_fee"] == "15.00"
+    assert placed["total"] == "215.00"
+    assert placed["campaign"]["free_shipping"] is True
+
+
+def test_free_shipping_uses_the_computed_carrier_fee_when_the_province_is_known(
+    guest,
+    computed_shipping,
+):
+    free_shipping("200")
+
+    quoted = guest.post(QUOTE, quote_body("TRABZON")).json()
+    placed = guest.post(CHECKOUT, ship_to("TRABZON")).json()
+
+    assert quoted["shipping_fee"] == placed["shipping_fee"] == "0.00"
+    assert quoted["campaign"]["free_shipping"] is True
+
+
+def test_a_discount_worth_more_than_the_shipping_fee_beats_free_shipping(guest):
+    free_shipping("100")  # saves the 30.00 shipping
+    make(minimum="100", value="50", name="50 off")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    assert placed["campaign"]["free_shipping"] is False
+    assert placed["campaign"]["discount"] == "50.00"
+    assert placed["shipping_fee"] == "30.00"  # they never combine
+    assert placed["total"] == "180.00"  # 200 - 50 + 30
+
+
+def test_free_shipping_worth_more_than_the_discount_beats_it(guest, owner):
+    set_fees(owner, shipping_fee="95.00")
+    free_shipping("100")  # saves 95.00
+    make(minimum="100", value="20", name="20 off")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    assert placed["campaign"]["free_shipping"] is True
+    assert placed["shipping_fee"] == "0.00"
+    assert placed["total"] == "200.00"
+
+
+def test_free_shipping_that_saves_nothing_is_not_applied(guest, owner):
+    set_fees(owner, shipping_fee="0")
+    free_shipping("100")
+
+    assert guest.post(QUOTE, quote_body("")).json()["campaign"] is None
+
+
+def test_the_order_freezes_free_shipping_and_the_email_says_so(guest, boss):
+    made = free_shipping("200")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    row = OrderBasketCampaign.objects.get(order__number=placed["number"])
+    assert (row.campaign_id, row.free_shipping, row.discount) == (made.pk, True, 0)
+    detail = boss.get(f"/api/admin/orders/{placed['number']}").json()
+    assert detail["basket_campaign"]["free_shipping"] is True
+    message = Message.objects.get(order__number=placed["number"])
+    for body in (message.body_text, message.body_html):
+        assert "ücretsiz kargo" in body
+
+
+def test_the_basket_judges_free_shipping_on_the_flat_fee(guest):
+    free_shipping("200")
+
+    basket = guest.get(BASKET).json()
+
+    assert basket["campaign"] == {
+        "label": "200 ₺ üzeri ücretsiz kargo",
+        "discount": "0.00",
+        "free_shipping": True,
+    }
