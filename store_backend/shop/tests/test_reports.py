@@ -708,3 +708,12 @@ def test_a_staff_member_never_gets_a_cached_report(two_products, boss, staff):
     boss.get(SALES)  # fills the cache
 
     assert staff.get(SALES).status_code == HTTPStatus.FORBIDDEN
+
+
+def test_the_home_summary_shows_the_reports_own_figures(cod, boss):
+    summary = boss.get("/api/admin/home").json()["report_summary"]
+    assert [p["preset"] for p in summary["periods"]] == ["today", "7d", "30d"]
+    for row in summary["periods"]:
+        report = boss.get(f"{SALES}?preset={row['preset']}").json()["totals"]
+        assert (row["orders"], row["revenue"]) == (report["orders"], report["revenue"])
+    assert summary["periods"][0]["orders"] == 1

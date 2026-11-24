@@ -3550,6 +3550,16 @@
               }
             ]
           },
+          "report_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "shipped_without_invoice": {
             "anyOf": [
               {
@@ -7826,6 +7836,54 @@
           }
         },
         "title": "ReplyRejectIn",
+        "type": "object"
+      },
+      "ReportPeriodRow": {
+        "properties": {
+          "orders": {
+            "title": "Orders",
+            "type": "integer"
+          },
+          "preset": {
+            "enum": [
+              "today",
+              "7d",
+              "30d"
+            ],
+            "title": "Preset",
+            "type": "string"
+          },
+          "revenue": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Revenue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preset",
+          "orders",
+          "revenue"
+        ],
+        "title": "ReportPeriodRow",
+        "type": "object"
+      },
+      "ReportSummary": {
+        "properties": {
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/ReportPeriodRow"
+            },
+            "title": "Periods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "periods"
+        ],
+        "title": "ReportSummary",
         "type": "object"
       },
       "ReturnAdminOut": {
