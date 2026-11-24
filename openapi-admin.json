@@ -2998,6 +2998,77 @@
         "title": "ContactCategoryRow",
         "type": "object"
       },
+      "ContactRepliesWaiting": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ContactReplyRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "ContactRepliesWaiting",
+        "type": "object"
+      },
+      "ContactReplyRow": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "excerpt": {
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "reply_id": {
+            "title": "Reply Id",
+            "type": "integer"
+          },
+          "shopper": {
+            "title": "Shopper",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "integer"
+          },
+          "written_at": {
+            "format": "date-time",
+            "title": "Written At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reply_id",
+          "thread_id",
+          "shopper",
+          "category",
+          "author",
+          "excerpt",
+          "written_at"
+        ],
+        "title": "ContactReplyRow",
+        "type": "object"
+      },
       "CoverImageOut": {
         "description": "The cover image: `processing` until its derivatives exist.",
         "properties": {
@@ -3407,6 +3478,16 @@
             },
             "title": "Available",
             "type": "array"
+          },
+          "contact_replies": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactRepliesWaiting"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "invoice_attention": {
             "anyOf": [

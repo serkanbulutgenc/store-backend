@@ -25,6 +25,8 @@ from store_backend.services import order_context
 from store_backend.services import order_ops
 from store_backend.services import returns
 from store_backend.services import stock
+from store_backend.shop.models import ContactMessage
+from store_backend.shop.models import ContactReplyState
 from store_backend.shop.models import Invoice
 from store_backend.shop.models import InvoiceStatus
 from store_backend.staff.permissions import Perm
@@ -169,6 +171,50 @@ def open_returns() -> dict:
     )
 
 
+EXCERPT = 160
+
+
+def _excerpt(body: str) -> str:
+    text = " ".join(body.split())
+    return text if len(text) <= EXCERPT else text[: EXCERPT - 1].rstrip() + "…"
+
+
+def contact_replies() -> dict:
+    """Threads with a reply Staff wrote that waits for the Owner, oldest first.
+
+    One row per thread (its oldest waiting reply), so the count matches the nav badge
+    and the Contact list's "waiting" filter.
+    """
+    waiting = (
+        ContactMessage.objects.filter(
+            state=ContactReplyState.PENDING,
+            thread__anonymised_at__isnull=True,
+        )
+        .select_related("thread__category", "author")
+        .order_by("created_at", "pk")
+    )
+    first: dict[int, ContactMessage] = {}
+    for reply in waiting:
+        first.setdefault(reply.thread_id, reply)
+    rows = [
+        {
+            "reply_id": r.pk,
+            "thread_id": r.thread_id,
+            "shopper": r.thread.name,
+            "category": r.thread.category.name,
+            "author": (
+                {"id": r.author.pk, "name": r.author.name or r.author.email}
+                if r.author
+                else None
+            ),
+            "excerpt": _excerpt(r.body),
+            "written_at": r.created_at,
+        }
+        for r in first.values()
+    ]
+    return {"count": len(rows), "rows": rows[:ROW_LIMIT]}
+
+
 def approvals() -> dict:
     """Everything Staff submitted that waits for the Owner, oldest first."""
     rows = approval_queue.items()
@@ -178,6 +224,7 @@ def approvals() -> dict:
 #: Widget key -> the list that fills it. A Widget that is off is never queried.
 WIDGET_BUILDERS: dict[str, Callable[[datetime], dict]] = {
     "approvals": lambda _now: approvals(),
+    "contact_replies": lambda _now: contact_replies(),
     "new_orders": lambda _now: new_orders(),
     "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry,
     "open_returns": lambda _now: open_returns(),

@@ -32,6 +32,7 @@ class Widget:
 #: In the order they are offered. Add a Widget here, give it a builder in `home.py`.
 CATALOGUE: tuple[Widget, ...] = (
     Widget("approvals", None, owner_only=True),
+    Widget("contact_replies", Perm.MANAGE_CONTACT, owner_only=True),
     Widget("new_orders", Perm.VIEW_ORDERS),
     Widget("unpaid_transfers_near_expiry", Perm.VIEW_ORDERS),
     Widget("open_returns", Perm.VIEW_ORDERS),
