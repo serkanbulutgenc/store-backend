@@ -21,6 +21,10 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 - **Destructive action**: An action that sends money out or removes something for good: archiving a Product, recording a refund, cancelling a paid Order, handling an account deletion request. Owner-only. So is every hard delete (see [ADR 0005](docs/adr/0005-deletes-are-owner-only-and-refused-while-referenced.md)). Mistakes that can be corrected by editing, such as a wrong stock count or price, are not destructive; the Audit log is their safety net. Marking an Order paid only records money that has arrived, so Staff may do it, though Staff cannot undo it.
 - **Invitation**: An Owner's email invite through which a new Dashboard user sets a password. Dashboard users are deactivated, never deleted.
 
+**Ana sayfa**: The first Dashboard screen a Dashboard user sees after signing in. It is made of Widgets, which each Dashboard user arranges for themselves.
+- **Widget**: One block on the Ana sayfa that summarises a single area of work (for example return requests awaiting a decision) and links to that area's own screen. A Dashboard user can turn it on or off and move it up or down. It is offered only to someone who holds the permission for the area it summarises, and a Widget with nothing waiting says so rather than disappearing. A Widget showing Revenue data is Owner-only.
+- **Quick action**: A one-click decision inside a Widget, such as approving something waiting. Anything that needs a reason or free text opens the area's own screen instead. A decision button is shown only to a Dashboard user who may take that decision; everyone else sees counts and links.
+
 **Audit log**: Append-only record of sensitive Dashboard actions (who, when, what, before and after), shown on the Order and as an Owner-only list.
 
 **Product**: A sellable model as shoppers see it (e.g. a dress), which comes in several **Variants** (colour x size). Belongs to one primary **Category** and one **Product class**. Is draft, published or archived.
