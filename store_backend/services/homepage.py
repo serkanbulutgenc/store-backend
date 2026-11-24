@@ -273,7 +273,17 @@ def _resolve(section: Section, mid: list[dict]) -> dict[str, Any] | None:
 
 def public() -> dict[str, list[dict[str, Any]]]:
     """The layout as the Storefront draws it: visible sections in order, resolved."""
-    sections = validate(get().sections)
+    return _drawn(validate(get().sections))
+
+
+def preview() -> dict[str, list[dict[str, Any]]]:
+    """The layout a Dashboard user is looking at, drawn the way the Storefront would
+    draw it (store-infra#161). Today that is the saved layout; the draft or pending
+    layout takes over here once the Approval rule holds one."""
+    return _drawn(validate(get().sections))
+
+
+def _drawn(sections: list[Section]) -> dict[str, list[dict[str, Any]]]:
     mid = banners.public()["home_mid"]
     resolved = (_resolve(s, mid) for s in sections if s.visible)
     return {"sections": [r for r in resolved if r is not None]}

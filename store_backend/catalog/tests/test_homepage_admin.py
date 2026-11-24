@@ -205,3 +205,35 @@ def test_a_visitor_cannot_read_or_save_the_layout():
         {"sections": []},
         content_type="application/json",
     ).status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN)
+
+
+PREVIEW = "/api/admin/homepage/preview"
+
+
+def test_the_owner_previews_the_layout_as_the_storefront_draws_it(boss):
+    shop = Shop()
+    shop.product("Elbise", [(shop.black, "M", 3)])
+    sections = read(boss)
+    next(s for s in sections if s["id"] == "latest")["visible"] = False
+    save(boss, sections)
+
+    response = boss.get(PREVIEW)
+
+    assert response.status_code == HTTPStatus.OK, response.content
+    shown = [s["id"] for s in response.json()["sections"]]
+    assert shown == [s["id"] for s in Client().get(STORE).json()["sections"]]
+    assert "latest" not in shown
+
+
+def test_a_shopper_cannot_request_the_preview():
+    assert Client().get(PREVIEW).status_code in {
+        HTTPStatus.UNAUTHORIZED,
+        HTTPStatus.FORBIDDEN,
+    }
+
+
+def test_the_storefront_endpoint_ignores_a_preview_request():
+    response = Client().get(STORE, {"preview": "1"})
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == Client().get(STORE).json()
