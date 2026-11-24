@@ -26,6 +26,7 @@ from store_backend.services import pricing
 from store_backend.services import returns
 from store_backend.services import tracking
 from store_backend.shop.models import InvoiceStatus
+from store_backend.shop.models import OrderBasketCampaign
 from store_backend.shop.models import PaymentMethod
 from store_backend.shop.models import RefundMethod
 from store_backend.shop.models import ReturnReason
@@ -196,6 +197,16 @@ class OrderVoucherOut(Schema):
     discount: Money
 
 
+class OrderBasketCampaignOut(Schema):
+    """The Basket Campaign the Order was placed under, as it was then."""
+
+    campaign_id: int | None
+    name: str
+    label: str
+    discount: Money
+    free_shipping: bool
+
+
 class OrderDetail(Schema):
     number: str
     placed_at: datetime
@@ -207,6 +218,7 @@ class OrderDetail(Schema):
     shipping_address: OrderShippingOut | None
     lines: list[OrderLineOut]
     items_total: Money
+    basket_campaign: OrderBasketCampaignOut | None
     voucher: OrderVoucherOut | None
     shipping_fee: Money
     cod_fee: Money
@@ -273,6 +285,19 @@ def _campaign(line) -> dict | None:
         "name": snap.campaign_name,
         "percentage": snap.campaign_percentage,
         "shelf_unit_price": snap.shelf_unit_price,
+    }
+
+
+def _basket_campaign(order) -> dict | None:
+    found = OrderBasketCampaign.objects.filter(order=order).first()
+    if found is None:
+        return None
+    return {
+        "campaign_id": found.campaign_id,
+        "name": found.name,
+        "label": found.label,
+        "discount": found.discount,
+        "free_shipping": found.free_shipping,
     }
 
 
@@ -349,6 +374,7 @@ def order_detail(order) -> dict:
         "shipping_address": _shipping(order),
         "lines": lines,
         "items_total": sum((line["line_total"] for line in lines), pricing.ZERO),
+        "basket_campaign": _basket_campaign(order),
         "voucher": _voucher(order),
         "shipping_fee": order.shipping_incl_tax,
         "cod_fee": cod_fee,

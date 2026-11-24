@@ -392,7 +392,7 @@ def get(campaign_id: int) -> Campaign:
     return _get(campaign_id)
 
 
-def _in_status(campaigns: QuerySet[Campaign], wanted: str) -> QuerySet[Campaign]:
+def in_status(campaigns: QuerySet[Campaign], wanted: str) -> QuerySet[Campaign]:
     now = timezone.now()
     live = Q(is_active=True)
     started = Q(starts_at__isnull=True) | Q(starts_at__lte=now)
@@ -413,5 +413,5 @@ def listing(wanted: str | None = None) -> list[dict]:
         _refuse("status", msg)
     campaigns = Campaign.objects.all()
     if wanted:
-        campaigns = _in_status(campaigns, wanted)
+        campaigns = in_status(campaigns, wanted)
     return [_row(c) for c in campaigns]

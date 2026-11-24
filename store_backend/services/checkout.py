@@ -215,6 +215,7 @@ def place(
         billing=form.billing_address or form.shipping_address,
     )
     order_creation.record_voucher(order, quote)
+    order_creation.record_basket_campaign(order, quote)
     ConsentRecord.objects.create(
         order=order,
         contract_acknowledged=form.contract_acknowledged,

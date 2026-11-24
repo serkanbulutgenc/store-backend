@@ -357,6 +357,38 @@ class _KdvSnapshot(models.Model):
         abstract = True
 
 
+class OrderBasketCampaign(models.Model):
+    """The Basket Campaign an Order was placed under, frozen with the Order (ADR 0011).
+
+    The link is for the Owner's reporting; the label, rule and what it took off are as
+    they were then. PROTECT: a Basket Campaign an Order used is never deleted
+    (ADR 0005).
+    """
+
+    order = models.OneToOneField(
+        "order.Order",
+        on_delete=models.CASCADE,
+        related_name="basket_campaign",
+    )
+    campaign = models.ForeignKey(
+        "store_catalog.BasketCampaign",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    name = models.CharField(max_length=200)
+    label = models.CharField(max_length=200)
+    benefit = models.CharField(max_length=20)
+    value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # What it took off the items (0 for free shipping).
+    discount = models.DecimalField(max_digits=12, decimal_places=2)
+    free_shipping = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return f"{self.label} on order {self.order_id}"
+
+
 class OrderLineSnapshot(_KdvSnapshot):
     """An Order line's KDV split, frozen at placement and never recomputed."""
 

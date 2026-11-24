@@ -25,6 +25,7 @@ from store_backend.catalog.strategy import CURRENCY
 from store_backend.services import campaign_pricing
 from store_backend.services import payment
 from store_backend.services import pricing
+from store_backend.shop.models import OrderBasketCampaign
 from store_backend.shop.models import OrderFeeSnapshot
 from store_backend.shop.models import OrderLineSnapshot
 
@@ -187,6 +188,23 @@ def record_voucher(order: Order, quote: Quote) -> None:
         voucher_code=voucher.code,
         frequency=1,
         amount=quote.discount,
+    )
+
+
+def record_basket_campaign(order: Order, quote: Quote) -> None:
+    """Freeze the Basket Campaign the Order was placed under, with what it took off."""
+    applied = quote.campaign
+    if applied is None:
+        return
+    OrderBasketCampaign.objects.create(
+        order=order,
+        campaign_id=applied.campaign_id,
+        name=applied.name,
+        label=applied.label,
+        benefit=applied.benefit,
+        value=applied.value,
+        discount=applied.discount,
+        free_shipping=applied.free_shipping,
     )
 
 

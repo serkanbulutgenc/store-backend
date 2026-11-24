@@ -4,7 +4,8 @@ Siparişinizi aldık, teşekkür ederiz.
 Sipariş no: {{ number }}
 
 {% for line in lines %}- {{ line.title }} ({{ line.colour }}, {{ line.size }}) x {{ line.quantity }}: {{ line.total }}
-{% endfor %}{% if voucher %}Kupon ({{ voucher.code }}): -{{ voucher.discount }}
+{% endfor %}{% if campaign %}Kampanya ({{ campaign.label }}): {% if campaign.free_shipping %}ücretsiz kargo{% else %}-{{ campaign.discount }}{% endif %}
+{% endif %}{% if voucher %}Kupon ({{ voucher.code }}): -{{ voucher.discount }}
 {% endif %}Kargo: {{ shipping_fee }}
 {% if is_cod %}Kapıda ödeme bedeli: {{ cod_fee }}
 {% endif %}Toplam: {{ total }}

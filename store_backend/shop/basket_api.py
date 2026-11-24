@@ -11,6 +11,7 @@ from store_backend.api.auth import GuestAuth
 from store_backend.api.money import Money
 from store_backend.catalog.store_api import CardImageOut
 from store_backend.services import basket as basket_service
+from store_backend.shop.campaign_schemas import AppliedCampaignOut
 
 router = Router(tags=["basket"], auth=GuestAuth())
 
@@ -69,6 +70,11 @@ class BasketOut(Schema):
     item_count: int
     subtotal: Money
     has_problems: bool
+    campaign: AppliedCampaignOut | None = Field(
+        None,
+        description="The Basket Campaign this basket gets, if any (shipping unknown: "
+        "a free-shipping one is judged on the flat fee).",
+    )
     voucher: VoucherOut | None = Field(
         None,
         description="The Voucher applied to this basket, if any.",
