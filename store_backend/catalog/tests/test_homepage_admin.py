@@ -48,7 +48,13 @@ def test_the_owner_reads_every_section_of_the_layout(boss):
 
     assert [s["id"] for s in sections] == [s["id"] for s in homepage.default_sections()]
     latest = next(s for s in sections if s["id"] == "latest")
-    assert latest["settings"] == {"source": "latest", "count": 12}
+    assert latest["settings"] == {
+        "source": "latest",
+        "count": 12,
+        "window": 30,
+        "category_id": None,
+        "product_ids": [],
+    }
     assert latest["visible"] is True
     assert latest["display"] == "carousel"
 

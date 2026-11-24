@@ -8,16 +8,19 @@ whose target is gone, is left out rather than failing the page.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Annotated
 from typing import Any
 from typing import Literal
 
 from django.db import transaction
+from django.utils import timezone
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import TypeAdapter
 from pydantic import ValidationError
+from pydantic import model_validator
 
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Collection
@@ -26,17 +29,20 @@ from store_backend.catalog.models import HomepageLayout
 from store_backend.services import audit
 from store_backend.services import banners
 from store_backend.services import browse
+from store_backend.services import categories
 from store_backend.services import collections
 
 MAX_SECTIONS = 20
 MAX_ITEMS = 24
+MIN_ITEMS = 4
+DEFAULT_WINDOW = 30
 DEFAULT_ITEMS = 12
 SLIDER_ITEMS = 5
 #: The Collection feeding the default slider (GLOSSARY: Home slider Collection).
 SLIDER_COLLECTION_SLUG = "ana-sayfa"
 
 Display = Literal["grid", "carousel", "list"]
-Count = Annotated[int, Field(ge=1, le=MAX_ITEMS)]
+Count = Annotated[int, Field(ge=MIN_ITEMS, le=MAX_ITEMS)]
 
 
 class _Base(BaseModel):
@@ -65,8 +71,34 @@ class SliderSection(_Section):
 
 
 class ProductsSettings(_Base):
-    source: Literal["latest", "best_selling", "on_sale", "recently_viewed"] = "latest"
+    source: Literal[
+        "latest",
+        "best_selling",
+        "on_sale",
+        "category",
+        "hand_picked",
+        "recently_viewed",
+    ] = "latest"
     count: Count = DEFAULT_ITEMS
+    #: Best-selling: units sold over the last `window` days (never view tracking).
+    window: Literal[7, 30, 90] = DEFAULT_WINDOW
+    #: Category source: the Category (and its visible sub-categories) by id.
+    category_id: int | None = None
+    #: Hand-picked source: Product ids, in the Owner's order.
+    product_ids: list[int] = Field(default_factory=list, max_length=MAX_ITEMS)
+
+    @model_validator(mode="after")
+    def _needs_its_pick(self) -> ProductsSettings:
+        if self.source == "category" and self.category_id is None:
+            message = "Choose a category."
+            raise ValueError(message)
+        if self.source == "hand_picked" and not self.product_ids:
+            message = "Pick at least one product."
+            raise ValueError(message)
+        if len(set(self.product_ids)) != len(self.product_ids):
+            message = "A product can be picked once."
+            raise ValueError(message)
+        return self
 
 
 class ProductsSection(_Section):
@@ -75,8 +107,21 @@ class ProductsSection(_Section):
 
 
 class CategoriesSettings(_Base):
-    source: Literal["home"] = "home"
+    #: `home`: the Categories flagged `show_on_home`; `picked`: `category_ids`, in
+    #: the Owner's order.
+    source: Literal["home", "picked"] = "home"
     count: Count = DEFAULT_ITEMS
+    category_ids: list[int] = Field(default_factory=list, max_length=MAX_ITEMS)
+
+    @model_validator(mode="after")
+    def _needs_its_pick(self) -> CategoriesSettings:
+        if self.source == "picked" and not self.category_ids:
+            message = "Pick at least one category."
+            raise ValueError(message)
+        if len(set(self.category_ids)) != len(self.category_ids):
+            message = "A category can be picked once."
+            raise ValueError(message)
+        return self
 
 
 class CategoriesSection(_Section):
@@ -188,17 +233,38 @@ def get() -> HomepageLayout:
 # --- resolving ---------------------------------------------------------------------
 
 
-_PRODUCT_SORT = {"latest": "newest", "best_selling": "popular", "on_sale": "newest"}
-
-
 def _products(section: ProductsSection) -> list[dict]:
     settings = section.settings
-    filters = browse.Filters(on_sale=settings.source == "on_sale")
-    return browse.cards(
-        filters,
-        sort=_PRODUCT_SORT[settings.source],
-        limit=settings.count,
-    )
+    match settings.source:
+        case "hand_picked":
+            return _hand_picked(settings)
+        case "category":
+            category = categories.visible().filter(pk=settings.category_id).first()
+            if category is None:
+                return []
+            filters = browse.Filters(category=category.slug)
+            return browse.cards(filters, limit=settings.count)
+        case "best_selling":
+            since = timezone.now() - timedelta(days=settings.window)
+            filters = browse.Filters(sold_since=since)
+            return browse.cards(filters, sort="popular", limit=settings.count)
+        case _:
+            filters = browse.Filters(on_sale=settings.source == "on_sale")
+            return browse.cards(filters, limit=settings.count)
+
+
+def _hand_picked(settings: ProductsSettings) -> list[dict]:
+    """The picked Products in the Owner's order; unpublished, deleted and sold-out
+    ones are skipped."""
+    found = {
+        p.product_id: p
+        for p in browse.published().filter(
+            product_id__in=settings.product_ids,
+        )
+    }
+    ordered = [found[i] for i in settings.product_ids if i in found]
+    cards = [c for c in browse.cards_for(ordered) if not c["sold_out"]]
+    return cards[: settings.count]
 
 
 def _slider(section: SliderSection) -> dict[str, Any]:
@@ -229,7 +295,14 @@ def _products_data(section: ProductsSection, _mid: list[dict]) -> dict[str, Any]
 
 
 def _categories_data(section: CategoriesSection, _mid: list[dict]) -> dict[str, Any]:
-    return {"categories": browse.home_categories()[: section.settings.count]}
+    settings = section.settings
+    if settings.source == "picked":
+        return {
+            "categories": browse.picked_categories(settings.category_ids)[
+                : settings.count
+            ],
+        }
+    return {"categories": browse.home_categories()[: settings.count]}
 
 
 def _banner_data(section: BannerSection, mid: list[dict]) -> dict[str, Any]:

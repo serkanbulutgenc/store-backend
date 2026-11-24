@@ -2624,6 +2624,7 @@
               }
             ],
             "default": {
+              "category_ids": [],
               "count": 12,
               "source": "home"
             }
@@ -2655,16 +2656,27 @@
       "CategoriesSettings": {
         "additionalProperties": false,
         "properties": {
+          "category_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 24,
+            "title": "Category Ids",
+            "type": "array"
+          },
           "count": {
             "default": 12,
             "maximum": 24,
-            "minimum": 1,
+            "minimum": 4,
             "title": "Count",
             "type": "integer"
           },
           "source": {
-            "const": "home",
             "default": "home",
+            "enum": [
+              "home",
+              "picked"
+            ],
             "title": "Source",
             "type": "string"
           }
@@ -8013,8 +8025,11 @@
               }
             ],
             "default": {
+              "category_id": null,
               "count": 12,
-              "source": "latest"
+              "product_ids": [],
+              "source": "latest",
+              "window": 30
             }
           },
           "title": {
@@ -8044,12 +8059,31 @@
       "ProductsSettings": {
         "additionalProperties": false,
         "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
           "count": {
             "default": 12,
             "maximum": 24,
-            "minimum": 1,
+            "minimum": 4,
             "title": "Count",
             "type": "integer"
+          },
+          "product_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 24,
+            "title": "Product Ids",
+            "type": "array"
           },
           "source": {
             "default": "latest",
@@ -8057,10 +8091,22 @@
               "latest",
               "best_selling",
               "on_sale",
+              "category",
+              "hand_picked",
               "recently_viewed"
             ],
             "title": "Source",
             "type": "string"
+          },
+          "window": {
+            "default": 30,
+            "enum": [
+              7,
+              30,
+              90
+            ],
+            "title": "Window",
+            "type": "integer"
           }
         },
         "title": "ProductsSettings",
