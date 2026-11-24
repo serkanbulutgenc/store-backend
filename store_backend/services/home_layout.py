@@ -59,26 +59,47 @@ def default_keys(user) -> list[str]:
     return [w.key for w in available(user)]
 
 
-def current(user) -> tuple[list[str], bool]:
-    """`(enabled keys in order, is_default)`, limited to what the user may use now."""
+@dataclass(frozen=True)
+class Layout:
+    keys: list[str]
+    collapsed: list[str]
+    is_default: bool
+
+
+def current(user) -> Layout:
+    """What the user sees: the Widgets on in order, which of them are folded, and
+    whether this is still the role default. Limited to what they may use right now."""
     allowed = {w.key for w in available(user)}
     saved = HomeLayout.objects.filter(user=user).first()
     if saved is None:
-        return default_keys(user), True
-    return [k for k in saved.widgets if k in allowed], False
+        return Layout(default_keys(user), [], is_default=True)
+    keys = [k for k in saved.widgets if k in allowed]
+    return Layout(keys, [k for k in saved.collapsed if k in keys], is_default=False)
 
 
-def save(user, keys: Iterable[str]) -> None:
+def save(user, keys: Iterable[str], collapsed: Iterable[str] | None = None) -> None:
+    """Store the Widgets that are on, in order. `collapsed` says which are folded; leave
+    it out to keep what was folded before. A folded key that is not on is dropped."""
     keys = list(keys)
     allowed = {w.key for w in available(user)}
-    unknown = [k for k in keys if k not in allowed]
+    given = None if collapsed is None else list(collapsed)
+    unknown = [k for k in [*keys, *(given or [])] if k not in allowed]
     if unknown:
-        msg = f"Bu bileşenler kullanılamaz: {', '.join(unknown)}."
+        msg = f"Bu bileşenler kullanılamaz: {', '.join(dict.fromkeys(unknown))}."
         raise UnprocessableError(msg, code="widget_not_available")
     if len(set(keys)) != len(keys):
         msg = "Bir bileşen yalnızca bir kez eklenebilir."
         raise UnprocessableError(msg, code="widget_duplicated")
-    HomeLayout.objects.update_or_create(user=user, defaults={"widgets": keys})
+    if given is None:
+        before = HomeLayout.objects.filter(user=user).first()
+        given = before.collapsed if before else []
+    HomeLayout.objects.update_or_create(
+        user=user,
+        defaults={
+            "widgets": keys,
+            "collapsed": [k for k in dict.fromkeys(given) if k in keys],
+        },
+    )
 
 
 def reset(user) -> None:

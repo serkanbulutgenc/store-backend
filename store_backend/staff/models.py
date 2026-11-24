@@ -183,6 +183,8 @@ class HomeLayout(models.Model):
         related_name="home_layout",
     )
     widgets = models.JSONField(default=list)
+    #: Keys of the Widgets the user folded down to their header; always among `widgets`.
+    collapsed = models.JSONField(default=list)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

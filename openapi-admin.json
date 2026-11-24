@@ -3412,6 +3412,20 @@
       },
       "HomeLayoutIn": {
         "properties": {
+          "collapsed": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collapsed"
+          },
           "widgets": {
             "items": {
               "type": "string"
@@ -3460,7 +3474,7 @@
         "type": "object"
       },
       "HomeOut": {
-        "description": "`layout` is the Widgets turned on, in order; `available` is what the user\nmay add. Each Widget's list is present only while it is turned on.",
+        "description": "`layout` is the Widgets turned on, in order and `collapsed` the ones folded to\ntheir header; `available` is what the user may add. Each Widget's list is present\nonly while it is turned on.",
         "properties": {
           "approvals": {
             "anyOf": [
@@ -3477,6 +3491,13 @@
               "type": "string"
             },
             "title": "Available",
+            "type": "array"
+          },
+          "collapsed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Collapsed",
             "type": "array"
           },
           "contact_replies": {
@@ -3583,6 +3604,7 @@
         },
         "required": [
           "layout",
+          "collapsed",
           "available",
           "is_default"
         ],
@@ -14633,7 +14655,7 @@
         ]
       },
       "put": {
-        "description": "Choose which Widgets are on, and their order. Unavailable ones are refused.",
+        "description": "Choose which Widgets are on, their order and which are folded. Unavailable\nones are refused.",
         "operationId": "home_layout_save",
         "parameters": [],
         "requestBody": {

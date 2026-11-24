@@ -266,13 +266,14 @@ def build(user, *, now: datetime | None = None) -> dict:
     returned to anyone who may view Orders, as before, until they are decided on.
     """
     now = now or timezone.now()
-    keys, is_default = home_layout.current(user)
+    layout = home_layout.current(user)
     page: dict = {
-        "layout": keys,
+        "layout": layout.keys,
+        "collapsed": layout.collapsed,
         "available": [w.key for w in home_layout.available(user)],
-        "is_default": is_default,
+        "is_default": layout.is_default,
     }
-    for key in keys:
+    for key in layout.keys:
         page[key] = WIDGET_BUILDERS[key](now)
     if user.has_perm(Perm.VIEW_ORDERS.permission_name):
         page.update(
