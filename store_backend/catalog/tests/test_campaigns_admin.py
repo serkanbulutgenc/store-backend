@@ -439,3 +439,80 @@ def test_deleting_a_campaign_leaves_its_targets_alone(boss):
     assert Collection.objects.filter(pk=collection.pk).exists()
     assert ProductProfile.objects.filter(product=product).exists()
     assert ProductProfile.objects.get(product=product).status == ProductStatus.DRAFT
+
+
+# --- whole store ---------------------------------------------------------------------
+
+
+def test_a_whole_store_campaign_needs_no_target(boss):
+    first, second = make_product("Elbise"), make_product("Etek")
+
+    made = create(boss, whole_store=True)
+
+    assert made["whole_store"] is True
+    assert made["affected_products"] == 2
+    assert (made["products"], made["categories"], made["collections"]) == ([], [], [])
+    assert campaign_admin.affected_product_ids(Campaign.objects.get()) == {
+        first.pk,
+        second.pk,
+    }
+
+
+def test_a_product_added_later_is_counted_by_a_whole_store_campaign(boss):
+    made = create(boss, whole_store=True)
+    make_product("Sonradan")
+
+    assert boss.get(f"{CAMPAIGNS}/{made['id']}").json()["affected_products"] == 1
+
+
+def test_a_campaign_without_the_switch_still_needs_a_target(boss):
+    response = boss.post(
+        CAMPAIGNS,
+        {"name": "x", "percentage": "10", "whole_store": False},
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_the_switch_can_be_turned_on_and_off_and_keeps_the_listed_targets(boss):
+    product = make_product("Elbise")
+    made = create(boss, product_ids=[product.pk])
+    item = f"{CAMPAIGNS}/{made['id']}"
+
+    on = boss.patch(item, {"whole_store": True}).json()
+    assert on["whole_store"] is True
+    assert on["products"] == [{"id": product.pk, "name": "Elbise"}]  # kept
+
+    off = boss.patch(item, {"whole_store": False}).json()
+    assert off["whole_store"] is False
+    assert off["affected_products"] == 1
+
+
+def test_the_switch_cannot_be_turned_off_when_nothing_is_listed(boss):
+    made = create(boss, whole_store=True)
+
+    response = boss.patch(f"{CAMPAIGNS}/{made['id']}", {"whole_store": False})
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert Campaign.objects.get().whole_store is True
+
+
+def test_the_list_says_which_campaigns_are_store_wide(boss):
+    create(boss, whole_store=True, name="Tüm mağaza")
+    create(boss, product_ids=[make_product().pk], name="Elbise")
+
+    rows = boss.get(CAMPAIGNS).json()["items"]
+
+    assert {r["name"]: r["whole_store"] for r in rows} == {
+        "Tüm mağaza": True,
+        "Elbise": False,
+    }
+
+
+def test_the_audit_log_records_the_switch(boss):
+    made = create(boss, whole_store=True)
+
+    entry = AuditEntry.objects.get(action="campaign_created")
+    assert entry.after["whole_store"] is True
+    boss.patch(f"{CAMPAIGNS}/{made['id']}", {"name": "Yeni ad"})
+    assert audited("campaign_edited") == 1

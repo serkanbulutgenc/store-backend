@@ -681,6 +681,9 @@ class Campaign(models.Model):
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     include_subcategories = models.BooleanField(default=False)
+    # Reaches every Product, including ones added later. The listed targets below are
+    # then ignored (but kept, so switching this off restores them).
+    whole_store = models.BooleanField(default=False)
     products = models.ManyToManyField(Product, related_name="+", blank=True)
     categories = models.ManyToManyField(Category, related_name="+", blank=True)
     collections = models.ManyToManyField(Collection, related_name="+", blank=True)

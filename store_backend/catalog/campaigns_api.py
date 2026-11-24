@@ -28,6 +28,7 @@ class CampaignIn(Schema):
     category_ids: list[int] = []
     collection_ids: list[int] = []
     include_subcategories: bool = False
+    whole_store: bool = False
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     is_active: bool = True
@@ -42,6 +43,7 @@ class CampaignPatch(Schema):
     category_ids: list[int] | None = None
     collection_ids: list[int] | None = None
     include_subcategories: bool | None = None
+    whole_store: bool | None = None
     starts_at: datetime | None = None
     ends_at: datetime | None = None
 
@@ -53,6 +55,7 @@ class CampaignRowOut(Schema):
     starts_at: datetime | None
     ends_at: datetime | None
     is_active: bool
+    whole_store: bool
     status: CampaignStatus
 
 

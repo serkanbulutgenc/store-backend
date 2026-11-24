@@ -1361,6 +1361,11 @@
               }
             ],
             "title": "Starts At"
+          },
+          "whole_store": {
+            "default": false,
+            "title": "Whole Store",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1478,6 +1483,10 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "whole_store": {
+            "title": "Whole Store",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1487,6 +1496,7 @@
           "starts_at",
           "ends_at",
           "is_active",
+          "whole_store",
           "status",
           "include_subcategories",
           "products",
@@ -2048,6 +2058,17 @@
               }
             ],
             "title": "Starts At"
+          },
+          "whole_store": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whole Store"
           }
         },
         "title": "CampaignPatch",
@@ -2149,6 +2170,10 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "whole_store": {
+            "title": "Whole Store",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2158,6 +2183,7 @@
           "starts_at",
           "ends_at",
           "is_active",
+          "whole_store",
           "status"
         ],
         "title": "CampaignRowOut",
