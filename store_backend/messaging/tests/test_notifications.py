@@ -27,6 +27,8 @@ pytestmark = pytest.mark.django_db
 
 ORDERS = "/api/admin/orders"
 IBAN = "TR330006100519786457841326"
+ACCOUNT = {"name": "Ziraat", "account_holder": "Aura Tekstil", "iban": IBAN}
+SECOND_IBAN = "TR320010009999901234567890"
 
 
 @pytest.fixture
@@ -73,8 +75,7 @@ def test_order_email_shows_bank_details_number_and_seller_footer(shop, owner):
         seller_name="Aura Tekstil Ltd",
         seller_address="Mersin Merkez",
         seller_email="info@aura.example",
-        bank_iban=IBAN,
-        bank_account_holder="Aura Tekstil",
+        bank_accounts=[ACCOUNT],
     )
     number = place(shop[1]["M"])
     message = Message.objects.get(order__number=number)
@@ -309,7 +310,7 @@ def test_a_resent_order_email_has_no_payment_instructions_once_paid(
     staff,
     owner,
 ):
-    shop_settings.update(owner, bank_iban=IBAN)
+    shop_settings.update(owner, bank_accounts=[ACCOUNT])
     number = place(shop[1]["M"])
     act(staff, number, "pay", {"amount": total_of(number)})
     staff.patch(f"{ORDERS}/{number}/email", {"email": "yeni@example.com"})
@@ -320,3 +321,31 @@ def test_a_resent_order_email_has_no_payment_instructions_once_paid(
     assert resent.recipient == "yeni@example.com"
     assert IBAN not in resent.body_text
     assert IBAN not in resent.body_html
+
+
+def test_the_order_email_lists_every_bank_account_in_order(shop, owner):
+    shop_settings.update(
+        owner,
+        bank_accounts=[
+            ACCOUNT,
+            {
+                "name": "İş Bankası",
+                "account_holder": "Aura Tekstil",
+                "iban": SECOND_IBAN,
+            },
+        ],
+    )
+    number = place(shop[1]["M"])
+    message = Message.objects.get(order__number=number)
+    for body in (message.body_text, message.body_html):
+        assert body.index(IBAN) < body.index(SECOND_IBAN)
+        assert "İş Bankası" in body
+        assert "hesaplardan birine" in body
+
+
+def test_one_bank_account_reads_as_one_account(shop, owner):
+    shop_settings.update(owner, bank_accounts=[ACCOUNT])
+    number = place(shop[1]["M"])
+    message = Message.objects.get(order__number=number)
+    assert "hesaplardan birine" not in message.body_text
+    assert "aşağıdaki hesaba" in message.body_text

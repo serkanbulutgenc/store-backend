@@ -58,8 +58,13 @@ def test_placing_an_order_stores_the_rendered_email_in_its_transaction(shop, own
     shop_settings.update(
         owner,
         seller_name="Aura Tekstil Ltd",
-        bank_iban="TR330006100519786457841326",
-        bank_account_holder="Aura Tekstil",
+        bank_accounts=[
+            {
+                "name": "Ziraat",
+                "account_holder": "Aura Tekstil",
+                "iban": "TR330006100519786457841326",
+            },
+        ],
     )
     number = place(shop[1]["M"])
     message = Message.objects.get(order__number=number)
@@ -73,7 +78,16 @@ def test_placing_an_order_stores_the_rendered_email_in_its_transaction(shop, own
 
 
 def test_cod_email_has_no_bank_details(shop, owner):
-    shop_settings.update(owner, bank_iban="TR330006100519786457841326")
+    shop_settings.update(
+        owner,
+        bank_accounts=[
+            {
+                "name": "Ziraat",
+                "account_holder": "Aura Tekstil",
+                "iban": "TR330006100519786457841326",
+            },
+        ],
+    )
     number = place(shop[1]["M"], payment_method="cod", cod_fee_consent=True)
     message = Message.objects.get(order__number=number)
     assert "TR330006100519786457841326" not in message.body_text

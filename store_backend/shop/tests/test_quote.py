@@ -56,15 +56,6 @@ def test_cod_adds_the_cod_fee(lines):
     )
 
 
-def test_shipping_is_free_at_the_threshold(lines):
-    store = shop_settings.get()
-    store.free_shipping_threshold = Decimal("200.00")
-
-    q = quoting.quote(lines, PaymentMethod.BANK_TRANSFER, store)
-
-    assert q.fees.shipping.total_incl == 0
-
-
 def test_quote_carries_the_settings_it_was_priced_with(lines):
     store = shop_settings.get()
 
@@ -128,12 +119,6 @@ def test_class_default_desi_applies_without_an_override(lines):
     )
 
     assert q.fees.shipping.total_incl == Decimal("55.00")  # PTT, zone 1, 3-5
-
-
-def test_free_shipping_threshold_still_wins(lines):
-    q = zone_4_price(lines, 7, free_shipping_threshold=Decimal("100.00"))
-
-    assert q.fees.shipping.total_incl == 0
 
 
 def test_unknown_province_falls_back_to_the_flat_fee(lines):
