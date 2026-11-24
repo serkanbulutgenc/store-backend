@@ -55,7 +55,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 
 **Voucher**: A code a Shopper (Guest or Customer) enters at checkout to reduce the price of the items in their basket, either by a percentage or by a fixed TL amount. Only the Owner creates and manages Vouchers; Staff see which Voucher an Order used. An Order carries at most one Voucher, and it applies to every item, including those showing an Old price. An Owner can limit a Voucher with an expiry date, a minimum basket amount, a total redemption cap and an optional "once per Customer" limit, which matches a Guest by the email on the Order.
 - **Redemption**: One Order's use of a Voucher. Counted when the Order is placed and released if the Order is cancelled, including the automatic cancel after the Payment window.
-- **Voucher discount**: The amount a Voucher takes off an Order's items, spread across the item lines in proportion to their value. Shipping and COD fees are never discounted, the minimum basket amount and the free-shipping threshold are measured before it, and it cannot take the items below zero. It stays frozen on the Order, and a refund returns what the Shopper actually paid for a line, net of its share.
+- **Voucher discount**: The amount a Voucher takes off an Order's items, spread across the item lines in proportion to their value. Shipping and COD fees are never discounted, the minimum basket amount is measured before it, and it cannot take the items below zero. It stays frozen on the Order, and a refund returns what the Shopper actually paid for a line, net of its share.
 - A Voucher that has been redeemed can be deactivated but never deleted.
 
 **Campaign**: An automatic, code-free discount the Owner sets on chosen Products, Categories (optionally with their subcategories) or Collections. It takes a percentage or fixed TL amount off the Shelf price, so the Shopper simply sees the lower price, with the Shelf price struck through and a "-20%" badge. Only the Owner creates, edits, activates, deactivates and deletes Campaigns; Staff see which Campaign an Order used. There is no approval step, and every change is written to the Audit log. A Voucher still applies on top of a Campaign price.
@@ -63,7 +63,7 @@ Glossary for the Aura Tekstil online store. Terms only; no implementation detail
 - The discount is a percentage only. It applies to each Variant's effective Shelf price, so a Variant's own override is discounted too.
 - A Product under several active Campaigns gets only the largest discount; Campaigns never stack. The Dashboard shows which Campaign is winning on a Product.
 - The struck-through price is the Shelf price, not the Old price, which is hidden while a Campaign is active on the Product.
-- The basket and checkout always use the current Campaign price, and the basket flags a price that changed. The free-shipping threshold and a Voucher's minimum basket amount are measured on Campaign prices.
+- The basket and checkout always use the current Campaign price, and the basket flags a price that changed. A Voucher's minimum basket amount is measured on Campaign prices.
 - The Campaign form warns the Owner about Products pushed below cost price, but does not block.
 - A Campaign that an Order used can be deactivated but never deleted (see [ADR 0005](docs/adr/0005-deletes-are-owner-only-and-refused-while-referenced.md)).
 - The Shopper sees only the price, strike-through and "-20%" badge; a Campaign has an internal name, no public name or landing page.

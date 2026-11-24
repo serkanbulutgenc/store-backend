@@ -64,10 +64,6 @@ class Quote:
         paid = sum((s.total_incl for s in self.snapshots.values()), pricing.ZERO)
         return paid + self.discount
 
-    @property
-    def free_shipping(self) -> bool:
-        return _is_free(self.items_total, self.store)
-
 
 def _priced(lines: list[BasketLine]) -> dict[int, campaign_pricing.Priced]:
     """Each line at the price in force now: the Campaign price where one applies."""
@@ -89,20 +85,12 @@ def _snapshots(
     }
 
 
-def _is_free(items_total: Decimal, store: StoreSettings) -> bool:
-    threshold = store.free_shipping_threshold
-    return threshold is not None and items_total >= threshold
-
-
 def _shipping_amount(
     lines: list[BasketLine],
-    items_total: Decimal,
     store: StoreSettings,
     province: str | None,
 ) -> Decimal:
-    """Free above the threshold, else the cheapest carrier, else the flat fee."""
-    if _is_free(items_total, store):
-        return pricing.ZERO
+    """The cheapest carrier's fee for the destination, else the flat Settings fee."""
     desi = sum(catalog.desi_for(line.product) * line.quantity for line in lines)
     computed = shipping.fee_for(desi, province)
     return computed.fee if computed else store.shipping_fee
@@ -110,14 +98,13 @@ def _shipping_amount(
 
 def _fees(
     lines: list[BasketLine],
-    items_total: Decimal,
     method: PaymentMethod,
     store: StoreSettings,
     province: str | None,
 ) -> Fees:
     rate = store.fee_kdv_rate
     shipping_fee = pricing.fee_line(
-        _shipping_amount(lines, items_total, store, province),
+        _shipping_amount(lines, store, province),
         kdv_rate=rate,
     )
     cod = (
@@ -138,8 +125,7 @@ def quote(
     """Price `lines` for a payment method under `store`'s fees. No writes.
 
     `province` is the destination il; without a known one (or desi) shipping is the
-    flat Settings fee. A `voucher` discounts the items only; fees, and the free
-    shipping threshold, are measured on the items before it.
+    flat Settings fee. A `voucher` discounts the items only; fees are never discounted.
     """
     priced = _priced(lines)
     snapshots = gross = _snapshots(lines, priced)
@@ -156,7 +142,7 @@ def quote(
     return Quote(
         lines,
         snapshots,
-        _fees(lines, items_total, method, store, province),
+        _fees(lines, method, store, province),
         store,
         discount,
         voucher,

@@ -8523,21 +8523,6 @@
             "title": "Fee Kdv Rate",
             "type": "string"
           },
-          "free_shipping_threshold": {
-            "anyOf": [
-              {
-                "examples": [
-                  "349.90"
-                ],
-                "pattern": "^-?\\d+\\.\\d{2}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Shipping Threshold"
-          },
           "legal_versions": {
             "additionalProperties": {
               "type": "string"
@@ -8595,7 +8580,6 @@
         },
         "required": [
           "shipping_fee",
-          "free_shipping_threshold",
           "cod_fee",
           "fee_kdv_rate",
           "low_stock_default",
@@ -8663,17 +8647,6 @@
               }
             ],
             "title": "Fee Kdv Rate"
-          },
-          "free_shipping_threshold": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Shipping Threshold"
           },
           "low_stock_default": {
             "anyOf": [

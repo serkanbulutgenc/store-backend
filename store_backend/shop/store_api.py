@@ -25,7 +25,6 @@ class SellerOut(Schema):
 
 class PublicSettingsOut(Schema):
     shipping_fee: Money
-    free_shipping_threshold: Money | None
     cod_fee: Money
     seller: SellerOut
     legal_versions: dict[str, str]
@@ -46,7 +45,6 @@ def get_public_settings(request):
     s = shop_settings.get()
     return {
         "shipping_fee": s.shipping_fee,
-        "free_shipping_threshold": s.free_shipping_threshold,
         "cod_fee": s.cod_fee,
         "seller": {
             "name": s.seller_name,

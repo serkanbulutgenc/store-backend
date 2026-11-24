@@ -93,9 +93,6 @@ class QuoteOut(Schema):
     shipping_fee: Money
     cod_fee: Money
     total: Money
-    free_shipping: bool = Field(
-        description="True when the items total reached the free-shipping threshold.",
-    )
 
 
 def _basket_voucher_code(basket) -> str | None:
@@ -276,5 +273,4 @@ def quote_order(request, data: QuoteIn):
         "shipping_fee": quote.fees.shipping.total_incl,
         "cod_fee": cod.total_incl if cod else pricing.ZERO,
         "total": quote.totals.total_incl,
-        "free_shipping": quote.free_shipping,
     }

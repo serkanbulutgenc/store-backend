@@ -185,15 +185,6 @@ def test_cod_goes_straight_to_preparing_with_the_fee(guest, owner):
     assert order.sources.get().source_type.code == "cod"
 
 
-def test_free_shipping_at_the_threshold(guest, owner):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold="200.00")
-
-    body = guest.post(CHECKOUT, payload()).json()
-
-    assert body["shipping_fee"] == "0.00"
-    assert body["total"] == "200.00"
-
-
 def ship_to(il):
     body = payload()
     body["shipping_address"]["il"] = il
@@ -205,7 +196,7 @@ def test_the_order_is_charged_the_cheapest_carrier_for_its_province(
     owner,
     computed_shipping,
 ):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
 
     body = guest.post(CHECKOUT, ship_to("TRABZON")).json()
 
@@ -219,19 +210,11 @@ def test_the_order_is_charged_the_cheapest_carrier_for_its_province(
 
 
 def test_an_unknown_province_is_charged_the_flat_fee(guest, owner, computed_shipping):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
 
     body = guest.post(CHECKOUT, ship_to("Atlantis")).json()
 
     assert body["shipping_fee"] == "30.00"
-
-
-def test_free_shipping_beats_the_computed_fee(guest, owner, computed_shipping):
-    set_fees(owner, free_shipping_threshold="200.00")
-
-    body = guest.post(CHECKOUT, ship_to("Trabzon")).json()
-
-    assert body["shipping_fee"] == "0.00"
 
 
 def test_a_signed_in_customer_owns_the_order(shop, customer, log_in):
@@ -614,7 +597,7 @@ def quote_body(il="Trabzon", method="bank_transfer"):
 
 
 def test_quote_matches_the_order_that_is_then_placed(guest, owner, computed_shipping):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
 
     quoted = guest.post(QUOTE, quote_body("TRABZON")).json()
     placed = guest.post(CHECKOUT, ship_to("TRABZON")).json()
@@ -625,7 +608,7 @@ def test_quote_matches_the_order_that_is_then_placed(guest, owner, computed_ship
 
 
 def test_quote_follows_the_province(guest, owner, computed_shipping):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
 
     near = guest.post(QUOTE, quote_body("Mersin")).json()
     far = guest.post(QUOTE, quote_body("Trabzon")).json()
@@ -641,23 +624,14 @@ def test_quote_without_a_known_province_is_the_flat_fee(
     owner,
     computed_shipping,
 ):
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
 
     assert guest.post(QUOTE, quote_body("")).json()["shipping_fee"] == "30.00"
     assert guest.post(QUOTE, quote_body("Atlantis")).json()["shipping_fee"] == "30.00"
 
 
-def test_quote_is_free_above_the_threshold(guest, owner, computed_shipping):
-    set_fees(owner, free_shipping_threshold="200.00")
-
-    body = guest.post(QUOTE, quote_body()).json()
-
-    assert body["shipping_fee"] == "0.00"
-    assert body["free_shipping"] is True
-
-
 def test_quote_adds_the_cod_fee_for_cash_on_delivery(guest, owner):
-    set_fees(owner, shipping_fee="30.00", cod_fee="15.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00", cod_fee="15.00")
 
     body = guest.post(QUOTE, quote_body("Mersin", "cod")).json()
 

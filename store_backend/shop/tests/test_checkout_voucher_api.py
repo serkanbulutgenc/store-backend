@@ -34,7 +34,7 @@ VOUCHER = "/api/store/basket/voucher"
 
 
 def test_the_placed_order_carries_the_basket_voucher(guest, owner):  # noqa: F811
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
     guest.post(VOUCHER, {"code": "YAZ10"})  # the basket holds 2 x 100.00
     quoted = guest.post(QUOTE, quote_body("")).json()
@@ -129,7 +129,7 @@ def test_a_customers_order_is_recorded_against_their_account(shop, customer, log
 
 
 def test_the_placed_lines_add_up_to_the_items_before_the_voucher(guest, owner):  # noqa: F811
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
     guest.post(VOUCHER, {"code": "YAZ10"})
 

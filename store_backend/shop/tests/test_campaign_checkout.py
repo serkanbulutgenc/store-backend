@@ -1,6 +1,6 @@
 # ruff: noqa: PLR2004
 """Quote and checkout charge the Campaign price in force at that moment (GLOSSARY:
-Campaign): Vouchers, the free-shipping threshold and Voucher minimums all see it."""
+Campaign): Vouchers and Voucher minimums all see it."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ VOUCHER = "/api/store/basket/voucher"
 
 def test_a_campaign_that_ended_before_checkout_is_not_charged(guest, shop, owner):  # noqa: F811
     product, _ = shop
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     made = campaign(20, product)  # in force when the Shopper added the items
     guest.post(QUOTE, quote_body(""))
     Campaign.objects.filter(pk=made.pk).update(
@@ -54,7 +54,7 @@ def test_a_campaign_that_started_after_the_basket_was_filled_is_charged(
     owner,
 ):
     product, _ = shop
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     campaign(20, product)
 
     body = guest.post(CHECKOUT, payload()).json()
@@ -67,7 +67,7 @@ def test_a_campaign_that_started_after_the_basket_was_filled_is_charged(
 
 def test_a_voucher_applies_on_top_of_the_campaign_price(guest, shop, owner):  # noqa: F811
     product, _ = shop
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     campaign(20, product)  # 2 x 80.00
     make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
     guest.post(VOUCHER, {"code": "YAZ10"})
@@ -86,7 +86,7 @@ def test_a_voucher_applies_on_top_of_the_campaign_price(guest, shop, owner):  # 
 
 def test_a_voucher_never_takes_the_items_below_zero(guest, shop, owner):  # noqa: F811
     product, _ = shop
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=None)
+    set_fees(owner, shipping_fee="30.00")
     campaign(20, product)
     make_voucher(Benefit.FIXED, "500", code="BUYUK")
     guest.post(VOUCHER, {"code": "BUYUK"})
@@ -96,31 +96,6 @@ def test_a_voucher_never_takes_the_items_below_zero(guest, shop, owner):  # noqa
     assert placed["items_total"] == "160.00"
     assert placed["discount"] == "160.00"
     assert placed["total"] == "30.00"
-
-
-@pytest.mark.parametrize(
-    ("threshold", "shipping"),
-    [
-        ("160.00", "0.00"),  # exactly at the threshold on Campaign prices: free
-        ("160.01", "30.00"),  # a kuruş short: charged
-        ("200.00", "30.00"),  # the Shelf total would have been free
-    ],
-)
-def test_the_free_shipping_threshold_is_measured_on_campaign_prices(
-    guest,  # noqa: F811
-    shop,
-    owner,
-    threshold,
-    shipping,
-):
-    product, _ = shop
-    set_fees(owner, shipping_fee="30.00", free_shipping_threshold=threshold)
-    campaign(20, product)  # 2 x 80.00 = 160.00
-
-    quoted = guest.post(QUOTE, quote_body("")).json()
-    placed = guest.post(CHECKOUT, payload()).json()
-
-    assert quoted["shipping_fee"] == placed["shipping_fee"] == shipping
 
 
 def test_a_voucher_minimum_is_measured_on_campaign_prices(guest, shop):  # noqa: F811

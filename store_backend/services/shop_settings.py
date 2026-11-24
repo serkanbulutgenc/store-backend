@@ -20,7 +20,7 @@ from store_backend.shop.models import StoreSettings
 if TYPE_CHECKING:
     from store_backend.users.models import User
 
-MONEY_FIELDS = ("shipping_fee", "free_shipping_threshold", "cod_fee")
+MONEY_FIELDS = ("shipping_fee", "cod_fee")
 MAX_KDV_RATE = Decimal(100)
 MAX_MONEY = Decimal("99999999.99")
 MAX_LOW_STOCK = 10_000
@@ -74,8 +74,6 @@ def _decimal(field: str, value: Any, *, upper: Decimal | None = None) -> Decimal
 
 def _clean(field: str, value: Any) -> Any:  # noqa: C901, PLR0911, PLR0912
     if field in MONEY_FIELDS:
-        if value is None and field == "free_shipping_threshold":
-            return None
         return _decimal(field, value)
     if field == "fee_kdv_rate":
         return _decimal(field, value, upper=MAX_KDV_RATE)

@@ -50,6 +50,8 @@ class StoreSettings(models.Model):
 
     # Charges. Amounts are KDV-inclusive TRY.
     shipping_fee = _money(default=0)
+    # No longer read or written (free shipping will be a Campaign). The column stays for
+    # one release so the previous release still runs on this database; drop it then.
     free_shipping_threshold = _money(
         null=True,
         blank=True,

@@ -2639,21 +2639,6 @@
             "title": "Cod Fee",
             "type": "string"
           },
-          "free_shipping_threshold": {
-            "anyOf": [
-              {
-                "examples": [
-                  "349.90"
-                ],
-                "pattern": "^-?\\d+\\.\\d{2}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Shipping Threshold"
-          },
           "legal_versions": {
             "additionalProperties": {
               "type": "string"
@@ -2679,7 +2664,6 @@
         },
         "required": [
           "shipping_fee",
-          "free_shipping_threshold",
           "cod_fee",
           "seller",
           "legal_versions",
@@ -2741,11 +2725,6 @@
             "title": "Discount",
             "type": "string"
           },
-          "free_shipping": {
-            "description": "True when the items total reached the free-shipping threshold.",
-            "title": "Free Shipping",
-            "type": "boolean"
-          },
           "items_total": {
             "description": "What the items cost before any Voucher.",
             "examples": [
@@ -2801,8 +2780,7 @@
           "discount",
           "shipping_fee",
           "cod_fee",
-          "total",
-          "free_shipping"
+          "total"
         ],
         "title": "QuoteOut",
         "type": "object"

@@ -35,7 +35,6 @@ class BankAccountOut(Schema):
 
 class SettingsOut(Schema):
     shipping_fee: Money
-    free_shipping_threshold: Money | None
     cod_fee: Money
     fee_kdv_rate: str
     low_stock_default: int
@@ -68,7 +67,6 @@ class SettingsPatch(Schema):
     """Every field optional; only the ones sent change. Money arrives as strings."""
 
     shipping_fee: str | None = None
-    free_shipping_threshold: str | None = None
     cod_fee: str | None = None
     fee_kdv_rate: str | None = None
     low_stock_default: int | None = None
@@ -103,8 +101,8 @@ def get_settings(request):
 )
 def update_settings(request, data: SettingsPatch):
     sent = data.model_dump(exclude_unset=True)
-    # Null clears the free-shipping threshold; for any other field it is an error.
-    nulls = [k for k, v in sent.items() if v is None and k != "free_shipping_threshold"]
+    # Null is never a value: leave a field out to leave it alone.
+    nulls = [k for k, v in sent.items() if v is None]
     if nulls:
         msg = "Bu alan boş bırakılamaz."
         raise UnprocessableError(msg, fields={k: [msg] for k in nulls})

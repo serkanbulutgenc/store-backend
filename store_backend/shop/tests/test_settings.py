@@ -32,7 +32,6 @@ def test_owner_reads_defaults(owner, api_for):
     body = api_for(owner, enrol=True).get(ADMIN).json()
 
     assert body["shipping_fee"] == "0.00"
-    assert body["free_shipping_threshold"] is None
     assert body["low_stock_default"] == 2
     assert set(body["legal_versions"]) == set(LEGAL_PAGES)
 
@@ -100,13 +99,17 @@ def test_invalid_values_are_rejected(owner, api_for, payload, field):
     assert field in response.json()["fields"]
 
 
-def test_threshold_can_be_cleared(owner, api_for):
-    api = api_for(owner, enrol=True)
-    api.patch(ADMIN, {"free_shipping_threshold": "500"})
+def test_there_is_no_free_shipping_threshold_any_more(owner, api_for, client):
+    # Free shipping will be a Campaign; the Settings field is gone from both reads.
+    assert "free_shipping_threshold" not in api_for(owner, enrol=True).get(ADMIN).json()
+    assert "free_shipping_threshold" not in client.get(PUBLIC).json()
 
-    body = api.patch(ADMIN, {"free_shipping_threshold": None}).json()
 
-    assert body["free_shipping_threshold"] is None
+def test_a_setting_cannot_be_blanked_with_null(owner, api_for):
+    response = api_for(owner, enrol=True).patch(ADMIN, {"cod_fee": None})
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "cod_fee" in response.json()["fields"]
 
 
 def test_legal_versions_follow_the_published_pages_and_cannot_be_patched(
