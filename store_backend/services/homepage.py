@@ -264,6 +264,7 @@ def _resolve(section: Section, mid: list[dict]) -> dict[str, Any] | None:
         "title": section.title,
         "link": section.link,
         "display": section.display,
+        "source": getattr(section.settings, "source", None),
         **data,
     }
 

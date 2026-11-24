@@ -93,6 +93,11 @@ def test_the_product_sections_use_their_own_source(client, shop):
     shop.product("Yeni", [(shop.black, "M", 3)])
     shop.product("İndirimli", [(shop.black, "M", 3)], price="80.00", old_price="100.00")
 
+    assert [section(i)["source"] for i in ("latest", "on-sale", "best-selling")] == [
+        "latest",
+        "on_sale",
+        "best_selling",
+    ]
     assert titles(section("latest"))[0] == "İndirimli"
     assert titles(section("on-sale")) == ["İndirimli"]
     assert section("latest")["link"] == "/ara?sort=newest"

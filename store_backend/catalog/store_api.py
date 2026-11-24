@@ -371,6 +371,11 @@ class HomepageSectionOut(Schema):
     title: str
     link: str
     display: Literal["grid", "carousel", "list"]
+    source: str | None = Field(
+        default=None,
+        description="Where a section takes its items from (Products: latest, "
+        "best_selling, on_sale, recently_viewed).",
+    )
     products: list[ProductCardOut] | None = None
     banners: list[PictureBannerOut] | None = None
     categories: list[HomeCategoryOut] | None = None

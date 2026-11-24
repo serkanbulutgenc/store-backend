@@ -1503,6 +1503,18 @@
             ],
             "title": "Products"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where a section takes its items from (Products: latest, best_selling, on_sale, recently_viewed).",
+            "title": "Source"
+          },
           "title": {
             "title": "Title",
             "type": "string"
