@@ -17,9 +17,16 @@ from store_backend.api.permissions import RequiresPermission
 from store_backend.staff.permissions import OWNER_ONLY
 from store_backend.staff.permissions import Perm
 
-# The one operation open to any Dashboard user: it reports their own permissions, and
-# an Owner who has not yet enrolled TOTP needs it to learn that they must.
-NO_PERMISSION = {"staff_get_me"}
+# Operations open to any Dashboard user. `staff_get_me` reports their own permissions,
+# and an Owner who has not yet enrolled TOTP needs it to learn that they must. The Ana
+# sayfa ones serve each person their own layout and filter every Widget by its
+# permission inside the service (ADR 0010).
+NO_PERMISSION = {
+    "staff_get_me",
+    "home_get",
+    "home_layout_save",
+    "home_layout_reset",
+}
 UNENROLLED_OWNER_MAY_CALL = {"staff_get_me"}
 
 # Every operation that needs an Owner-only permission. Changing this set changes who

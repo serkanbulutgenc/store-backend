@@ -17,16 +17,23 @@ from oscar.apps.order.models import Order
 
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
+from store_backend.services import approval_queue
 from store_backend.services import checkout
+from store_backend.services import home_layout
 from store_backend.services import invoicing
 from store_backend.services import order_context
 from store_backend.services import order_ops
+from store_backend.services import reports
 from store_backend.services import returns
 from store_backend.services import stock
+from store_backend.shop.models import ContactMessage
+from store_backend.shop.models import ContactReplyState
 from store_backend.shop.models import Invoice
 from store_backend.shop.models import InvoiceStatus
+from store_backend.staff.permissions import Perm
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import datetime
 
     from django.db.models import QuerySet
@@ -165,14 +172,112 @@ def open_returns() -> dict:
     )
 
 
-def build(*, now: datetime | None = None) -> dict:
+#: The windows the Report summary shows, each as the Raporlar screen's own preset.
+SUMMARY_PRESETS = (
+    reports.Preset.TODAY,
+    reports.Preset.LAST_7_DAYS,
+    reports.Preset.LAST_30_DAYS,
+)
+
+
+def report_summary() -> dict:
+    """Orders and revenue for a few windows. The figures are the Sales report's own
+    totals (same preset, KDV included, same cache), so the two can never disagree."""
+    periods = []
+    for preset in SUMMARY_PRESETS:
+        totals = reports.sales(reports.resolve(preset))["totals"]
+        periods.append(
+            {
+                "preset": preset.value,
+                "orders": totals["orders"],
+                "revenue": totals["revenue"],
+            },
+        )
+    return {"periods": periods}
+
+
+EXCERPT = 160
+
+
+def _excerpt(body: str) -> str:
+    text = " ".join(body.split())
+    return text if len(text) <= EXCERPT else text[: EXCERPT - 1].rstrip() + "…"
+
+
+def contact_replies() -> dict:
+    """Threads with a reply Staff wrote that waits for the Owner, oldest first.
+
+    One row per thread (its oldest waiting reply), so the count matches the nav badge
+    and the Contact list's "waiting" filter.
+    """
+    waiting = (
+        ContactMessage.objects.filter(
+            state=ContactReplyState.PENDING,
+            thread__anonymised_at__isnull=True,
+        )
+        .select_related("thread__category", "author")
+        .order_by("created_at", "pk")
+    )
+    first: dict[int, ContactMessage] = {}
+    for reply in waiting:
+        first.setdefault(reply.thread_id, reply)
+    rows = [
+        {
+            "reply_id": r.pk,
+            "thread_id": r.thread_id,
+            "shopper": r.thread.name,
+            "category": r.thread.category.name,
+            "author": (
+                {"id": r.author.pk, "name": r.author.name or r.author.email}
+                if r.author
+                else None
+            ),
+            "excerpt": _excerpt(r.body),
+            "written_at": r.created_at,
+        }
+        for r in first.values()
+    ]
+    return {"count": len(rows), "rows": rows[:ROW_LIMIT]}
+
+
+def approvals() -> dict:
+    """Everything Staff submitted that waits for the Owner, oldest first."""
+    rows = approval_queue.items()
+    return {"count": len(rows), "rows": rows[:ROW_LIMIT]}
+
+
+#: Widget key -> the list that fills it. A Widget that is off is never queried.
+WIDGET_BUILDERS: dict[str, Callable[[datetime], dict]] = {
+    "approvals": lambda _now: approvals(),
+    "contact_replies": lambda _now: contact_replies(),
+    "report_summary": lambda _now: report_summary(),
+    "new_orders": lambda _now: new_orders(),
+    "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry,
+    "open_returns": lambda _now: open_returns(),
+    "low_stock": lambda _now: low_stock(),
+}
+
+
+def build(user, *, now: datetime | None = None) -> dict:
+    """The Ana sayfa for `user`: their layout, what they may add, and the data of each
+    Widget they have turned on.
+
+    The sections that are not Widgets yet (invoices, Products without photos) keep being
+    returned to anyone who may view Orders, as before, until they are decided on.
+    """
     now = now or timezone.now()
-    return {
-        "new_orders": new_orders(),
-        "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry(now),
-        "low_stock": low_stock(),
-        "shipped_without_invoice": shipped_without_invoice(),
-        "invoice_attention": invoice_attention(),
-        "products_without_photos": products_without_photos(),
-        "open_returns": open_returns(),
+    keys, is_default = home_layout.current(user)
+    page: dict = {
+        "layout": keys,
+        "available": [w.key for w in home_layout.available(user)],
+        "is_default": is_default,
     }
+    for key in keys:
+        page[key] = WIDGET_BUILDERS[key](now)
+    if user.has_perm(Perm.VIEW_ORDERS.permission_name):
+        page.update(
+            shipped_without_invoice=shipped_without_invoice(),
+            invoice_attention=invoice_attention(),
+            products_without_photos=products_without_photos(),
+        )
+    return page

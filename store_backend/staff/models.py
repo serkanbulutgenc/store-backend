@@ -167,3 +167,23 @@ class ApprovedVersion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.content_type_id}:{self.object_id} v{self.version}"
+
+
+class HomeLayout(models.Model):
+    """The Ana sayfa Widgets one Dashboard user turned on, in the order they chose.
+
+    No row means the user never configured it and gets their role's default. Keys are
+    Widget keys (see `store_backend.services.home_layout`); unknown or no longer
+    permitted keys are dropped when the layout is read, never trusted from here.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="home_layout",
+    )
+    widgets = models.JSONField(default=list)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Ana sayfa of user {self.user_id}"
