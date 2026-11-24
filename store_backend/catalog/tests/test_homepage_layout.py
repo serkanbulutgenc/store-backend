@@ -13,6 +13,7 @@ from django.utils import timezone
 from oscar.apps.order.models import Order
 
 from store_backend.api.errors import UnprocessableError
+from store_backend.catalog.models import Banner
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import CollectionStatus
@@ -433,3 +434,106 @@ def test_the_home_source_still_lists_the_flagged_categories(client, shop):
     save([{"id": "c", "type": "categories", "settings": {"source": "home"}}])
 
     assert [c["slug"] for c in section("c")["categories"]] == [shop.elbise.slug]
+
+
+# --- Slider and Banner sources (#158) -----------------------------------------------
+
+
+def live_banner(boss, slot="home_hero"):
+    made = create(boss, slot=slot, message="") if slot != "home_hero" else hero(boss)
+    with_image(boss, made)
+    go_live(boss, made)
+    return made["id"]
+
+
+def slider_section(**settings) -> None:
+    save([{"id": "s", "type": "slider", "settings": settings}])
+
+
+def test_the_slider_shows_the_chosen_banners_in_the_chosen_order(boss, shop):
+    first = live_banner(boss)
+    second = live_banner(boss)
+    live_banner(boss)
+
+    slider_section(source="banners", banner_ids=[second, first])
+
+    assert [b["id"] for b in section("s")["banners"]] == [second, first]
+
+
+def test_a_chosen_banner_outside_its_dates_or_deleted_is_not_shown(boss, shop):
+    shown = live_banner(boss)
+    expired = live_banner(boss)
+    future = live_banner(boss)
+    now = timezone.now()
+    Banner.objects.filter(pk=expired).update(ends_at=now - timedelta(days=1))
+    Banner.objects.filter(pk=future).update(starts_at=now + timedelta(days=1))
+
+    slider_section(source="banners", banner_ids=[expired, future, shown, 999_999])
+
+    assert [b["id"] for b in section("s")["banners"]] == [shown]
+
+
+def test_a_slider_whose_banners_are_all_gone_is_left_out(boss, shop):
+    gone = live_banner(boss)
+    Banner.objects.filter(pk=gone).update(ends_at=timezone.now() - timedelta(days=1))
+    slider_section(source="banners", banner_ids=[gone])
+
+    assert ids() == []
+
+
+def test_the_slider_can_show_a_chosen_collection(client, shop):
+    picked = shop.product("Seçilmiş", [(shop.black, "M", 3)])
+    shop.product("Başka", [(shop.black, "M", 3)])
+    collection = Collection.objects.create(
+        name="Yaz",
+        slug="yaz",
+        status=CollectionStatus.PUBLISHED,
+    )
+    CollectionProduct.objects.create(collection=collection, product=picked, position=1)
+
+    slider_section(source="collection", collection_id=collection.pk)
+
+    assert titles(section("s")) == ["Seçilmiş"]
+
+
+def test_a_chosen_collection_that_is_gone_or_unpublished_is_left_out(client, shop):
+    product = shop.product("Ürün", [(shop.black, "M", 3)])
+    draft = Collection.objects.create(name="Taslak", slug="taslak")
+    CollectionProduct.objects.create(collection=draft, product=product, position=1)
+
+    for collection_id in (draft.pk, 999_999):
+        slider_section(source="collection", collection_id=collection_id)
+        assert ids() == []
+
+
+def test_the_default_slider_still_falls_back_to_the_newest_products(client, shop):
+    shop.product("Birinci", [(shop.black, "M", 3)])
+    Collection.objects.create(
+        name="Ana sayfa",
+        slug="ana-sayfa",
+        status=CollectionStatus.PUBLISHED,
+    )
+
+    assert titles(section("hero")) == ["Birinci"]
+
+
+def test_a_banner_section_can_pick_its_banner(boss, shop):
+    live_banner(boss, slot="home_mid")
+    other = live_banner(boss, slot="home_mid")
+    save([{"id": "b", "type": "banner", "settings": {"banner_id": other}}])
+
+    assert [b["id"] for b in section("b")["banners"]] == [other]
+
+
+def test_a_banner_section_whose_banner_is_outside_its_dates_is_left_out(boss, shop):
+    gone = live_banner(boss, slot="home_mid")
+    Banner.objects.filter(pk=gone).update(ends_at=timezone.now() - timedelta(days=1))
+    save([{"id": "b", "type": "banner", "settings": {"banner_id": gone}}])
+
+    assert ids() == []
+
+
+def test_slider_picks_need_a_pick():
+    for settings in ({"source": "banners"}, {"source": "collection"}):
+        with pytest.raises(UnprocessableError):
+            homepage.validate([{"id": "s", "type": "slider", "settings": settings}])

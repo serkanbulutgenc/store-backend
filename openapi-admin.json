@@ -1238,6 +1238,7 @@
               }
             ],
             "default": {
+              "banner_id": null,
               "index": 0,
               "slot": "home_mid"
             }
@@ -1269,6 +1270,17 @@
       "BannerSettings": {
         "additionalProperties": false,
         "properties": {
+          "banner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Id"
+          },
           "index": {
             "default": 0,
             "maximum": 9,
@@ -10184,6 +10196,8 @@
               }
             ],
             "default": {
+              "banner_ids": [],
+              "collection_id": null,
               "count": 5,
               "source": "home"
             }
@@ -10215,6 +10229,25 @@
       "SliderSettings": {
         "additionalProperties": false,
         "properties": {
+          "banner_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 24,
+            "title": "Banner Ids",
+            "type": "array"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
           "count": {
             "default": 5,
             "maximum": 24,
@@ -10223,8 +10256,12 @@
             "type": "integer"
           },
           "source": {
-            "const": "home",
             "default": "home",
+            "enum": [
+              "home",
+              "banners",
+              "collection"
+            ],
             "title": "Source",
             "type": "string"
           }

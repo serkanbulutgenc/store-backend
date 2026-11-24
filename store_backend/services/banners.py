@@ -516,6 +516,25 @@ def _card(banner: Banner) -> dict[str, Any] | None:
     }
 
 
+def picked(ids: list[int]) -> list[dict[str, Any]]:
+    """The chosen image Banners (Home hero or Home mid-page) as cards, in the order
+    given. One that is unpublished, outside its dates, incomplete or deleted is left
+    out."""
+    now = timezone.now()
+    live = (
+        Banner.objects.filter(
+            pk__in=ids,
+            status=ApprovalStatus.PUBLISHED,
+            slot__in=(Banner.Slot.HOME_HERO, Banner.Slot.HOME_MID),
+        )
+        .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+        .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+    )
+    by_id = {b.pk: b for b in live}
+    cards = (_card(by_id[i]) for i in ids if i in by_id)
+    return [c for c in cards if c]
+
+
 def public(category_slug: str | None = None) -> dict[str, list[dict[str, Any]]]:
     """The active Banners per slot: published, inside their dates, in the Owner's
     order. The category slot is filled only when a Category is given, with the Banners

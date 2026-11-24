@@ -59,10 +59,25 @@ class _Section(_Base):
 
 class SliderSettings(_Base):
     #: `home`: the Home hero Banners, else the `ana-sayfa` Collection's Products,
-    #: else the newest Products. The default layout uses it; later slices add chosen
-    #: sources.
-    source: Literal["home"] = "home"
+    #: else the newest Products (today's page). `banners`: the chosen `banner_ids`.
+    #: `collection`: the Products of the Collection `collection_id`.
+    source: Literal["home", "banners", "collection"] = "home"
     count: Annotated[int, Field(ge=1, le=MAX_ITEMS)] = SLIDER_ITEMS
+    banner_ids: list[int] = Field(default_factory=list, max_length=MAX_ITEMS)
+    collection_id: int | None = None
+
+    @model_validator(mode="after")
+    def _needs_its_pick(self) -> SliderSettings:
+        if self.source == "banners" and not self.banner_ids:
+            message = "Pick at least one banner."
+            raise ValueError(message)
+        if self.source == "collection" and self.collection_id is None:
+            message = "Choose a collection."
+            raise ValueError(message)
+        if len(set(self.banner_ids)) != len(self.banner_ids):
+            message = "A banner can be picked once."
+            raise ValueError(message)
+        return self
 
 
 class SliderSection(_Section):
@@ -130,9 +145,11 @@ class CategoriesSection(_Section):
 
 
 class BannerSettings(_Base):
-    #: The `index`-th active Banner of a Slot. Later slices let the Owner pick a Banner.
+    #: With no `banner_id`, the `index`-th active Banner of the Home mid-page Slot;
+    #: with one, that Banner (when it is live).
     slot: Literal["home_mid"] = "home_mid"
     index: Annotated[int, Field(ge=0, le=9)] = 0
+    banner_id: int | None = None
 
 
 class BannerSection(_Section):
@@ -268,7 +285,12 @@ def _hand_picked(settings: ProductsSettings) -> list[dict]:
 
 
 def _slider(section: SliderSection) -> dict[str, Any]:
-    count = section.settings.count
+    settings = section.settings
+    count = settings.count
+    if settings.source == "banners":
+        return {"banners": banners.picked(settings.banner_ids)[:count]}
+    if settings.source == "collection":
+        return {"products": _collection_cards(count, id_=settings.collection_id)}
     hero = banners.public()["home_hero"]
     if hero:
         return {"banners": hero[:count]}
@@ -276,10 +298,13 @@ def _slider(section: SliderSection) -> dict[str, Any]:
     return {"products": featured or browse.cards(browse.Filters(), limit=count)}
 
 
-def _collection_cards(limit: int) -> list[dict]:
+def _collection_cards(limit: int, id_: int | None = None) -> list[dict]:
+    """The published Collection's visible Products (the `ana-sayfa` one unless an id
+    is given); nothing when it is missing or not published."""
+    wanted = {"pk": id_} if id_ is not None else {"slug": SLIDER_COLLECTION_SLUG}
     collection = Collection.objects.filter(
-        slug=SLIDER_COLLECTION_SLUG,
         status=CollectionStatus.PUBLISHED,
+        **wanted,
     ).first()
     if collection is None:
         return []
@@ -306,8 +331,10 @@ def _categories_data(section: CategoriesSection, _mid: list[dict]) -> dict[str, 
 
 
 def _banner_data(section: BannerSection, mid: list[dict]) -> dict[str, Any]:
-    picked = mid[section.settings.index : section.settings.index + 1]
-    return {"banners": picked}
+    settings = section.settings
+    if settings.banner_id is not None:
+        return {"banners": banners.picked([settings.banner_id])}
+    return {"banners": mid[settings.index : settings.index + 1]}
 
 
 def _rich_text_data(section: RichTextSection, _mid: list[dict]) -> dict[str, Any]:
