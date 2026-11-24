@@ -5391,15 +5391,12 @@
             "title": "Audit",
             "type": "array"
           },
-          "basket_campaign": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OrderBasketCampaignOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "basket_campaigns": {
+            "items": {
+              "$ref": "#/components/schemas/OrderBasketCampaignOut"
+            },
+            "title": "Basket Campaigns",
+            "type": "array"
           },
           "buyer_tax_number": {
             "title": "Buyer Tax Number",
@@ -5643,7 +5640,7 @@
           "shipping_address",
           "lines",
           "items_total",
-          "basket_campaign",
+          "basket_campaigns",
           "voucher",
           "shipping_fee",
           "cod_fee",

@@ -365,10 +365,11 @@ class OrderBasketCampaign(models.Model):
     (ADR 0005).
     """
 
-    order = models.OneToOneField(
+    # Up to two per Order: the discount and the free shipping that applied together.
+    order = models.ForeignKey(
         "order.Order",
         on_delete=models.CASCADE,
-        related_name="basket_campaign",
+        related_name="basket_campaigns",
     )
     campaign = models.ForeignKey(
         "store_catalog.BasketCampaign",

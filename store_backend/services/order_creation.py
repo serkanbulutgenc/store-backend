@@ -191,21 +191,19 @@ def record_voucher(order: Order, quote: Quote) -> None:
     )
 
 
-def record_basket_campaign(order: Order, quote: Quote) -> None:
-    """Freeze the Basket Campaign the Order was placed under, with what it took off."""
-    applied = quote.campaign
-    if applied is None:
-        return
-    OrderBasketCampaign.objects.create(
-        order=order,
-        campaign_id=applied.campaign_id,
-        name=applied.name,
-        label=applied.label,
-        benefit=applied.benefit,
-        value=applied.value,
-        discount=applied.discount,
-        free_shipping=applied.free_shipping,
-    )
+def record_basket_campaigns(order: Order, quote: Quote) -> None:
+    """Freeze the Basket Campaigns the Order was placed under, with each amount."""
+    for applied in quote.campaigns:
+        OrderBasketCampaign.objects.create(
+            order=order,
+            campaign_id=applied.campaign_id,
+            name=applied.name,
+            label=applied.label,
+            benefit=applied.benefit,
+            value=applied.value,
+            discount=applied.discount,
+            free_shipping=applied.free_shipping,
+        )
 
 
 def create_order(  # noqa: PLR0913

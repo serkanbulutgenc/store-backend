@@ -28,15 +28,15 @@ if TYPE_CHECKING:
 PAYMENT_WINDOW = timedelta(hours=48)
 
 
-def _campaign(order: Order) -> dict[str, Any] | None:
-    found = basket_campaigns.frozen(order)
-    if found is None:
-        return None
-    return {
-        "label": found["label"],
-        "discount": pre_information.format_try(found["discount"]),
-        "free_shipping": found["free_shipping"],
-    }
+def _campaigns(order: Order) -> list[dict[str, Any]]:
+    return [
+        {
+            "label": found["label"],
+            "discount": pre_information.format_try(found["discount"]),
+            "free_shipping": found["free_shipping"],
+        }
+        for found in basket_campaigns.frozen(order)
+    ]
 
 
 def build(order: Order, store: StoreSettings) -> dict[str, Any]:
@@ -67,7 +67,7 @@ def build(order: Order, store: StoreSettings) -> dict[str, Any]:
         ),
         "lines": lines,
         # Lines show their price before any discount, so the figures add up.
-        "campaign": _campaign(order),
+        "campaigns": _campaigns(order),
         "voucher": (
             {
                 "code": discounts[0].voucher_code,

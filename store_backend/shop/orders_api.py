@@ -218,7 +218,7 @@ class OrderDetail(Schema):
     shipping_address: OrderShippingOut | None
     lines: list[OrderLineOut]
     items_total: Money
-    basket_campaign: OrderBasketCampaignOut | None
+    basket_campaigns: list[OrderBasketCampaignOut]
     voucher: OrderVoucherOut | None
     shipping_fee: Money
     cod_fee: Money
@@ -288,17 +288,21 @@ def _campaign(line) -> dict | None:
     }
 
 
-def _basket_campaign(order) -> dict | None:
-    found = OrderBasketCampaign.objects.filter(order=order).first()
-    if found is None:
-        return None
-    return {
-        "campaign_id": found.campaign_id,
-        "name": found.name,
-        "label": found.label,
-        "discount": found.discount,
-        "free_shipping": found.free_shipping,
-    }
+def _basket_campaigns(order) -> list[dict]:
+    rows = OrderBasketCampaign.objects.filter(order=order).order_by(
+        "free_shipping",
+        "pk",
+    )
+    return [
+        {
+            "campaign_id": r.campaign_id,
+            "name": r.name,
+            "label": r.label,
+            "discount": r.discount,
+            "free_shipping": r.free_shipping,
+        }
+        for r in rows
+    ]
 
 
 def _voucher(order) -> dict | None:
@@ -374,7 +378,7 @@ def order_detail(order) -> dict:
         "shipping_address": _shipping(order),
         "lines": lines,
         "items_total": sum((line["line_total"] for line in lines), pricing.ZERO),
-        "basket_campaign": _basket_campaign(order),
+        "basket_campaigns": _basket_campaigns(order),
         "voucher": _voucher(order),
         "shipping_fee": order.shipping_incl_tax,
         "cod_fee": cod_fee,

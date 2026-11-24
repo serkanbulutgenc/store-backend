@@ -287,16 +287,13 @@ def view(basket: Basket) -> dict:
         )
     # The Basket Campaign is decided on the items at Campaign prices, before a Voucher.
     # The destination is not known here, so free shipping is judged on the flat fee.
-    applied = basket_campaigns.best(subtotal, shop_settings.get().shipping_fee)
+    applied = basket_campaigns.applied(subtotal, shop_settings.get().shipping_fee)
+    off = sum((a.discount for a in applied), pricing.ZERO)
     return {
         "lines": out,
         "item_count": sum(line["quantity"] for line in out),
         "subtotal": subtotal,
         "has_problems": any(line["problem"] for line in out),
-        "campaign": basket_campaigns.applied_view(applied),
-        "voucher": _voucher_view(
-            basket,
-            subtotal,
-            subtotal - (applied.discount if applied else pricing.ZERO),
-        ),
+        "campaigns": basket_campaigns.applied_views(applied),
+        "voucher": _voucher_view(basket, subtotal, subtotal - off),
     }

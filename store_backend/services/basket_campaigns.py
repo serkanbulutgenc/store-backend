@@ -101,38 +101,16 @@ def active(now: datetime | None = None) -> QuerySet[BasketCampaign]:
     )
 
 
-def _worth(campaign: BasketCampaign, items_total: Decimal, shipping_fee: Decimal):
-    """What `campaign` is worth to the Shopper on this basket, as (discount, saved):
-    `discount` comes off the items, `saved` is the money kept either way."""
-    if campaign.benefit == Benefit.FREE_SHIPPING:
-        return ZERO, shipping_fee
+def _discount_of(campaign: BasketCampaign, items_total: Decimal) -> Decimal:
+    """What a discount `campaign` takes off `items_total`, never more than it."""
     if campaign.benefit == Benefit.PERCENTAGE:
         amount = kurus(items_total * (campaign.value or ZERO) / HUNDRED)
     else:
         amount = kurus(campaign.value or ZERO)
-    amount = min(amount, items_total)
-    return amount, amount
+    return min(amount, items_total)
 
 
-def best(
-    items_total: Decimal,
-    shipping_fee: Decimal,
-    *,
-    now: datetime | None = None,
-) -> Applied | None:
-    """The one Basket Campaign this basket gets, or None.
-
-    `items_total` is what the items cost at Campaign prices, before any Voucher;
-    `shipping_fee` is what would be charged. Only the one worth most applies, they never
-    stack, and a tie goes to the older one."""
-    winner: tuple[BasketCampaign, Decimal, Decimal] | None = None
-    for campaign in active(now).filter(minimum_amount__lte=items_total).order_by("pk"):
-        discount, saved = _worth(campaign, items_total, shipping_fee)
-        if saved > ZERO and (winner is None or saved > winner[2]):
-            winner = (campaign, discount, saved)
-    if winner is None:
-        return None
-    campaign, discount, _ = winner
+def _applied(campaign: BasketCampaign, discount: Decimal) -> Applied:
     return Applied(
         campaign_id=campaign.pk,
         name=campaign.name,
@@ -142,6 +120,38 @@ def best(
         discount=discount,
         free_shipping=campaign.benefit == Benefit.FREE_SHIPPING,
     )
+
+
+def applied(
+    items_total: Decimal,
+    shipping_fee: Decimal,
+    *,
+    now: datetime | None = None,
+) -> list[Applied]:
+    """The Basket Campaigns this basket gets: at most one discount and one free
+    shipping, and both apply together when the basket qualifies for both.
+
+    `items_total` is what the items cost at Campaign prices, before any Voucher;
+    `shipping_fee` is what would be charged. Of several discounts only the one that
+    takes most off applies (they never stack with each other), and a tie goes to the
+    older one; free shipping applies only when there is a fee to waive. The discount
+    comes first."""
+    best_discount: tuple[BasketCampaign, Decimal] | None = None
+    shipping: BasketCampaign | None = None
+    for campaign in active(now).filter(minimum_amount__lte=items_total).order_by("pk"):
+        if campaign.benefit == Benefit.FREE_SHIPPING:
+            if shipping is None and shipping_fee > ZERO:
+                shipping = campaign
+            continue
+        amount = _discount_of(campaign, items_total)
+        if amount > ZERO and (best_discount is None or amount > best_discount[1]):
+            best_discount = (campaign, amount)
+    found = []
+    if best_discount is not None:
+        found.append(_applied(*best_discount))
+    if shipping is not None:
+        found.append(_applied(shipping, ZERO))
+    return found
 
 
 # --- the Owner's management ----------------------------------------------------------
@@ -327,28 +337,29 @@ def row(campaign: BasketCampaign) -> dict:
     }
 
 
-def applied_view(applied: Applied | None) -> dict | None:
-    """The applied Basket Campaign as the Shopper-facing APIs show it."""
-    if applied is None:
-        return None
-    return {
-        "label": applied.label,
-        "discount": applied.discount,
-        "free_shipping": applied.free_shipping,
-    }
+def applied_views(found: list[Applied]) -> list[dict]:
+    """The applied Basket Campaigns as the Shopper-facing APIs show them."""
+    return [
+        {"label": a.label, "discount": a.discount, "free_shipping": a.free_shipping}
+        for a in found
+    ]
 
 
-def frozen(order) -> dict | None:
-    """What the Order was placed under, from its own frozen record: later edits of the
-    Basket Campaign never change it."""
-    found = OrderBasketCampaign.objects.filter(order=order).first()
-    if found is None:
-        return None
-    return {
-        "label": found.label,
-        "discount": found.discount,
-        "free_shipping": found.free_shipping,
-    }
+def frozen(order) -> list[dict]:
+    """What the Order was placed under, from its own frozen records, discount first:
+    later edits of a Basket Campaign never change them."""
+    rows = OrderBasketCampaign.objects.filter(order=order).order_by(
+        "free_shipping",
+        "pk",
+    )
+    return [
+        {
+            "label": r.label,
+            "discount": r.discount,
+            "free_shipping": r.free_shipping,
+        }
+        for r in rows
+    ]
 
 
 def listing(wanted: str | None = None) -> list[dict]:

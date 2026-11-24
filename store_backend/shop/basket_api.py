@@ -70,10 +70,10 @@ class BasketOut(Schema):
     item_count: int
     subtotal: Money
     has_problems: bool
-    campaign: AppliedCampaignOut | None = Field(
-        None,
-        description="The Basket Campaign this basket gets, if any (shipping unknown: "
-        "a free-shipping one is judged on the flat fee).",
+    campaigns: list[AppliedCampaignOut] = Field(
+        default_factory=list,
+        description="The Basket Campaigns this basket gets, discount first (shipping "
+        "unknown here: free shipping is judged on the flat fee).",
     )
     voucher: VoucherOut | None = Field(
         None,

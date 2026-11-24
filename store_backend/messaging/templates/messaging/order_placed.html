@@ -9,12 +9,12 @@
         <td align="right">{{ line.total }}</td>
       </tr>
     {% endfor %}
-    {% if campaign %}
+    {% for campaign in campaigns %}
       <tr>
         <td>Kampanya ({{ campaign.label }})</td>
         <td align="right">{% if campaign.free_shipping %}ücretsiz kargo{% else %}-{{ campaign.discount }}{% endif %}</td>
       </tr>
-    {% endif %}
+    {% endfor %}
     {% if voucher %}
       <tr>
         <td>Kupon ({{ voucher.code }})</td>

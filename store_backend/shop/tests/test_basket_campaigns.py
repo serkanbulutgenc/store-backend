@@ -190,7 +190,7 @@ def test_below_the_minimum_nothing_changes(guest):
 
     quoted = guest.post(QUOTE, quote_body("")).json()
 
-    assert quoted["campaign"] is None
+    assert quoted["campaigns"] == []
     assert quoted["total"] == "230.00"
 
 
@@ -199,11 +199,13 @@ def test_exactly_at_the_minimum_the_campaign_applies(guest):
 
     quoted = guest.post(QUOTE, quote_body("")).json()
 
-    assert quoted["campaign"] == {
-        "label": "200 ₺ üzeri 20 ₺ indirim",
-        "discount": "20.00",
-        "free_shipping": False,
-    }
+    assert quoted["campaigns"] == [
+        {
+            "label": "200 ₺ üzeri 20 ₺ indirim",
+            "discount": "20.00",
+            "free_shipping": False,
+        },
+    ]
     assert quoted["items_total"] == "200.00"  # before any discount
     assert quoted["total"] == "210.00"  # 200 - 20 + 30 shipping
 
@@ -213,7 +215,7 @@ def test_a_percentage_takes_its_share_of_the_items(guest):
 
     quoted = guest.post(QUOTE, quote_body("")).json()
 
-    assert quoted["campaign"]["discount"] == "30.00"
+    assert quoted["campaigns"][0]["discount"] == "30.00"
     assert quoted["total"] == "200.00"
 
 
@@ -224,7 +226,7 @@ def test_only_the_campaign_worth_most_applies_and_they_never_stack(guest):
 
     placed = guest.post(CHECKOUT, payload()).json()
 
-    assert placed["campaign"]["discount"] == "30.00"
+    assert placed["campaigns"][0]["discount"] == "30.00"
     assert placed["total"] == "200.00"  # 200 - 30 + 30, not also the 20
     assert OrderBasketCampaign.objects.get().campaign_id == big.pk
 
@@ -236,7 +238,7 @@ def test_a_tie_goes_to_the_older_campaign(guest):
     quoted = guest.post(QUOTE, quote_body("")).json()
     guest.post(CHECKOUT, payload())
 
-    assert quoted["campaign"]["discount"] == "20.00"
+    assert quoted["campaigns"][0]["discount"] == "20.00"
     assert OrderBasketCampaign.objects.get().campaign_id == older.pk
 
 
@@ -251,7 +253,7 @@ def test_a_tie_goes_to_the_older_campaign(guest):
 def test_a_campaign_that_is_off_scheduled_or_ended_does_not_apply(guest, fields):
     make(**fields)
 
-    assert guest.post(QUOTE, quote_body("")).json()["campaign"] is None
+    assert guest.post(QUOTE, quote_body("")).json()["campaigns"] == []
 
 
 def test_a_fixed_amount_never_takes_the_items_below_zero(guest):
@@ -260,7 +262,7 @@ def test_a_fixed_amount_never_takes_the_items_below_zero(guest):
 
     placed = guest.post(CHECKOUT, payload()).json()
 
-    assert placed["campaign"]["discount"] == "200.00"
+    assert placed["campaigns"][0]["discount"] == "200.00"
     assert placed["total"] == "30.00"  # only shipping is left
 
 
@@ -272,12 +274,12 @@ def test_the_minimum_is_measured_on_the_campaign_prices(guest, shop):
     item_campaign(20, product)  # the items now cost 160.00
     make(minimum="200")
 
-    assert guest.post(QUOTE, quote_body("")).json()["campaign"] is None
+    assert guest.post(QUOTE, quote_body("")).json()["campaigns"] == []
 
     BasketCampaign.objects.update(minimum_amount=D("160"))
     quoted = guest.post(QUOTE, quote_body("")).json()
     assert quoted["items_total"] == "160.00"
-    assert quoted["campaign"]["discount"] == "20.00"
+    assert quoted["campaigns"][0]["discount"] == "20.00"
     assert quoted["total"] == "170.00"  # 160 - 20 + 30
 
 
@@ -289,7 +291,7 @@ def test_a_voucher_applies_on_top_and_takes_its_share_of_what_is_left(guest):
 
     placed = guest.post(CHECKOUT, payload()).json()
 
-    assert placed["campaign"]["discount"] == "20.00"
+    assert placed["campaigns"][0]["discount"] == "20.00"
     assert placed["discount"] == "18.00"  # 10% of 200 - 20
     assert placed["total"] == "192.00"  # 200 - 20 - 18 + 30
     assert quoted["total"] == placed["total"]
@@ -319,7 +321,7 @@ def test_the_basket_shows_the_campaign_and_the_vouchers_discount_after_it(guest)
     basket = guest.get(BASKET).json()
 
     assert basket["subtotal"] == "200.00"
-    assert basket["campaign"]["label"] == "200 ₺ üzeri 20 ₺ indirim"
+    assert basket["campaigns"][0]["label"] == "200 ₺ üzeri 20 ₺ indirim"
     assert basket["voucher"]["discount"] == "18.00"
 
 
@@ -341,13 +343,15 @@ def test_the_order_freezes_the_campaign_and_later_edits_do_not_change_it(
         D("20.00"),
     )
     detail = boss.get(f"/api/admin/orders/{placed['number']}").json()
-    assert detail["basket_campaign"] == {
-        "campaign_id": made.pk,
-        "name": "fixed 20",
-        "label": "200 ₺ üzeri 20 ₺ indirim",
-        "discount": "20.00",
-        "free_shipping": False,
-    }
+    assert detail["basket_campaigns"] == [
+        {
+            "campaign_id": made.pk,
+            "name": "fixed 20",
+            "label": "200 ₺ üzeri 20 ₺ indirim",
+            "discount": "20.00",
+            "free_shipping": False,
+        },
+    ]
     assert detail["total"] == placed["total"]
 
 
@@ -378,10 +382,10 @@ def test_a_used_campaign_cannot_be_deleted_but_can_be_switched_off(guest, boss):
 def test_a_placed_order_without_a_campaign_has_none(guest, boss):
     placed = guest.post(CHECKOUT, payload()).json()
 
-    assert placed["campaign"] is None
+    assert placed["campaigns"] == []
     assert not OrderBasketCampaign.objects.exists()
     detail = boss.get(f"/api/admin/orders/{placed['number']}").json()
-    assert detail["basket_campaign"] is None
+    assert detail["basket_campaigns"] == []
 
 
 def test_the_order_email_names_the_campaign(guest):
@@ -402,8 +406,8 @@ def test_order_tracking_shows_the_campaign_the_order_was_placed_under(guest):
     tracked = Guest().get(f"/api/store/tracking/link/{placed['tracking_token']}").json()
 
     assert tracked["items_total"] == "200.00"
-    assert tracked["campaign"]["label"] == "200 ₺ üzeri 20 ₺ indirim"
-    assert tracked["campaign"]["discount"] == "20.00"
+    assert tracked["campaigns"][0]["label"] == "200 ₺ üzeri 20 ₺ indirim"
+    assert tracked["campaigns"][0]["discount"] == "20.00"
     assert tracked["total"] == placed["total"]
 
 
@@ -442,11 +446,13 @@ def test_at_the_minimum_shipping_is_free_and_the_items_are_untouched(guest):
 
     quoted = guest.post(QUOTE, quote_body("")).json()
 
-    assert quoted["campaign"] == {
-        "label": "200 ₺ üzeri ücretsiz kargo",
-        "discount": "0.00",
-        "free_shipping": True,
-    }
+    assert quoted["campaigns"] == [
+        {
+            "label": "200 ₺ üzeri ücretsiz kargo",
+            "discount": "0.00",
+            "free_shipping": True,
+        },
+    ]
     assert quoted["shipping_fee"] == "0.00"
     assert quoted["total"] == "200.00"  # just the items
 
@@ -456,7 +462,7 @@ def test_below_the_minimum_shipping_is_charged(guest):
 
     quoted = guest.post(QUOTE, quote_body("")).json()
 
-    assert quoted["campaign"] is None
+    assert quoted["campaigns"] == []
     assert quoted["shipping_fee"] == "30.00"
 
 
@@ -472,7 +478,7 @@ def test_free_shipping_waives_the_shipping_fee_but_not_the_cod_fee(guest, owner)
     assert placed["shipping_fee"] == "0.00"
     assert placed["cod_fee"] == "15.00"
     assert placed["total"] == "215.00"
-    assert placed["campaign"]["free_shipping"] is True
+    assert placed["campaigns"][0]["free_shipping"] is True
 
 
 def test_free_shipping_uses_the_computed_carrier_fee_when_the_province_is_known(
@@ -485,38 +491,119 @@ def test_free_shipping_uses_the_computed_carrier_fee_when_the_province_is_known(
     placed = guest.post(CHECKOUT, ship_to("TRABZON")).json()
 
     assert quoted["shipping_fee"] == placed["shipping_fee"] == "0.00"
-    assert quoted["campaign"]["free_shipping"] is True
+    assert quoted["campaigns"][0]["free_shipping"] is True
 
 
-def test_a_discount_worth_more_than_the_shipping_fee_beats_free_shipping(guest):
-    free_shipping("100")  # saves the 30.00 shipping
+def test_a_discount_and_free_shipping_both_apply_when_the_basket_qualifies_for_both(
+    guest,
+):
     make(minimum="100", value="50", name="50 off")
+    free_shipping("100")  # would save the 30.00 shipping
 
+    quoted = guest.post(QUOTE, quote_body("")).json()
     placed = guest.post(CHECKOUT, payload()).json()
 
-    assert placed["campaign"]["free_shipping"] is False
-    assert placed["campaign"]["discount"] == "50.00"
-    assert placed["shipping_fee"] == "30.00"  # they never combine
-    assert placed["total"] == "180.00"  # 200 - 50 + 30
-
-
-def test_free_shipping_worth_more_than_the_discount_beats_it(guest, owner):
-    set_fees(owner, shipping_fee="95.00")
-    free_shipping("100")  # saves 95.00
-    make(minimum="100", value="20", name="20 off")
-
-    placed = guest.post(CHECKOUT, payload()).json()
-
-    assert placed["campaign"]["free_shipping"] is True
+    assert [c["label"] for c in placed["campaigns"]] == [
+        "100 ₺ üzeri 50 ₺ indirim",  # the discount first
+        "100 ₺ üzeri ücretsiz kargo",
+    ]
+    assert [c["discount"] for c in placed["campaigns"]] == ["50.00", "0.00"]
+    assert [c["free_shipping"] for c in placed["campaigns"]] == [False, True]
     assert placed["shipping_fee"] == "0.00"
-    assert placed["total"] == "200.00"
+    assert placed["total"] == "150.00"  # 200 - 50, and no shipping
+    assert quoted["campaigns"] == placed["campaigns"]
+    assert quoted["total"] == placed["total"]
+
+
+def test_a_discount_and_free_shipping_each_need_their_own_minimum(guest):
+    make(minimum="100", value="50", name="50 off")
+    free_shipping("200.01")  # out of reach
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    assert [c["free_shipping"] for c in placed["campaigns"]] == [False]
+    assert placed["shipping_fee"] == "30.00"
+    assert placed["total"] == "180.00"
+
+
+def test_two_free_shipping_campaigns_apply_as_one(guest):
+    older = free_shipping("100", name="older")
+    free_shipping("150", name="newer")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    assert len(placed["campaigns"]) == 1
+    assert OrderBasketCampaign.objects.get().campaign_id == older.pk
+
+
+def test_two_discounts_still_do_not_stack_beside_free_shipping(guest):
+    make(minimum="100", value="20", name="small")
+    big = make(minimum="100", value="60", name="big")
+    free_shipping("100")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    assert [c["discount"] for c in placed["campaigns"]] == ["60.00", "0.00"]
+    assert placed["total"] == "140.00"
+    rows = OrderBasketCampaign.objects.order_by("free_shipping")
+    assert next(r.campaign_id for r in rows) == big.pk
+    assert rows.count() == 2
+
+
+def test_the_order_freezes_both_and_the_admin_screen_lists_them(guest, boss):
+    make(minimum="100", value="50", name="50 off")
+    free_shipping("100")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    rows = OrderBasketCampaign.objects.filter(order__number=placed["number"])
+    assert rows.count() == 2
+    detail = boss.get(f"/api/admin/orders/{placed['number']}").json()
+    assert [c["free_shipping"] for c in detail["basket_campaigns"]] == [False, True]
+    assert detail["basket_campaigns"][0]["discount"] == "50.00"
+
+
+def test_the_email_and_tracking_name_both(guest):
+    make(minimum="100", value="50", name="50 off")
+    free_shipping("100")
+
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    message = Message.objects.get(order__number=placed["number"])
+    for body in (message.body_text, message.body_html):
+        assert "100 ₺ üzeri 50 ₺ indirim" in body
+        assert "ücretsiz kargo" in body
+    tracked = Guest().get(f"/api/store/tracking/link/{placed['tracking_token']}").json()
+    assert [c["label"] for c in tracked["campaigns"]] == [
+        "100 ₺ üzeri 50 ₺ indirim",
+        "100 ₺ üzeri ücretsiz kargo",
+    ]
+
+
+def test_the_basket_lists_every_applied_discount_and_the_voucher_follows(guest):
+    make(minimum="100", value="50", name="50 off")
+    free_shipping("100")
+    make_voucher(Benefit.PERCENTAGE, "10", code="YAZ10")
+    guest.post(VOUCHER, {"code": "YAZ10"})
+
+    basket = guest.get(BASKET).json()
+    placed = guest.post(CHECKOUT, payload()).json()
+
+    assert basket["subtotal"] == "200.00"
+    assert [c["label"] for c in basket["campaigns"]] == [
+        "100 ₺ üzeri 50 ₺ indirim",
+        "100 ₺ üzeri ücretsiz kargo",
+    ]
+    assert basket["voucher"]["discount"] == "15.00"  # 10% of 200 - 50
+    assert placed["discount"] == "15.00"
+    assert placed["total"] == "135.00"  # 200 - 50 - 15, no shipping
 
 
 def test_free_shipping_that_saves_nothing_is_not_applied(guest, owner):
     set_fees(owner, shipping_fee="0")
     free_shipping("100")
 
-    assert guest.post(QUOTE, quote_body("")).json()["campaign"] is None
+    assert guest.post(QUOTE, quote_body("")).json()["campaigns"] == []
 
 
 def test_the_order_freezes_free_shipping_and_the_email_says_so(guest, boss):
@@ -527,7 +614,7 @@ def test_the_order_freezes_free_shipping_and_the_email_says_so(guest, boss):
     row = OrderBasketCampaign.objects.get(order__number=placed["number"])
     assert (row.campaign_id, row.free_shipping, row.discount) == (made.pk, True, 0)
     detail = boss.get(f"/api/admin/orders/{placed['number']}").json()
-    assert detail["basket_campaign"]["free_shipping"] is True
+    assert detail["basket_campaigns"][0]["free_shipping"] is True
     message = Message.objects.get(order__number=placed["number"])
     for body in (message.body_text, message.body_html):
         assert "ücretsiz kargo" in body
@@ -538,8 +625,10 @@ def test_the_basket_judges_free_shipping_on_the_flat_fee(guest):
 
     basket = guest.get(BASKET).json()
 
-    assert basket["campaign"] == {
-        "label": "200 ₺ üzeri ücretsiz kargo",
-        "discount": "0.00",
-        "free_shipping": True,
-    }
+    assert basket["campaigns"] == [
+        {
+            "label": "200 ₺ üzeri ücretsiz kargo",
+            "discount": "0.00",
+            "free_shipping": True,
+        },
+    ]

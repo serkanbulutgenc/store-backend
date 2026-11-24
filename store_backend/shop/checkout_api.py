@@ -81,9 +81,10 @@ class QuoteIn(Schema):
 
 class QuoteOut(Schema):
     items_total: Money = Field(description="What the items cost before any discount.")
-    campaign: AppliedCampaignOut | None = Field(
-        None,
-        description="The Basket Campaign this basket gets, if any.",
+    campaigns: list[AppliedCampaignOut] = Field(
+        default_factory=list,
+        description="The Basket Campaigns this basket gets: a discount and/or free "
+        "shipping, discount first.",
     )
     discount: Money = Field(
         description="What the basket's Voucher takes off the items.",
@@ -143,9 +144,9 @@ class OrderPlacedOut(Schema):
     email: str
     lines: list[PlacedLineOut]
     items_total: Money = Field(description="What the items cost before any discount.")
-    campaign: AppliedCampaignOut | None = Field(
-        None,
-        description="The Basket Campaign this Order was placed under, if any.",
+    campaigns: list[AppliedCampaignOut] = Field(
+        default_factory=list,
+        description="The Basket Campaigns this Order was placed under, discount first.",
     )
     discount: Money = Field(description="What the Voucher took off the items.")
     voucher_code: str | None = Field(
@@ -202,7 +203,7 @@ def placed_summary(order) -> dict:
             (line.line_price_before_discounts_incl_tax for line in order_lines),
             pricing.ZERO,
         ),
-        "campaign": basket_campaigns.frozen(order),
+        "campaigns": basket_campaigns.frozen(order),
         "discount": sum((d.amount for d in discounts), pricing.ZERO),
         "voucher_code": next(
             (d.voucher_code for d in discounts if d.voucher_code),
@@ -278,7 +279,7 @@ def quote_order(request, data: QuoteIn):
     voucher = quote.voucher or quote.skipped_voucher
     return {
         "items_total": quote.items_total,
-        "campaign": basket_campaigns.applied_view(quote.campaign),
+        "campaigns": basket_campaigns.applied_views(list(quote.campaigns)),
         "discount": quote.discount,
         "voucher_code": voucher.code if voucher else None,
         "voucher_problem": quote.voucher_problem,

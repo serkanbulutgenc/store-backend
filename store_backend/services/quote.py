@@ -51,8 +51,9 @@ class Quote:
     priced: dict[int, campaign_pricing.Priced] = field(default_factory=dict)
     skipped_voucher: Voucher | None = None  # on the basket, but not applied
     voucher_problem: str | None = None  # why it was not applied
-    # The Basket Campaign this basket gets (ADR 0011), applied before any Voucher.
-    campaign: basket_campaigns.Applied | None = None
+    # The Basket Campaigns this basket gets (ADR 0011), applied before any Voucher: at
+    # most one discount and one free shipping.
+    campaigns: tuple[basket_campaigns.Applied, ...] = ()
     totals: pricing.OrderTotals = field(init=False)
 
     def __post_init__(self) -> None:
@@ -63,8 +64,8 @@ class Quote:
 
     @property
     def campaign_discount(self) -> Decimal:
-        """What the Basket Campaign took off the items (0 if none, or free shipping)."""
-        return self.campaign.discount if self.campaign else pricing.ZERO
+        """What the Basket Campaign discount took off the items (0 if none)."""
+        return sum((c.discount for c in self.campaigns), pricing.ZERO)
 
     @property
     def items_total(self) -> Decimal:
@@ -129,17 +130,17 @@ def quote(
     """Price `lines` for a payment method under `store`'s fees. No writes.
 
     `province` is the destination il; without a known one (or desi) shipping is the
-    flat Settings fee. The best Basket Campaign for the items applies first, then a
-    `voucher` discounts the items only; fees are never discounted (a free-shipping
-    Basket Campaign waives the shipping fee instead).
+    flat Settings fee. The Basket Campaigns for the items apply first (a discount and
+    free shipping together when both qualify), then a `voucher` discounts the items
+    only; fees are never discounted (free shipping waives the shipping fee instead).
     """
     priced = _priced(lines)
     snapshots = gross = _snapshots(lines, priced)
     items_total = sum((s.total_incl for s in snapshots.values()), pricing.ZERO)
     shipping_amount = _shipping_amount(lines, store, province)
     # The Basket Campaign is decided on the items at Campaign prices, before a Voucher.
-    campaign = basket_campaigns.best(items_total, shipping_amount)
-    campaign_discount = campaign.discount if campaign else pricing.ZERO
+    campaigns = basket_campaigns.applied(items_total, shipping_amount)
+    campaign_discount = sum((c.discount for c in campaigns), pricing.ZERO)
     if campaign_discount:
         discounted = pricing.apply_discount(list(snapshots.values()), campaign_discount)
         snapshots = dict(zip(snapshots, discounted, strict=True))
@@ -157,7 +158,7 @@ def quote(
         )
         discounted = pricing.apply_discount(list(snapshots.values()), discount)
         snapshots = dict(zip(snapshots, discounted, strict=True))
-    if campaign is not None and campaign.free_shipping:
+    if any(c.free_shipping for c in campaigns):
         shipping_amount = pricing.ZERO
     return Quote(
         lines,
@@ -168,5 +169,5 @@ def quote(
         voucher,
         gross,
         priced=priced,
-        campaign=campaign,
+        campaigns=tuple(campaigns),
     )
