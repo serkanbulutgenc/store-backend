@@ -17,6 +17,7 @@ from oscar.apps.order.models import Order
 
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductStatus
+from store_backend.services import approval_queue
 from store_backend.services import checkout
 from store_backend.services import home_layout
 from store_backend.services import invoicing
@@ -168,8 +169,15 @@ def open_returns() -> dict:
     )
 
 
+def approvals() -> dict:
+    """Everything Staff submitted that waits for the Owner, oldest first."""
+    rows = approval_queue.items()
+    return {"count": len(rows), "rows": rows[:ROW_LIMIT]}
+
+
 #: Widget key -> the list that fills it. A Widget that is off is never queried.
 WIDGET_BUILDERS: dict[str, Callable[[datetime], dict]] = {
+    "approvals": lambda _now: approvals(),
     "new_orders": lambda _now: new_orders(),
     "unpaid_transfers_near_expiry": unpaid_transfers_near_expiry,
     "open_returns": lambda _now: open_returns(),

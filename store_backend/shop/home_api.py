@@ -16,6 +16,7 @@ from store_backend.api.permissions import requires
 from store_backend.services import home
 from store_backend.services import home_layout
 from store_backend.shop.models import ReturnReason
+from store_backend.staff.approvals_api import QueueItemOut
 
 router = Router(tags=["home"])
 
@@ -92,6 +93,11 @@ class ProductsWithoutPhotos(Schema):
     rows: list[UnphotographedRow]
 
 
+class ApprovalsWaiting(Schema):
+    count: int
+    rows: list[QueueItemOut]
+
+
 class HomeOut(Schema):
     """`layout` is the Widgets turned on, in order; `available` is what the user
     may add. Each Widget's list is present only while it is turned on."""
@@ -99,6 +105,7 @@ class HomeOut(Schema):
     layout: list[str]
     available: list[str]
     is_default: bool
+    approvals: ApprovalsWaiting | None = None
     open_returns: OpenReturns | None = None
     new_orders: NewOrders | None = None
     unpaid_transfers_near_expiry: ExpiringTransfers | None = None

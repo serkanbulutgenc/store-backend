@@ -23,13 +23,15 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class Widget:
     key: str
-    permission: Perm
+    #: What the user must hold; None for a Widget that is only for the Owner.
+    permission: Perm | None
     #: Owner-only (Revenue data or an Owner decision): never offered to Staff.
     owner_only: bool = False
 
 
 #: In the order they are offered. Add a Widget here, give it a builder in `home.py`.
 CATALOGUE: tuple[Widget, ...] = (
+    Widget("approvals", None, owner_only=True),
     Widget("new_orders", Perm.VIEW_ORDERS),
     Widget("unpaid_transfers_near_expiry", Perm.VIEW_ORDERS),
     Widget("open_returns", Perm.VIEW_ORDERS),
@@ -44,7 +46,8 @@ def available(user) -> list[Widget]:
     return [
         w
         for w in CATALOGUE
-        if (owner or not w.owner_only) and user.has_perm(w.permission.permission_name)
+        if (owner or not w.owner_only)
+        and (w.permission is None or user.has_perm(w.permission.permission_name))
     ]
 
 

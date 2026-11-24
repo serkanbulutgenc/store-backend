@@ -197,6 +197,27 @@
         "title": "AdminReviewOut",
         "type": "object"
       },
+      "ApprovalsWaiting": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/QueueItemOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "rows"
+        ],
+        "title": "ApprovalsWaiting",
+        "type": "object"
+      },
       "AttributeIn": {
         "properties": {
           "is_filterable": {
@@ -3370,6 +3391,16 @@
       "HomeOut": {
         "description": "`layout` is the Widgets turned on, in order; `available` is what the user\nmay add. Each Widget's list is present only while it is turned on.",
         "properties": {
+          "approvals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalsWaiting"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "available": {
             "items": {
               "type": "string"
