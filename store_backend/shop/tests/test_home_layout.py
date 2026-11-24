@@ -1,4 +1,4 @@
-# ruff: noqa: F811
+# ruff: noqa: F811, PLR2004
 """The Ana sayfa layout: per-user Widget list, role defaults, permission filtering."""
 
 from http import HTTPStatus
@@ -9,6 +9,11 @@ from django.contrib.auth.models import Permission
 
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionStatus
+from store_backend.shop.models import ContactCategory
+from store_backend.shop.models import ContactMessage
+from store_backend.shop.models import ContactMessageKind
+from store_backend.shop.models import ContactReplyState
+from store_backend.shop.models import ContactThread
 from store_backend.staff.models import HomeLayout
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
 from store_backend.staff.tests.conftest import owner  # noqa: F401
@@ -18,6 +23,7 @@ pytestmark = pytest.mark.django_db
 
 OWNER_ALL = [
     "approvals",
+    "contact_replies",
     "new_orders",
     "unpaid_transfers_near_expiry",
     "open_returns",
@@ -165,3 +171,71 @@ def test_the_approvals_widget_lists_what_staff_submitted(boss, staff_user):
     url = f"/api/admin/approvals/collection/{row['id']}/approve"
     assert boss.post(url).status_code == HTTPStatus.OK
     assert boss.get(HOME).json()["approvals"] == {"count": 0, "rows": []}
+
+
+def _waiting_reply(thread, author, body):
+    return ContactMessage.objects.create(
+        thread=thread,
+        kind=ContactMessageKind.REPLY,
+        body=body,
+        state=ContactReplyState.PENDING,
+        author=author,
+    )
+
+
+def test_contact_replies_are_the_owners_alone(boss, staff):
+    assert "contact_replies" in boss.get(HOME).json()["available"]
+    assert "contact_replies" not in staff.get(HOME).json()["available"]
+    refused = staff.put(LAYOUT, {"widgets": ["contact_replies"]})
+    assert refused.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_the_contact_widget_lists_one_row_per_thread_with_an_excerpt(
+    boss,
+    staff_user,
+):
+    category = ContactCategory.objects.get(name="Order question")
+    thread = ContactThread.objects.create(
+        category=category,
+        name="Ayşe Yılmaz",
+        email="ayse@example.com",
+    )
+    long_text = "Yarın kargoya veriyoruz. " * 20
+    first = _waiting_reply(thread, staff_user, long_text)
+    _waiting_reply(thread, staff_user, "İkinci taslak")
+    other = ContactThread.objects.create(
+        category=category,
+        name="Can",
+        email="can@example.com",
+    )
+    _waiting_reply(other, staff_user, "Merhaba")
+    ContactMessage.objects.create(  # a draft is not waiting for the Owner
+        thread=other,
+        kind=ContactMessageKind.REPLY,
+        body="taslak",
+        state=ContactReplyState.DRAFT,
+        author=staff_user,
+    )
+    widget = boss.get(HOME).json()["contact_replies"]
+    assert widget["count"] == 2
+    row = widget["rows"][0]
+    assert row["reply_id"] == first.pk
+    assert row["thread_id"] == thread.pk
+    assert row["shopper"] == "Ayşe Yılmaz"
+    assert row["author"]["id"] == staff_user.pk
+    assert row["excerpt"].endswith("…")
+    assert len(row["excerpt"]) <= 160
+    assert "\n" not in row["excerpt"]
+
+
+def test_approving_from_the_widget_empties_it(boss, staff_user):
+    category = ContactCategory.objects.get(name="Order question")
+    thread = ContactThread.objects.create(
+        category=category,
+        name="Ayşe",
+        email="ayse@example.com",
+    )
+    reply = _waiting_reply(thread, staff_user, "Yarın kargoda.")
+    url = f"/api/admin/contact-replies/{reply.pk}/approve"
+    assert boss.post(url).status_code == HTTPStatus.OK
+    assert boss.get(HOME).json()["contact_replies"] == {"count": 0, "rows": []}

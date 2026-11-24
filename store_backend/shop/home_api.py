@@ -13,6 +13,7 @@ from ninja import Schema
 
 from store_backend.api.money import Money
 from store_backend.api.permissions import requires
+from store_backend.catalog.collections_api import PersonOut
 from store_backend.services import home
 from store_backend.services import home_layout
 from store_backend.shop.models import ReturnReason
@@ -93,6 +94,21 @@ class ProductsWithoutPhotos(Schema):
     rows: list[UnphotographedRow]
 
 
+class ContactReplyRow(Schema):
+    reply_id: int
+    thread_id: int
+    shopper: str
+    category: str
+    author: PersonOut | None
+    excerpt: str
+    written_at: datetime
+
+
+class ContactRepliesWaiting(Schema):
+    count: int
+    rows: list[ContactReplyRow]
+
+
 class ApprovalsWaiting(Schema):
     count: int
     rows: list[QueueItemOut]
@@ -106,6 +122,7 @@ class HomeOut(Schema):
     available: list[str]
     is_default: bool
     approvals: ApprovalsWaiting | None = None
+    contact_replies: ContactRepliesWaiting | None = None
     open_returns: OpenReturns | None = None
     new_orders: NewOrders | None = None
     unpaid_transfers_near_expiry: ExpiringTransfers | None = None
