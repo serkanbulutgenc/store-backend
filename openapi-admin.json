@@ -3318,6 +3318,22 @@
         "title": "Group",
         "type": "string"
       },
+      "HomeLayoutIn": {
+        "properties": {
+          "widgets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Widgets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "widgets"
+        ],
+        "title": "HomeLayoutIn",
+        "type": "object"
+      },
       "HomeOrderRow": {
         "properties": {
           "customer": {
@@ -3352,37 +3368,101 @@
         "type": "object"
       },
       "HomeOut": {
+        "description": "`layout` is the Widgets turned on, in order; `available` is what the user\nmay add. Each Widget's list is present only while it is turned on.",
         "properties": {
+          "available": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available",
+            "type": "array"
+          },
           "invoice_attention": {
-            "$ref": "#/components/schemas/InvoiceFlags"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceFlags"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "layout": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Layout",
+            "type": "array"
           },
           "low_stock": {
-            "$ref": "#/components/schemas/LowStock"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LowStock"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "new_orders": {
-            "$ref": "#/components/schemas/NewOrders"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NewOrders"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "open_returns": {
-            "$ref": "#/components/schemas/OpenReturns"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenReturns"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "products_without_photos": {
-            "$ref": "#/components/schemas/ProductsWithoutPhotos"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductsWithoutPhotos"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "shipped_without_invoice": {
-            "$ref": "#/components/schemas/NewOrders"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NewOrders"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "unpaid_transfers_near_expiry": {
-            "$ref": "#/components/schemas/ExpiringTransfers"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpiringTransfers"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "new_orders",
-          "unpaid_transfers_near_expiry",
-          "low_stock",
-          "shipped_without_invoice",
-          "invoice_attention",
-          "products_without_photos",
-          "open_returns"
+          "layout",
+          "available",
+          "is_default"
         ],
         "title": "HomeOut",
         "type": "object"
@@ -14350,6 +14430,70 @@
           }
         ],
         "summary": "Get Home",
+        "tags": [
+          "home"
+        ]
+      }
+    },
+    "/api/admin/home/layout": {
+      "delete": {
+        "description": "Go back to the default for the user's role.",
+        "operationId": "home_layout_reset",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Reset Layout",
+        "tags": [
+          "home"
+        ]
+      },
+      "put": {
+        "description": "Choose which Widgets are on, and their order. Unavailable ones are refused.",
+        "operationId": "home_layout_save",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeLayoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Save Layout",
         "tags": [
           "home"
         ]
