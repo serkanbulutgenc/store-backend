@@ -1,6 +1,6 @@
 # Ana sayfa is a per-user list of code-defined Widgets
 
-The Ana sayfa is built from Widgets. Each Dashboard user keeps their own ordered list of the Widgets they have turned on, stored on the server against that user. The catalogue of Widgets is fixed in code: each Widget has a key, a permission it needs, and the data it returns. A person can turn Widgets on or off, move them up or down, and reset to the default for their role. They cannot resize, drag onto a free grid, or define a Widget of their own.
+The Ana sayfa is built from Widgets. Each Dashboard user keeps their own ordered list of the Widgets they have turned on, stored on the server against that user. The catalogue of Widgets is fixed in code: each Widget has a key, a permission it needs, and the data it returns. A person can turn Widgets on or off (dismiss one), fold one down to its header, move them in the list by dragging or with buttons, and reset to the default for their role. Which Widgets are folded is stored beside the list, per user, so it follows them across devices. They cannot resize, place a card anywhere on a free grid (dragging only reorders the list), or define a Widget of their own.
 
 A person who has never configured gets a default for their role. A Widget added later is offered in the "add" list but stays off for anyone who already saved a layout. The server returns data only for the Widgets that are on, in order, and drops any the person no longer has permission for, so a revoked permission never leaks data through a stale layout.
 
