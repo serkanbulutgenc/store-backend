@@ -461,3 +461,60 @@ def test_restore_is_refused_while_a_change_is_waiting(boss, staff):
 
 def test_restoring_an_unknown_version_is_not_found(boss):
     assert boss.post(restore_url(99)).status_code == HTTPStatus.NOT_FOUND
+
+
+def picked(section_id: str, *product_ids: int, visible: bool = True) -> dict:
+    return {
+        "id": section_id,
+        "type": "products",
+        "visible": visible,
+        "settings": {"source": "hand_picked", "product_ids": list(product_ids)},
+    }
+
+
+def test_a_section_with_nothing_to_show_gets_a_warning_in_the_editor(boss):
+    shop = Shop()
+    product = shop.product("Elbise", [(shop.black, "M", 3)])
+    save(boss, [picked("ok", product.pk), picked("gone", 999_999)])
+
+    layout = detail(boss)
+
+    assert list(layout["warnings"]) == ["gone"]
+    assert layout["warnings"]["gone"]
+    assert "gone" not in [s["id"] for s in Client().get(STORE).json()["sections"]]
+
+
+def test_a_section_with_something_to_show_has_no_warning(boss):
+    shop = Shop()
+    product = shop.product("Elbise", [(shop.black, "M", 3)])
+    save(boss, [picked("ok", product.pk)])
+
+    assert detail(boss)["warnings"] == {}
+
+
+def test_a_hidden_section_is_not_warned_about(boss):
+    save(boss, [picked("gone", 999_999, visible=False)])
+
+    assert detail(boss)["warnings"] == {}
+
+
+def test_recently_viewed_is_never_warned_about(boss):
+    sections = [
+        {
+            "id": "rv",
+            "type": "products",
+            "settings": {"source": "recently_viewed"},
+        },
+    ]
+    save(boss, sections)
+
+    assert detail(boss)["warnings"] == {}
+
+
+def test_the_pending_layout_carries_its_own_warnings(boss, staff):
+    save(staff, [picked("gone", 999_999)])
+
+    layout = detail(boss)
+
+    assert "gone" not in layout["warnings"]
+    assert list(layout["pending"]["warnings"]) == ["gone"]

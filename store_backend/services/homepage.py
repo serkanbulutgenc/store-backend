@@ -379,6 +379,45 @@ def _resolve(section: Section, mid: list[dict]) -> dict[str, Any] | None:
     }
 
 
+#: Why a visible section can come up empty, by (type, source). The Owner's words.
+_EMPTY_BECAUSE = {
+    ("slider", "banners"): "Seçilen afişlerin hiçbiri yayında değil.",
+    ("slider", "collection"): (
+        "Koleksiyon silinmiş, yayında değil ya da gösterilecek ürünü yok."
+    ),
+    ("products", "hand_picked"): "Seçilen ürünlerin hiçbiri satışta değil.",
+    ("products", "category"): (
+        "Kategori silinmiş, gizli ya da gösterilecek ürünü yok."
+    ),
+    ("categories", "picked"): "Seçilen kategorilerin hiçbiri görünür değil.",
+    ("categories", "home"): "Ana sayfada gösterilen kategori yok.",
+    ("banner", "picked"): "Seçilen afiş yayında değil.",
+    ("banner", "slot"): "Bu sıra için yayında afiş yok.",
+    ("rich_text", None): "Metin boş.",
+}
+
+
+def _why_empty(section: Section) -> str:
+    """Why a visible section has nothing to show (store-infra#163)."""
+    source = getattr(section.settings, "source", None)
+    if section.type == "banner":
+        source = "picked" if section.settings.banner_id is not None else "slot"
+    fallback = {"slider": "Gösterilecek afiş veya ürün yok."}.get(
+        section.type,
+        "Gösterilecek ürün yok.",
+    )
+    return _EMPTY_BECAUSE.get((section.type, source), fallback)
+
+
+def warnings(sections: list[Section]) -> dict[str, str]:
+    """For each visible section the Storefront would skip because it has nothing to
+    show: why. Hidden sections are left out; the Owner hid them on purpose."""
+    mid = banners.public()["home_mid"]
+    return {
+        s.id: _why_empty(s) for s in sections if s.visible and _resolve(s, mid) is None
+    }
+
+
 def public() -> dict[str, list[dict[str, Any]]]:
     """The layout as the Storefront draws it: visible sections in order, resolved."""
     return _drawn(validate(get().sections))
@@ -437,13 +476,17 @@ def for_editing() -> dict[str, Any]:
     pending = None
     if change is not None:
         submitter = change.submitted_by
+        pending_sections = validate(change.payload["sections"])
         pending = {
-            "sections": validate(change.payload["sections"]),
+            "sections": pending_sections,
+            "warnings": warnings(pending_sections),
             "submitted_by": (submitter.name or submitter.email) if submitter else None,
             "submitted_at": change.updated_at,
         }
+    live = validate(layout.sections)
     return {
-        "sections": validate(layout.sections),
+        "sections": live,
+        "warnings": warnings(live),
         "pending": pending,
         "rejection_reason": layout.rejection_reason,
     }

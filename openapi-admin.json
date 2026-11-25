@@ -4324,6 +4324,14 @@
             },
             "title": "Sections",
             "type": "array"
+          },
+          "warnings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Warnings",
+            "type": "object"
           }
         },
         "required": [
@@ -7221,6 +7229,14 @@
               }
             ],
             "title": "Submitted By"
+          },
+          "warnings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Warnings",
+            "type": "object"
           }
         },
         "required": [

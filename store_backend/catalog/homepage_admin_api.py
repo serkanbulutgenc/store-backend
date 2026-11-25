@@ -25,6 +25,7 @@ class HomepageLayoutIn(Schema):
 
 class PendingLayoutOut(Schema):
     sections: list[Section]
+    warnings: dict[str, str] = {}
     submitted_by: str | None
     submitted_at: datetime
 
@@ -34,6 +35,8 @@ class HomepageLayoutOut(Schema):
     Owner; `rejection_reason` says why the last one was turned down."""
 
     sections: list[Section]
+    #: Section id -> why the Storefront skips that visible section (nothing to show).
+    warnings: dict[str, str] = {}
     pending: PendingLayoutOut | None = None
     rejection_reason: str = ""
 
