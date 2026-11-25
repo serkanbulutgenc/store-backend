@@ -64,6 +64,7 @@ OWNER_ONLY_OPERATIONS: dict[str, Perm] = {
     "menus_search_targets": Perm.MANAGE_MENUS,
     "homepage_get_for_editing": Perm.MANAGE_HOMEPAGE,
     "homepage_save": Perm.MANAGE_HOMEPAGE,
+    "homepage_preview": Perm.MANAGE_HOMEPAGE,
     "collections_edit_pending_change": Perm.MANAGE_COLLECTIONS,
     "collections_approve": Perm.MANAGE_COLLECTIONS,
     "collections_reject": Perm.MANAGE_COLLECTIONS,
