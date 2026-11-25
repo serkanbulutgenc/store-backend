@@ -840,6 +840,9 @@ class Banner(ApprovalFields):
         HOME_HERO = "home_hero", "Home hero"
         HOME_MID = "home_mid", "Home mid-page"
         CATEGORY_TOP = "category_top", "Category page top"
+        # Images that belong to one Homepage section, uploaded in the Vitrin editor
+        # (store-infra#168). Never listed with the Slots and never public by itself.
+        LAYOUT = "layout", "Homepage section image"
 
     slot = models.CharField(max_length=16, choices=Slot.choices)
     message = models.CharField(max_length=200, blank=True)
