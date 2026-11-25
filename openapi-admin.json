@@ -2574,6 +2574,27 @@
         "title": "CampaignsVouchersReportOut",
         "type": "object"
       },
+      "CardImageOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Sizes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alt",
+          "sizes"
+        ],
+        "title": "CardImageOut",
+        "type": "object"
+      },
       "CarrierOut": {
         "properties": {
           "id": {
@@ -3923,6 +3944,41 @@
         "title": "Group",
         "type": "string"
       },
+      "HomeCategoryOut": {
+        "properties": {
+          "image_alt": {
+            "title": "Image Alt",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "image_url",
+          "image_alt"
+        ],
+        "title": "HomeCategoryOut",
+        "type": "object"
+      },
       "HomeLayoutIn": {
         "properties": {
           "collapsed": {
@@ -4248,6 +4304,138 @@
         "title": "HomepageLayoutOut",
         "type": "object"
       },
+      "HomepageOut": {
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/HomepageSectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageOut",
+        "type": "object"
+      },
+      "HomepageSectionOut": {
+        "properties": {
+          "banners": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PictureBannerOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banners"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HomeCategoryOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "client_resolved": {
+            "default": false,
+            "description": "Recently viewed: the Shopper's browser fills it in.",
+            "title": "Client Resolved",
+            "type": "boolean"
+          },
+          "display": {
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "products": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProductCardOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Products"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where a section takes its items from (Products: latest, best_selling, on_sale, recently_viewed).",
+            "title": "Source"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "slider",
+              "products",
+              "categories",
+              "banner",
+              "rich_text"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "link",
+          "display"
+        ],
+        "title": "HomepageSectionOut",
+        "type": "object"
+      },
       "ImageAltIn": {
         "properties": {
           "alt_text": {
@@ -4293,6 +4481,24 @@
           "ids"
         ],
         "title": "ImageOrderIn",
+        "type": "object"
+      },
+      "ImageSizeOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "url"
+        ],
+        "title": "ImageSizeOut",
         "type": "object"
       },
       "ImageUploadIn": {
@@ -6941,6 +7147,52 @@
         "title": "PersonOut",
         "type": "object"
       },
+      "PictureBannerOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Image",
+            "type": "array"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ImageSizeOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile Image"
+          }
+        },
+        "required": [
+          "id",
+          "alt",
+          "link",
+          "image",
+          "mobile_image"
+        ],
+        "title": "PictureBannerOut",
+        "type": "object"
+      },
       "Preset": {
         "enum": [
           "today",
@@ -6951,6 +7203,123 @@
         ],
         "title": "Preset",
         "type": "string"
+      },
+      "ProductCardOut": {
+        "properties": {
+          "campaign_percentage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Percentage"
+          },
+          "colours": {
+            "items": {
+              "$ref": "#/components/schemas/SwatchOut"
+            },
+            "title": "Colours",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "old_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Price"
+          },
+          "price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Price",
+            "type": "string"
+          },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_count": {
+            "title": "Rating Count",
+            "type": "integer"
+          },
+          "shelf_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shelf Price"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sold_out": {
+            "title": "Sold Out",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "price",
+          "old_price",
+          "shelf_price",
+          "campaign_percentage",
+          "sold_out",
+          "image",
+          "colours",
+          "rating_average",
+          "rating_count"
+        ],
+        "title": "ProductCardOut",
+        "type": "object"
       },
       "ProductClassIn": {
         "properties": {
@@ -10127,6 +10496,29 @@
           }
         },
         "title": "SupplierPatch",
+        "type": "object"
+      },
+      "SwatchOut": {
+        "properties": {
+          "hex_code": {
+            "title": "Hex Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "hex_code"
+        ],
+        "title": "SwatchOut",
         "type": "object"
       },
       "TargetOut": {
@@ -15888,6 +16280,34 @@
           }
         ],
         "summary": "Save Homepage",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/preview": {
+      "get": {
+        "description": "The layout resolved the way the Storefront draws it, for the Dashboard's\npreview mode. Signed-in Dashboard users only; the public endpoint has no preview.",
+        "operationId": "homepage_preview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Preview Homepage",
         "tags": [
           "homepage"
         ]

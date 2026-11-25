@@ -6,6 +6,7 @@ from ninja import Router
 from ninja import Schema
 
 from store_backend.api.permissions import requires
+from store_backend.catalog.store_api import HomepageOut
 from store_backend.services import homepage
 from store_backend.services.homepage import Section  # noqa: TC001 (pydantic needs it)
 from store_backend.staff.permissions import Perm
@@ -44,3 +45,15 @@ def save_homepage(request, data: HomepageLayoutIn):
     """Replace the whole layout atomically. Live at once; written to the Audit log.
     Section ids must be unique and there are at most 20 sections."""
     return homepage.save(request.auth, data.model_dump()["sections"])
+
+
+@router.get(
+    "/homepage/preview",
+    auth=requires(Perm.MANAGE_HOMEPAGE),
+    operation_id="homepage_preview",
+    response=HomepageOut,
+)
+def preview_homepage(request):
+    """The layout resolved the way the Storefront draws it, for the Dashboard's
+    preview mode. Signed-in Dashboard users only; the public endpoint has no preview."""
+    return homepage.preview()
