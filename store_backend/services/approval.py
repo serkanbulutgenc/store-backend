@@ -168,6 +168,12 @@ def _save_version(kind: Kind, item: Any, actor: Any) -> ApprovedVersion:
     )
 
 
+def keep_version(kind: Kind, item: Any, actor: Any) -> ApprovedVersion:
+    """Keep the item's current content as its next version, for a save that is live
+    without going through approve or publish (the Owner's own save)."""
+    return _save_version(kind, item, actor)
+
+
 def versions(kind: Kind, item_id: int) -> list[ApprovedVersion]:
     """Every approved version of the item, newest first."""
     return list(

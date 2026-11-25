@@ -23,6 +23,8 @@ from pydantic import ValidationError
 from pydantic import model_validator
 
 from store_backend.api.errors import ConflictError
+from store_backend.api.errors import ForbiddenError
+from store_backend.api.errors import NotFoundError
 from store_backend.api.errors import UnprocessableError
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import CollectionStatus
@@ -244,10 +246,12 @@ def validate(raw: object) -> list[Section]:
 
 def get() -> HomepageLayout:
     """The layout row; created with the default layout if it is missing."""
-    layout, _ = HomepageLayout.objects.get_or_create(
+    layout, created = HomepageLayout.objects.get_or_create(
         pk=1,
         defaults={"sections": default_sections(), "status": ApprovalStatus.PUBLISHED},
     )
+    if created:
+        approval.keep_version(KIND, layout, None)
     return layout
 
 
@@ -471,11 +475,67 @@ def save(actor: Any, raw_sections: list[dict[str, Any]]) -> dict[str, Any]:
     layout.sections = [s.model_dump() for s in sections]
     layout.rejection_reason = ""
     layout.save()
+    approval.keep_version(KIND, layout, actor)
     audit.record(
         actor,
         audit.Action.HOMEPAGE_SAVED,
         target=layout,
         summary="Vitrin düzeni kaydedildi",
+        before={"sections": before},
+        after={"sections": layout.sections},
+    )
+    return for_editing()
+
+
+# --- history -----------------------------------------------------------------------
+#
+# Every version that went live is kept (`ApprovedVersion`): the first layout, each Owner
+# save and each approved Staff change. Restoring one makes it the live layout again as a
+# new version, so history only ever grows.
+
+
+def history() -> list[dict[str, Any]]:
+    """The approved versions, newest first, with date, approver and section count."""
+    layout = get()
+    return [
+        {
+            "version": v.version,
+            "approved_at": v.approved_at,
+            "approved_by": (v.approved_by.name or v.approved_by.email)
+            if v.approved_by
+            else None,
+            "section_count": len(v.payload.get("sections", [])),
+        }
+        for v in approval.versions(KIND, layout.pk)
+    ]
+
+
+@transaction.atomic
+def restore(actor: Any, version: int) -> dict[str, Any]:
+    """The Owner puts an earlier version back live, as a new version."""
+    if not approval.can_manage(actor, KIND):
+        raise ForbiddenError
+    layout = HomepageLayout.objects.select_for_update().get(pk=get().pk)
+    if approval.has_pending_change(KIND, layout.pk):
+        message = "Bekleyen bir değişiklik var; önce onaylayın veya reddedin."
+        raise ConflictError(message, code="approval_has_pending_change")
+    old = next(
+        (v for v in approval.versions(KIND, layout.pk) if v.version == version),
+        None,
+    )
+    if old is None:
+        raise NotFoundError
+    sections = validate(old.payload["sections"])
+    before = _normalised(layout.sections)
+    layout.sections = [s.model_dump() for s in sections]
+    layout.rejection_reason = ""
+    layout.save()
+    kept = approval.keep_version(KIND, layout, actor)
+    audit.record(
+        actor,
+        audit.Action.HOMEPAGE_RESTORED,
+        target=layout,
+        summary=f"Vitrin düzeni geri yüklendi: sürüm {version} → {kept.version}",
         before={"sections": before},
         after={"sections": layout.sections},
     )

@@ -265,7 +265,9 @@ def test_the_owner_approves_and_the_layout_goes_live(boss, staff):
     assert response.status_code == HTTPStatus.OK, response.content
     assert read(boss)[0]["visible"] is False
     assert detail(boss)["pending"] is None
-    assert ApprovedVersion.objects.count() == 1
+    assert (
+        ApprovedVersion.objects.count() == 2
+    )  # the first layout, then the approved change
     assert AuditEntry.objects.filter(
         action=audit.Action.APPROVAL_CHANGE_APPROVED,
     ).exists()
@@ -395,3 +397,67 @@ def test_the_storefront_endpoint_ignores_a_preview_request():
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == Client().get(STORE).json()
+
+
+VERSIONS = f"{ADMIN}/versions"
+
+
+def restore_url(version: int) -> str:
+    return f"{VERSIONS}/{version}/restore"
+
+
+def test_history_lists_the_first_layout_and_every_owner_save(boss):
+    sections = read(boss)
+    save(boss, hidden_first(sections))
+
+    rows = boss.get(VERSIONS).json()
+
+    assert [r["version"] for r in rows] == [2, 1]
+    assert rows[0]["section_count"] == len(sections)
+    assert rows[0]["approved_at"]
+    assert HomepageLayout.objects.count() == 1
+
+
+def test_an_approved_staff_change_becomes_a_version(boss, staff):
+    save(staff, hidden_first(read(boss)))
+    boss.post("/api/admin/approvals/homepage/1/approve")
+
+    assert [r["version"] for r in boss.get(VERSIONS).json()] == [2, 1]
+
+
+def test_restore_makes_a_new_version_and_keeps_history(boss):
+    first = read(boss)
+    save(boss, hidden_first(first))
+
+    response = boss.post(restore_url(1))
+
+    assert response.status_code == HTTPStatus.OK, response.content
+    assert response.json()["sections"] == first
+    assert read(boss) == first
+    rows = boss.get(VERSIONS).json()
+    assert [r["version"] for r in rows] == [3, 2, 1]
+    assert AuditEntry.objects.filter(action=audit.Action.HOMEPAGE_RESTORED).count() == 1
+
+
+def test_staff_can_read_history_but_not_restore(boss, staff):
+    save(boss, hidden_first(read(boss)))
+
+    assert staff.get(VERSIONS).status_code == HTTPStatus.OK
+    assert staff.post(restore_url(1)).status_code == HTTPStatus.FORBIDDEN
+    assert read(boss)[0]["visible"] is False
+    assert len(boss.get(VERSIONS).json()) == 2
+
+
+def test_restore_is_refused_while_a_change_is_waiting(boss, staff):
+    first = read(boss)
+    save(boss, hidden_first(first))
+    save(staff, first)
+
+    response = boss.post(restore_url(1))
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert len(boss.get(VERSIONS).json()) == 2
+
+
+def test_restoring_an_unknown_version_is_not_found(boss):
+    assert boss.post(restore_url(99)).status_code == HTTPStatus.NOT_FOUND
