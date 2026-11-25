@@ -8,11 +8,15 @@ from http import HTTPStatus
 import pytest
 from django.test import Client
 
+from store_backend.api.errors import ForbiddenError
 from store_backend.catalog.models import HomepageLayout
 from store_backend.catalog.tests.test_storefront_api import Shop
+from store_backend.services import approval
 from store_backend.services import audit
 from store_backend.services import homepage
+from store_backend.staff.models import ApprovedVersion
 from store_backend.staff.models import AuditEntry
+from store_backend.staff.models import PendingChange
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
 from store_backend.staff.tests.conftest import owner  # noqa: F401
 from store_backend.staff.tests.conftest import staff_user  # noqa: F401
@@ -194,23 +198,154 @@ def test_more_than_twenty_sections_are_refused(boss):
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
-def test_staff_cannot_read_or_save_the_layout(staff):
-    assert staff.get(ADMIN).status_code == HTTPStatus.FORBIDDEN
-    assert staff.put(ADMIN, {"sections": []}).status_code == HTTPStatus.FORBIDDEN
+# --- the Approval rule (#160) -------------------------------------------------------
 
 
-def test_a_visitor_cannot_read_or_save_the_layout():
-    client = Client()
+def hidden_first(sections: list[dict]) -> list[dict]:
+    changed = [dict(s) for s in sections]
+    changed[0]["visible"] = False
+    return changed
 
-    assert client.get(ADMIN).status_code in (
+
+def detail(api) -> dict:
+    return api.get(ADMIN).json()
+
+
+def test_a_staff_save_waits_and_the_live_layout_is_unchanged(boss, staff):
+    live = read(boss)
+
+    response = save(staff, hidden_first(live))
+
+    assert response.status_code == HTTPStatus.OK, response.content
+    assert response.json()["pending"]["sections"][0]["visible"] is False
+    assert response.json()["sections"][0]["visible"] is True
+    assert read(boss) == live
+    assert HomepageLayout.objects.get().sections[0].get("visible", True) is True
+
+
+def test_a_second_staff_save_amends_the_one_pending_change(boss, staff):
+    live = read(boss)
+    save(staff, hidden_first(live))
+    again = [dict(s) for s in live]
+    again[1]["title"] = "Başka"
+
+    save(staff, again)
+
+    assert PendingChange.objects.count() == 1
+    pending = detail(boss)["pending"]["sections"]
+    assert pending[0]["visible"] is True
+    assert pending[1]["title"] == "Başka"
+
+
+def test_a_staff_save_is_checked_like_the_owners(staff):
+    response = save(staff, [{"id": "x", "type": "carousel3d"}])
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert not PendingChange.objects.exists()
+
+
+def test_the_pending_layout_appears_in_the_queue_with_its_count(boss, staff):
+    save(staff, hidden_first(read(boss)))
+
+    queue = boss.get("/api/admin/approvals").json()
+
+    assert queue["count"] == 1
+    assert (queue["items"][0]["type"], queue["items"][0]["is_change"]) == (
+        "homepage",
+        True,
+    )
+    assert queue["items"][0]["label"] == "Vitrin"
+
+
+def test_the_owner_approves_and_the_layout_goes_live(boss, staff):
+    save(staff, hidden_first(read(boss)))
+
+    response = boss.post("/api/admin/approvals/homepage/1/approve")
+
+    assert response.status_code == HTTPStatus.OK, response.content
+    assert read(boss)[0]["visible"] is False
+    assert detail(boss)["pending"] is None
+    assert ApprovedVersion.objects.count() == 1
+    assert AuditEntry.objects.filter(
+        action=audit.Action.APPROVAL_CHANGE_APPROVED,
+    ).exists()
+
+
+def test_the_owner_rejects_with_a_reason_the_staff_member_can_read(boss, staff):
+    live = read(boss)
+    save(staff, hidden_first(live))
+
+    response = boss.post(
+        "/api/admin/approvals/homepage/1/reject",
+        {"reason": "Sıra yanlış"},
+    )
+
+    assert response.status_code == HTTPStatus.OK, response.content
+    assert read(boss) == live
+    after = detail(staff)
+    assert after["pending"] is None
+    assert after["rejection_reason"] == "Sıra yanlış"
+    assert AuditEntry.objects.filter(
+        action=audit.Action.APPROVAL_CHANGE_REJECTED,
+    ).exists()
+
+
+def test_staff_cannot_approve_or_reject_their_own_change(boss, staff):
+    live = read(boss)
+    save(staff, hidden_first(live))
+
+    approve = staff.post("/api/admin/approvals/homepage/1/approve")
+    reject = staff.post("/api/admin/approvals/homepage/1/reject", {"reason": "x"})
+
+    assert approve.status_code == HTTPStatus.FORBIDDEN
+    assert reject.status_code == HTTPStatus.FORBIDDEN
+    assert read(boss) == live
+    assert PendingChange.objects.count() == 1
+
+
+def test_staff_cannot_approve_through_the_service_either(staff_user, api_for, boss):
+    save(api_for(staff_user), hidden_first(read(boss)))
+
+    with pytest.raises(ForbiddenError):
+        approval.approve(staff_user, homepage.KIND, 1)
+
+
+def test_the_owner_cannot_save_while_a_change_is_waiting(boss, staff):
+    live = read(boss)
+    save(staff, hidden_first(live))
+
+    response = save(boss, live)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert detail(boss)["pending"] is not None
+
+
+def test_a_staff_member_sees_the_live_layout_and_their_pending_change(boss, staff):
+    save(staff, hidden_first(read(boss)))
+
+    seen = detail(staff)
+
+    assert seen["sections"][0]["visible"] is True
+    assert seen["pending"]["sections"][0]["visible"] is False
+
+
+def test_every_step_is_in_the_audit_log(boss, staff):
+    save(staff, hidden_first(read(boss)))
+    boss.post("/api/admin/approvals/homepage/1/approve")
+
+    actions = set(AuditEntry.objects.values_list("action", flat=True))
+
+    assert {
+        audit.Action.APPROVAL_CHANGE_SUBMITTED,
+        audit.Action.APPROVAL_CHANGE_APPROVED,
+    } <= actions
+
+
+def test_an_unauthenticated_request_is_refused():
+    assert Client().get(ADMIN).status_code in (
         HTTPStatus.UNAUTHORIZED,
         HTTPStatus.FORBIDDEN,
     )
-    assert client.put(
-        ADMIN,
-        {"sections": []},
-        content_type="application/json",
-    ).status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN)
 
 
 PREVIEW = "/api/admin/homepage/preview"

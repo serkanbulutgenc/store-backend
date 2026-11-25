@@ -23,6 +23,7 @@ from oscar.apps.catalogue.models import Product
 
 from store_backend.catalog.sizes import SizeScheme
 from store_backend.staff.models import ApprovalFields
+from store_backend.staff.models import ApprovalStatus
 
 DEFAULT_LOW_STOCK_THRESHOLD = 2
 
@@ -915,11 +916,17 @@ class Banner(ApprovalFields):
         ]
 
 
-class HomepageLayout(models.Model):
+class HomepageLayout(ApprovalFields):
     """The Storefront home page: one document for the whole shop, always row 1 (see
     `store_backend.services.homepage`; ADR 0012). `sections` is the ordered list of
     Homepage sections as JSON; their shape is checked in code, never trusted here."""
 
+    # The layout is always live: a Staff edit is a pending change, never a draft row.
+    status = models.CharField(
+        max_length=16,
+        choices=ApprovalStatus,
+        default=ApprovalStatus.PUBLISHED,
+    )
     sections = models.JSONField(default=list)
     updated_at = models.DateTimeField(auto_now=True)
 

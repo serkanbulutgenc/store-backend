@@ -4275,7 +4275,23 @@
         "type": "object"
       },
       "HomepageLayoutOut": {
+        "description": "`sections` is the live layout. `pending` is the Staff change waiting for the\nOwner; `rejection_reason` says why the last one was turned down.",
         "properties": {
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingLayoutOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection_reason": {
+            "default": "",
+            "title": "Rejection Reason",
+            "type": "string"
+          },
           "sections": {
             "items": {
               "discriminator": {
@@ -7117,6 +7133,66 @@
           "updated_at"
         ],
         "title": "PendingChangeOut",
+        "type": "object"
+      },
+      "PendingLayoutOut": {
+        "properties": {
+          "sections": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "banner": "#/components/schemas/BannerSection",
+                  "categories": "#/components/schemas/CategoriesSection",
+                  "products": "#/components/schemas/ProductsSection",
+                  "rich_text": "#/components/schemas/RichTextSection",
+                  "slider": "#/components/schemas/SliderSection"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SliderSection"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductsSection"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoriesSection"
+                },
+                {
+                  "$ref": "#/components/schemas/BannerSection"
+                },
+                {
+                  "$ref": "#/components/schemas/RichTextSection"
+                }
+              ]
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
+          }
+        },
+        "required": [
+          "sections",
+          "submitted_by",
+          "submitted_at"
+        ],
+        "title": "PendingLayoutOut",
         "type": "object"
       },
       "PendingOut": {
@@ -16286,7 +16362,7 @@
         ]
       },
       "put": {
-        "description": "Replace the whole layout atomically. Live at once; written to the Audit log.\nSection ids must be unique and there are at most 20 sections.",
+        "description": "Replace the whole layout atomically. The Owner's save is live at once; a Staff\nsave is held as a pending change. Every step is written to the Audit log. Section\nids must be unique and there are at most 20 sections.",
         "operationId": "homepage_save",
         "parameters": [],
         "requestBody": {
