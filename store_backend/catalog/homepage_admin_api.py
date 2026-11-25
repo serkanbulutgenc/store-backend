@@ -5,12 +5,18 @@ from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003 (pydantic needs it)
 
+from ninja import File
+from ninja import Form
+from ninja import Query
 from ninja import Router
 from ninja import Schema
+from ninja.files import UploadedFile  # noqa: TC002
 
 from store_backend.api.permissions import requires
+from store_backend.catalog.collections_api import CoverImageOut  # noqa: TC001
 from store_backend.catalog.store_api import HomepageOut
 from store_backend.services import homepage
+from store_backend.services import homepage_images
 from store_backend.services.homepage import Section  # noqa: TC001 (pydantic needs it)
 from store_backend.staff.permissions import Perm
 
@@ -106,3 +112,105 @@ def preview_homepage(request):
     preview mode: the pending change if one waits for the Owner, else the live
     layout. Signed-in Dashboard users only; the public endpoint has no preview."""
     return homepage.preview()
+
+
+class LayoutImageOut(Schema):
+    """One image of a section: `processing` until its pictures exist."""
+
+    id: int
+    link: str
+    alt_text: str
+    image: CoverImageOut | None
+    mobile_image: CoverImageOut | None
+
+
+class LayoutImageIn(Schema):
+    alt_text: str | None = None
+    link: str | None = None
+
+
+@router.get(
+    "/homepage/images",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_images",
+    response=list[LayoutImageOut],
+)
+def list_images(request, ids: Query[list[int]]):
+    """The section images among `ids` (at most 50), in the order given."""
+    return homepage_images.listing(ids)
+
+
+@router.post(
+    "/homepage/images",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_upload_image",
+    response={201: LayoutImageOut},
+)
+def upload_image(request, file: File[UploadedFile], data: Form[LayoutImageIn]):
+    """A new section image (JPEG, PNG, WebP or GIF). It shows on the Storefront only
+    once an approved layout uses it; Staff can upload too."""
+    return 201, homepage_images.upload(
+        request.auth,
+        file,
+        alt_text=data.alt_text,
+        link=data.link,
+    )
+
+
+@router.post(
+    "/homepage/images/{image_id}/image",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_replace_image",
+    response=LayoutImageOut,
+)
+def replace_image(
+    request,
+    image_id: int,
+    file: File[UploadedFile],
+    data: Form[LayoutImageIn],
+):
+    """Replace the main picture of a section image."""
+    return homepage_images.upload(
+        request.auth,
+        file,
+        image_id=image_id,
+        alt_text=data.alt_text,
+        link=data.link,
+    )
+
+
+@router.post(
+    "/homepage/images/{image_id}/mobile-image",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_upload_mobile_image",
+    response=LayoutImageOut,
+)
+def upload_mobile_image(request, image_id: int, file: File[UploadedFile]):
+    """The picture phones get instead of the main one."""
+    return homepage_images.upload(request.auth, file, image_id=image_id, which="mobile")
+
+
+@router.delete(
+    "/homepage/images/{image_id}/mobile-image",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_delete_mobile_image",
+    response=LayoutImageOut,
+)
+def delete_mobile_image(request, image_id: int):
+    return homepage_images.remove_mobile(request.auth, image_id)
+
+
+@router.patch(
+    "/homepage/images/{image_id}",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_edit_image",
+    response=LayoutImageOut,
+)
+def edit_image(request, image_id: int, data: LayoutImageIn):
+    """Change the alt text (it covers both pictures) or the link."""
+    return homepage_images.update(
+        request.auth,
+        image_id,
+        alt_text=data.alt_text,
+        link=data.link,
+    )

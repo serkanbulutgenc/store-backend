@@ -66,8 +66,9 @@ class _Section(_Base):
 class SliderSettings(_Base):
     #: `home`: the Home hero Banners, else the `ana-sayfa` Collection's Products,
     #: else the newest Products (today's page). `banners`: the chosen `banner_ids`.
-    #: `collection`: the Products of the Collection `collection_id`.
-    source: Literal["home", "banners", "collection"] = "home"
+    #: `collection`: the Products of the Collection `collection_id`. `own`: the slides
+    #: uploaded in the Vitrin (`services/homepage_images.py`), in `banner_ids` order.
+    source: Literal["home", "banners", "collection", "own"] = "home"
     count: Annotated[int, Field(ge=1, le=MAX_ITEMS)] = SLIDER_ITEMS
     banner_ids: list[int] = Field(default_factory=list, max_length=MAX_ITEMS)
     collection_id: int | None = None
@@ -76,6 +77,9 @@ class SliderSettings(_Base):
     def _needs_its_pick(self) -> SliderSettings:
         if self.source == "banners" and not self.banner_ids:
             message = "Pick at least one banner."
+            raise ValueError(message)
+        if self.source == "own" and not self.banner_ids:
+            message = "Upload at least one slide."
             raise ValueError(message)
         if self.source == "collection" and self.collection_id is None:
             message = "Choose a collection."
@@ -295,7 +299,7 @@ def _hand_picked(settings: ProductsSettings) -> list[dict]:
 def _slider(section: SliderSection) -> dict[str, Any]:
     settings = section.settings
     count = settings.count
-    if settings.source == "banners":
+    if settings.source in ("banners", "own"):
         return {"banners": banners.picked(settings.banner_ids)[:count]}
     if settings.source == "collection":
         return {"products": _collection_cards(count, id_=settings.collection_id)}
@@ -382,6 +386,7 @@ def _resolve(section: Section, mid: list[dict]) -> dict[str, Any] | None:
 #: Why a visible section can come up empty, by (type, source). The Owner's words.
 _EMPTY_BECAUSE = {
     ("slider", "banners"): "Seçilen afişlerin hiçbiri yayında değil.",
+    ("slider", "own"): "Yüklenen slaytların hiçbiri gösterilemiyor.",
     ("slider", "collection"): (
         "Koleksiyon silinmiş, yayında değil ya da gösterilecek ürünü yok."
     ),

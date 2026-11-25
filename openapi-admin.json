@@ -5072,6 +5072,80 @@
         "title": "KdvRangeParams",
         "type": "object"
       },
+      "LayoutImageIn": {
+        "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          }
+        },
+        "title": "LayoutImageIn",
+        "type": "object"
+      },
+      "LayoutImageOut": {
+        "description": "One image of a section: `processing` until its pictures exist.",
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "link",
+          "alt_text",
+          "image",
+          "mobile_image"
+        ],
+        "title": "LayoutImageOut",
+        "type": "object"
+      },
       "LayoutVersionOut": {
         "properties": {
           "approved_at": {
@@ -10388,7 +10462,8 @@
             "enum": [
               "home",
               "banners",
-              "collection"
+              "collection",
+              "own"
             ],
             "title": "Source",
             "type": "string"
@@ -16445,6 +16520,343 @@
           }
         ],
         "summary": "Save Homepage",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images": {
+      "get": {
+        "description": "The section images among `ids` (at most 50), in the order given.",
+        "operationId": "homepage_images",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "items": {
+                "type": "integer"
+              },
+              "title": "Ids",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LayoutImageOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Images",
+        "tags": [
+          "homepage"
+        ]
+      },
+      "post": {
+        "description": "A new section image (JPEG, PNG, WebP or GIF). It shows on the Storefront only\nonce an approved layout uses it; Staff can upload too.",
+        "operationId": "homepage_upload_image",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Alt Text"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  },
+                  "link": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Link"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images/{image_id}": {
+      "patch": {
+        "description": "Change the alt text (it covers both pictures) or the link.",
+        "operationId": "homepage_edit_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutImageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images/{image_id}/image": {
+      "post": {
+        "description": "Replace the main picture of a section image.",
+        "operationId": "homepage_replace_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Alt Text"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  },
+                  "link": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Link"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Replace Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images/{image_id}/mobile-image": {
+      "delete": {
+        "operationId": "homepage_delete_mobile_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Mobile Image",
+        "tags": [
+          "homepage"
+        ]
+      },
+      "post": {
+        "description": "The picture phones get instead of the main one.",
+        "operationId": "homepage_upload_mobile_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Mobile Image",
         "tags": [
           "homepage"
         ]
