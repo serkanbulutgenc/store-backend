@@ -5064,6 +5064,42 @@
         "title": "KdvRangeParams",
         "type": "object"
       },
+      "LayoutVersionOut": {
+        "properties": {
+          "approved_at": {
+            "format": "date-time",
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "section_count": {
+            "title": "Section Count",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "approved_at",
+          "approved_by",
+          "section_count"
+        ],
+        "title": "LayoutVersionOut",
+        "type": "object"
+      },
       "LowStock": {
         "properties": {
           "count": {
@@ -16421,6 +16457,76 @@
           }
         ],
         "summary": "Preview Homepage",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/versions": {
+      "get": {
+        "description": "Every approved version of the layout, newest first. Staff can read it.",
+        "operationId": "homepage_versions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LayoutVersionOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Homepage Versions",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/versions/{version}/restore": {
+      "post": {
+        "description": "Owner only: put an earlier version back live. It becomes a new version and the\nhistory stays as it was. Refused while a Staff change is waiting.",
+        "operationId": "homepage_restore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageLayoutOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Restore Homepage",
         "tags": [
           "homepage"
         ]

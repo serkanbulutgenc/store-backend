@@ -62,6 +62,36 @@ def save_homepage(request, data: HomepageLayoutIn):
     return homepage.save(request.auth, data.model_dump()["sections"])
 
 
+class LayoutVersionOut(Schema):
+    version: int
+    approved_at: datetime
+    approved_by: str | None
+    section_count: int
+
+
+@router.get(
+    "/homepage/versions",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_versions",
+    response=list[LayoutVersionOut],
+)
+def homepage_versions(request):
+    """Every approved version of the layout, newest first. Staff can read it."""
+    return homepage.history()
+
+
+@router.post(
+    "/homepage/versions/{version}/restore",
+    auth=requires(Perm.EDIT_HOMEPAGE),
+    operation_id="homepage_restore",
+    response=HomepageLayoutOut,
+)
+def restore_homepage(request, version: int):
+    """Owner only: put an earlier version back live. It becomes a new version and the
+    history stays as it was. Refused while a Staff change is waiting."""
+    return homepage.restore(request.auth, version)
+
+
 @router.get(
     "/homepage/preview",
     auth=requires(Perm.EDIT_HOMEPAGE),
