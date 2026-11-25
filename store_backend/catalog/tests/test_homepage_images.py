@@ -212,7 +212,7 @@ def test_a_bad_file_is_refused_with_a_reason(boss):
 
 def test_the_listing_returns_images_in_the_order_asked_and_skips_other_banners(boss):
     first, second = upload(boss), upload(boss)
-    slot_banner = boss.post("/api/admin/banners", {"slot": "home_hero"}).json()
+    slot_banner = boss.post("/api/admin/banners", {"slot": "category_top"}).json()
 
     ids = [second["id"], slot_banner["id"], first["id"]]
     rows = boss.get(f"{IMAGES}?" + "&".join(f"ids={i}" for i in ids))

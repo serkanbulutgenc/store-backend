@@ -64,20 +64,17 @@ class _Section(_Base):
 
 
 class SliderSettings(_Base):
-    #: `home`: the Home hero Banners, else the `ana-sayfa` Collection's Products,
-    #: else the newest Products (today's page). `banners`: the chosen `banner_ids`.
-    #: `collection`: the Products of the Collection `collection_id`. `own`: the slides
-    #: uploaded in the Vitrin (`services/homepage_images.py`), in `banner_ids` order.
-    source: Literal["home", "banners", "collection", "own"] = "home"
+    #: `home`: the `ana-sayfa` Collection's Products, else the newest Products (today's
+    #: page). `collection`: the Products of the Collection `collection_id`. `own`: the
+    #: slides uploaded in the Vitrin (`services/homepage_images.py`), in `banner_ids`
+    #: order.
+    source: Literal["home", "collection", "own"] = "home"
     count: Annotated[int, Field(ge=1, le=MAX_ITEMS)] = SLIDER_ITEMS
     banner_ids: list[int] = Field(default_factory=list, max_length=MAX_ITEMS)
     collection_id: int | None = None
 
     @model_validator(mode="after")
     def _needs_its_pick(self) -> SliderSettings:
-        if self.source == "banners" and not self.banner_ids:
-            message = "Pick at least one banner."
-            raise ValueError(message)
         if self.source == "own" and not self.banner_ids:
             message = "Upload at least one slide."
             raise ValueError(message)
@@ -155,10 +152,8 @@ class CategoriesSection(_Section):
 
 
 class BannerSettings(_Base):
-    #: With no `banner_id`, the `index`-th active Banner of the Home mid-page Slot;
-    #: with one, that Banner (when it is live).
-    slot: Literal["home_mid"] = "home_mid"
-    index: Annotated[int, Field(ge=0, le=9)] = 0
+    #: The section image (`services/homepage_images.py`) this strip shows, when it is
+    #: live. With none the section has nothing to show.
     banner_id: int | None = None
 
 
@@ -204,7 +199,6 @@ def default_sections() -> list[dict[str, Any]]:
             "link": "/ara?sort=newest",
             "settings": {"source": "latest"},
         },
-        {"id": "mid-1", "type": "banner", "settings": {"index": 0}},
         {
             "id": "on-sale",
             "type": "products",
@@ -212,7 +206,6 @@ def default_sections() -> list[dict[str, Any]]:
             "link": "/ara?on_sale=true",
             "settings": {"source": "on_sale"},
         },
-        {"id": "mid-2", "type": "banner", "settings": {"index": 1}},
         {
             "id": "best-selling",
             "type": "products",
@@ -299,13 +292,10 @@ def _hand_picked(settings: ProductsSettings) -> list[dict]:
 def _slider(section: SliderSection) -> dict[str, Any]:
     settings = section.settings
     count = settings.count
-    if settings.source in ("banners", "own"):
+    if settings.source == "own":
         return {"banners": banners.picked(settings.banner_ids)[:count]}
     if settings.source == "collection":
         return {"products": _collection_cards(count, id_=settings.collection_id)}
-    hero = banners.public()["home_hero"]
-    if hero:
-        return {"banners": hero[:count]}
     featured = _collection_cards(count)
     return {"products": featured or browse.cards(browse.Filters(), limit=count)}
 
@@ -324,14 +314,14 @@ def _collection_cards(limit: int, id_: int | None = None) -> list[dict]:
     return browse.cards_for(profiles)
 
 
-def _products_data(section: ProductsSection, _mid: list[dict]) -> dict[str, Any]:
+def _products_data(section: ProductsSection) -> dict[str, Any]:
     if section.settings.source == "recently_viewed":
         # The list lives in the Shopper's browser (GLOSSARY: Recently viewed).
         return {"client_resolved": True}
     return {"products": _products(section)}
 
 
-def _categories_data(section: CategoriesSection, _mid: list[dict]) -> dict[str, Any]:
+def _categories_data(section: CategoriesSection) -> dict[str, Any]:
     settings = section.settings
     if settings.source == "picked":
         return {
@@ -342,19 +332,17 @@ def _categories_data(section: CategoriesSection, _mid: list[dict]) -> dict[str, 
     return {"categories": browse.home_categories()[: settings.count]}
 
 
-def _banner_data(section: BannerSection, mid: list[dict]) -> dict[str, Any]:
-    settings = section.settings
-    if settings.banner_id is not None:
-        return {"banners": banners.picked([settings.banner_id])}
-    return {"banners": mid[settings.index : settings.index + 1]}
+def _banner_data(section: BannerSection) -> dict[str, Any]:
+    banner_id = section.settings.banner_id
+    return {"banners": banners.picked([banner_id]) if banner_id is not None else []}
 
 
-def _rich_text_data(section: RichTextSection, _mid: list[dict]) -> dict[str, Any]:
+def _rich_text_data(section: RichTextSection) -> dict[str, Any]:
     body = section.settings.body
     return {"body": body if body.strip() else None}
 
 
-def _slider_data(section: SliderSection, _mid: list[dict]) -> dict[str, Any]:
+def _slider_data(section: SliderSection) -> dict[str, Any]:
     return _slider(section)
 
 
@@ -367,9 +355,9 @@ _DATA = {
 }
 
 
-def _resolve(section: Section, mid: list[dict]) -> dict[str, Any] | None:
+def _resolve(section: Section) -> dict[str, Any] | None:
     """The Storefront's view of one section, or None when it has nothing to show."""
-    data = _DATA[section.type](section, mid)
+    data = _DATA[section.type](section)
     if not any(data.values()):
         return None
     return {
@@ -385,7 +373,6 @@ def _resolve(section: Section, mid: list[dict]) -> dict[str, Any] | None:
 
 #: Why a visible section can come up empty, by (type, source). The Owner's words.
 _EMPTY_BECAUSE = {
-    ("slider", "banners"): "Seçilen afişlerin hiçbiri yayında değil.",
     ("slider", "own"): "Yüklenen slaytların hiçbiri gösterilemiyor.",
     ("slider", "collection"): (
         "Koleksiyon silinmiş, yayında değil ya da gösterilecek ürünü yok."
@@ -397,7 +384,7 @@ _EMPTY_BECAUSE = {
     ("categories", "picked"): "Seçilen kategorilerin hiçbiri görünür değil.",
     ("categories", "home"): "Ana sayfada gösterilen kategori yok.",
     ("banner", "picked"): "Seçilen afiş yayında değil.",
-    ("banner", "slot"): "Bu sıra için yayında afiş yok.",
+    ("banner", "slot"): "Bu bölüme henüz görsel yüklenmedi.",
     ("rich_text", None): "Metin boş.",
 }
 
@@ -407,20 +394,13 @@ def _why_empty(section: Section) -> str:
     source = getattr(section.settings, "source", None)
     if section.type == "banner":
         source = "picked" if section.settings.banner_id is not None else "slot"
-    fallback = {"slider": "Gösterilecek afiş veya ürün yok."}.get(
-        section.type,
-        "Gösterilecek ürün yok.",
-    )
-    return _EMPTY_BECAUSE.get((section.type, source), fallback)
+    return _EMPTY_BECAUSE.get((section.type, source), "Gösterilecek ürün yok.")
 
 
 def warnings(sections: list[Section]) -> dict[str, str]:
     """For each visible section the Storefront would skip because it has nothing to
     show: why. Hidden sections are left out; the Owner hid them on purpose."""
-    mid = banners.public()["home_mid"]
-    return {
-        s.id: _why_empty(s) for s in sections if s.visible and _resolve(s, mid) is None
-    }
+    return {s.id: _why_empty(s) for s in sections if s.visible and _resolve(s) is None}
 
 
 def public() -> dict[str, list[dict[str, Any]]]:
@@ -439,8 +419,7 @@ def preview() -> dict[str, list[dict[str, Any]]]:
 
 
 def _drawn(sections: list[Section]) -> dict[str, list[dict[str, Any]]]:
-    mid = banners.public()["home_mid"]
-    resolved = (_resolve(s, mid) for s in sections if s.visible)
+    resolved = (_resolve(s) for s in sections if s.visible)
     return {"sections": [r for r in resolved if r is not None]}
 
 

@@ -20,12 +20,11 @@ from store_backend.catalog.models import CollectionStatus
 from store_backend.catalog.models import HomepageLayout
 from store_backend.catalog.models import ProductStatus
 from store_backend.catalog.tests.test_banners import boss  # noqa: F401
-from store_backend.catalog.tests.test_banners import create
-from store_backend.catalog.tests.test_banners import go_live
-from store_backend.catalog.tests.test_banners import hero
-from store_backend.catalog.tests.test_banners import with_image
+from store_backend.catalog.tests.test_media import make_file
+from store_backend.catalog.tests.test_media import post_file
 from store_backend.catalog.tests.test_storefront_api import Shop
 from store_backend.catalog.tests.test_storefront_api import _sell
+from store_backend.services import banners
 from store_backend.services import homepage
 from store_backend.staff.tests.conftest import api_for  # noqa: F401
 from store_backend.staff.tests.conftest import owner  # noqa: F401
@@ -69,20 +68,18 @@ def test_a_shop_without_a_saved_layout_gets_todays_home_page(client, shop):
     assert HomepageLayout.objects.get().sections == homepage.default_sections()
 
 
-def test_the_default_layout_has_todays_eight_blocks_in_order():
+def test_the_default_layout_has_the_home_page_blocks_in_order():
     kinds = [(s["id"], s["type"]) for s in homepage.default_sections()]
 
     assert kinds == [
         ("hero", "slider"),
         ("recently-viewed", "products"),
         ("latest", "products"),
-        ("mid-1", "banner"),
         ("on-sale", "products"),
-        ("mid-2", "banner"),
         ("best-selling", "products"),
         ("categories", "categories"),
     ]
-    assert len(homepage.validate(homepage.default_sections())) == 8
+    assert len(homepage.validate(homepage.default_sections())) == 6
 
 
 def test_recently_viewed_is_left_for_the_browser_to_fill(client, shop):
@@ -168,29 +165,6 @@ def test_the_slider_shows_the_ana_sayfa_collection_when_it_is_published(client, 
     CollectionProduct.objects.create(collection=collection, product=picked, position=1)
 
     assert titles(section("hero")) == ["Seçilmiş"]
-
-
-def test_the_home_hero_banners_win_over_the_collection(boss, shop):
-    shop.product("Yeni", [(shop.black, "M", 3)])
-    made = hero(boss)
-    with_image(boss, made)
-    go_live(boss, made)
-
-    slider = section("hero")
-
-    assert len(slider["banners"]) == 1
-    assert slider["products"] is None
-
-
-def test_mid_page_banners_fill_the_banner_sections_in_order(boss, shop):
-    shop.product("Yeni", [(shop.black, "M", 3)])
-    for _ in range(2):
-        made = create(boss, slot="home_mid", message="")
-        with_image(boss, made)
-        go_live(boss, made)
-
-    assert ids().index("mid-1") < ids().index("mid-2")
-    assert section("mid-1")["banners"][0]["id"] != section("mid-2")["banners"][0]["id"]
 
 
 def test_the_picked_categories_fill_the_categories_section(client, shop):
@@ -439,11 +413,13 @@ def test_the_home_source_still_lists_the_flagged_categories(client, shop):
 # --- Slider and Banner sources (#158) -----------------------------------------------
 
 
-def live_banner(boss, slot="home_hero"):
-    made = create(boss, slot=slot, message="") if slot != "home_hero" else hero(boss)
-    with_image(boss, made)
-    go_live(boss, made)
-    return made["id"]
+def live_banner(boss):
+    """A section image whose pictures are ready."""
+    response = post_file(boss, "/api/admin/homepage/images", make_file())
+    assert response.status_code == HTTPStatus.CREATED, response.content
+    image_id = response.json()["id"]
+    banners.process_image(image_id, "image")
+    return image_id
 
 
 def slider_section(**settings) -> None:
@@ -455,7 +431,7 @@ def test_the_slider_shows_the_chosen_banners_in_the_chosen_order(boss, shop):
     second = live_banner(boss)
     live_banner(boss)
 
-    slider_section(source="banners", banner_ids=[second, first])
+    slider_section(source="own", banner_ids=[second, first])
 
     assert [b["id"] for b in section("s")["banners"]] == [second, first]
 
@@ -468,7 +444,7 @@ def test_a_chosen_banner_outside_its_dates_or_deleted_is_not_shown(boss, shop):
     Banner.objects.filter(pk=expired).update(ends_at=now - timedelta(days=1))
     Banner.objects.filter(pk=future).update(starts_at=now + timedelta(days=1))
 
-    slider_section(source="banners", banner_ids=[expired, future, shown, 999_999])
+    slider_section(source="own", banner_ids=[expired, future, shown, 999_999])
 
     assert [b["id"] for b in section("s")["banners"]] == [shown]
 
@@ -476,7 +452,7 @@ def test_a_chosen_banner_outside_its_dates_or_deleted_is_not_shown(boss, shop):
 def test_a_slider_whose_banners_are_all_gone_is_left_out(boss, shop):
     gone = live_banner(boss)
     Banner.objects.filter(pk=gone).update(ends_at=timezone.now() - timedelta(days=1))
-    slider_section(source="banners", banner_ids=[gone])
+    slider_section(source="own", banner_ids=[gone])
 
     assert ids() == []
 
@@ -518,15 +494,15 @@ def test_the_default_slider_still_falls_back_to_the_newest_products(client, shop
 
 
 def test_a_banner_section_can_pick_its_banner(boss, shop):
-    live_banner(boss, slot="home_mid")
-    other = live_banner(boss, slot="home_mid")
+    live_banner(boss)
+    other = live_banner(boss)
     save([{"id": "b", "type": "banner", "settings": {"banner_id": other}}])
 
     assert [b["id"] for b in section("b")["banners"]] == [other]
 
 
 def test_a_banner_section_whose_banner_is_outside_its_dates_is_left_out(boss, shop):
-    gone = live_banner(boss, slot="home_mid")
+    gone = live_banner(boss)
     Banner.objects.filter(pk=gone).update(ends_at=timezone.now() - timedelta(days=1))
     save([{"id": "b", "type": "banner", "settings": {"banner_id": gone}}])
 
@@ -534,6 +510,6 @@ def test_a_banner_section_whose_banner_is_outside_its_dates_is_left_out(boss, sh
 
 
 def test_slider_picks_need_a_pick():
-    for settings in ({"source": "banners"}, {"source": "collection"}):
+    for settings in ({"source": "own"}, {"source": "collection"}):
         with pytest.raises(UnprocessableError):
             homepage.validate([{"id": "s", "type": "slider", "settings": settings}])
