@@ -159,7 +159,8 @@ def test_the_alt_text_and_link_can_be_changed(boss):
     made = upload(boss, alt_text="Eski")
 
     response = boss.patch(
-        f"{IMAGES}/{made['id']}", {"alt_text": "Yeni", "link": "/yeni"}
+        f"{IMAGES}/{made['id']}",
+        {"alt_text": "Yeni", "link": "/yeni"},
     )
 
     assert response.status_code == HTTPStatus.OK, response.content
@@ -179,7 +180,9 @@ def test_the_main_picture_can_be_replaced(boss):
     old = Banner.objects.get(pk=made["id"]).image_original
 
     response = post_file(
-        boss, f"{IMAGES}/{made['id']}/image", make_file(colour=(0, 0, 200))
+        boss,
+        f"{IMAGES}/{made['id']}/image",
+        make_file(colour=(0, 0, 200)),
     )
 
     assert response.status_code == HTTPStatus.OK, response.content
