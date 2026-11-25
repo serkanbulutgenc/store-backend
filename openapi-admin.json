@@ -16400,7 +16400,7 @@
     },
     "/api/admin/homepage/preview": {
       "get": {
-        "description": "The layout resolved the way the Storefront draws it, for the Dashboard's\npreview mode. Signed-in Dashboard users only; the public endpoint has no preview.",
+        "description": "The layout resolved the way the Storefront draws it, for the Dashboard's\npreview mode: the pending change if one waits for the Owner, else the live\nlayout. Signed-in Dashboard users only; the public endpoint has no preview.",
         "operationId": "homepage_preview",
         "parameters": [],
         "responses": {

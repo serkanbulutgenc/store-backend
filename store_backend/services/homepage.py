@@ -382,9 +382,12 @@ def public() -> dict[str, list[dict[str, Any]]]:
 
 def preview() -> dict[str, list[dict[str, Any]]]:
     """The layout a Dashboard user is looking at, drawn the way the Storefront would
-    draw it (store-infra#161). Today that is the saved layout; the draft or pending
-    layout takes over here once the Approval rule holds one."""
-    return _drawn(validate(get().sections))
+    draw it (store-infra#161): the pending change when one is waiting for the Owner,
+    else the live layout. Unsaved editor edits are not included."""
+    layout = get()
+    change = approval.pending_change(KIND, layout.pk)
+    raw = change.payload["sections"] if change is not None else layout.sections
+    return _drawn(validate(raw))
 
 
 def _drawn(sections: list[Section]) -> dict[str, list[dict[str, Any]]]:

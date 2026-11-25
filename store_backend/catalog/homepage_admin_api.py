@@ -64,11 +64,12 @@ def save_homepage(request, data: HomepageLayoutIn):
 
 @router.get(
     "/homepage/preview",
-    auth=requires(Perm.MANAGE_HOMEPAGE),
+    auth=requires(Perm.EDIT_HOMEPAGE),
     operation_id="homepage_preview",
     response=HomepageOut,
 )
 def preview_homepage(request):
     """The layout resolved the way the Storefront draws it, for the Dashboard's
-    preview mode. Signed-in Dashboard users only; the public endpoint has no preview."""
+    preview mode: the pending change if one waits for the Owner, else the live
+    layout. Signed-in Dashboard users only; the public endpoint has no preview."""
     return homepage.preview()

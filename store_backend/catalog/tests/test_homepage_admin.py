@@ -366,6 +366,23 @@ def test_the_owner_previews_the_layout_as_the_storefront_draws_it(boss):
     assert "latest" not in shown
 
 
+def test_the_preview_shows_the_pending_layout_to_staff_while_the_storefront_does_not(
+    boss,
+    staff,
+):
+    shop = Shop()
+    shop.product("Elbise", [(shop.black, "M", 3)])
+    sections = read(boss)
+    next(s for s in sections if s["id"] == "latest")["visible"] = False
+    save(staff, sections)
+
+    assert "latest" in [s["id"] for s in Client().get(STORE).json()["sections"]]
+    for who in (staff, boss):
+        response = who.get(PREVIEW)
+        assert response.status_code == HTTPStatus.OK, response.content
+        assert "latest" not in [s["id"] for s in response.json()["sections"]]
+
+
 def test_a_shopper_cannot_request_the_preview():
     assert Client().get(PREVIEW).status_code in {
         HTTPStatus.UNAUTHORIZED,
