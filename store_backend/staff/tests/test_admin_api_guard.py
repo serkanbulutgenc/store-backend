@@ -143,7 +143,6 @@ OWNER_GROUP_OPERATIONS = {
 CHECKED_IN_SERVICES = {
     Perm.ARCHIVE_PRODUCTS,
     Perm.CANCEL_PAID_ORDERS,
-    Perm.MANAGE_HOMEPAGE,  # approving goes through the generic approval queue
     Perm.VIEW_COST_PRICES,
 }
 
