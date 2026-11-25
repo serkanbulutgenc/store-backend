@@ -3,7 +3,7 @@
 Staff draft a Banner and the Owner approves it under the shared approval rule
 (`services/approval.py`). Slot, message, link, order, dates and Category are the staged
 content. The images are not: Staff change them on a draft only, the Owner any time, as
-for Campaign pages. A Banner is image-led (hero, mid-page, category top) or
+for Campaign pages. A Banner is image-led (category top) or
 message-led (the announcement bar); the public endpoint shows only what is complete.
 """
 
@@ -52,8 +52,6 @@ FIELDS = ("slot", "message", "link", "position", "starts_at", "ends_at", "catego
 IMAGES = ("image", "mobile")  # the two image sets of a Banner
 SLOT_LABELS = {
     Banner.Slot.ANNOUNCEMENT: "Duyuru çubuğu",
-    Banner.Slot.HOME_HERO: "Ana sayfa vitrini",
-    Banner.Slot.HOME_MID: "Ana sayfa ortası",
     Banner.Slot.CATEGORY_TOP: "Kategori sayfası üstü",
     Banner.Slot.LAYOUT: "Vitrin görseli",
 }
@@ -554,7 +552,7 @@ def _card(banner: Banner) -> dict[str, Any] | None:
 
 
 def picked(ids: list[int]) -> list[dict[str, Any]]:
-    """The chosen image Banners (Home hero or Home mid-page) as cards, in the order
+    """The chosen section images (`services/homepage_images.py`) as cards, in the order
     given. One that is unpublished, outside its dates, incomplete or deleted is left
     out."""
     now = timezone.now()
@@ -562,11 +560,7 @@ def picked(ids: list[int]) -> list[dict[str, Any]]:
         Banner.objects.filter(
             pk__in=ids,
             status=ApprovalStatus.PUBLISHED,
-            slot__in=(
-                Banner.Slot.HOME_HERO,
-                Banner.Slot.HOME_MID,
-                Banner.Slot.LAYOUT,
-            ),
+            slot=Banner.Slot.LAYOUT,
         )
         .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
         .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))

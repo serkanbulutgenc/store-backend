@@ -519,26 +519,10 @@
             },
             "title": "Category Top",
             "type": "array"
-          },
-          "home_hero": {
-            "items": {
-              "$ref": "#/components/schemas/PictureBannerOut"
-            },
-            "title": "Home Hero",
-            "type": "array"
-          },
-          "home_mid": {
-            "items": {
-              "$ref": "#/components/schemas/PictureBannerOut"
-            },
-            "title": "Home Mid",
-            "type": "array"
           }
         },
         "required": [
           "announcement",
-          "home_hero",
-          "home_mid",
           "category_top"
         ],
         "title": "BannersOut",

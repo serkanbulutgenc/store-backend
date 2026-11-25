@@ -48,7 +48,15 @@ def create(client, **fields):
 
 
 def hero(client, **fields):
-    return create(client, slot="home_hero", message="", **fields)
+    """A picture Banner for every Category page (the Slot with images)."""
+    return create(client, slot="category_top", message="", **fields)
+
+
+def on_a_category_page():
+    """The picture Banners a Shopper sees on a Category page."""
+    category = Category.objects.filter(slug="elbise").first()
+    category = category or Category.add_root(name="Elbise")
+    return shown(category=category.slug)["category_top"]
 
 
 def with_image(boss, made, which="image"):
@@ -153,7 +161,7 @@ def test_an_unknown_slot_is_refused(staff):
     ["javascript:alert(1)", "http://example.com", "//evil.test", "evil.test/x"],
 )
 def test_only_internal_or_https_links(staff, link):
-    response = staff.post(ADMIN, {"slot": "home_hero", "link": link})
+    response = staff.post(ADMIN, {"slot": "category_top", "link": link})
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "link" in response.json()["fields"]
@@ -169,7 +177,7 @@ def test_the_end_must_follow_the_start(staff):
     response = staff.post(
         ADMIN,
         {
-            "slot": "home_hero",
+            "slot": "category_top",
             "starts_at": now.isoformat(),
             "ends_at": (now - timedelta(hours=1)).isoformat(),
         },
@@ -182,25 +190,25 @@ def test_the_end_must_follow_the_start(staff):
 def test_a_message_and_category_belong_to_their_own_slot(staff):
     category = Category.add_root(name="Elbise")
 
-    made = staff.post(
+    picture = staff.post(
         ADMIN,
-        {
-            "slot": "home_hero",
-            "message": "kalmamalı",
-            "category_id": category.pk,
-        },
+        {"slot": "category_top", "message": "kalmamalı", "category_id": category.pk},
+    ).json()
+    bar = staff.post(
+        ADMIN,
+        {"slot": "announcement", "message": "Kargo", "category_id": category.pk},
     ).json()
 
-    assert made["message"] == ""
-    assert made["category"] is None
+    assert (picture["message"], picture["category"]["id"]) == ("", category.pk)
+    assert (bar["message"], bar["category"]) == ("Kargo", None)
 
 
 def test_changing_the_slot_drops_what_no_longer_applies(staff):
     made = create(staff)
 
-    changed = staff.patch(f"{ADMIN}/{made['id']}", {"slot": "home_mid"}).json()
+    changed = staff.patch(f"{ADMIN}/{made['id']}", {"slot": "category_top"}).json()
 
-    assert (changed["slot"], changed["message"]) == ("home_mid", "")
+    assert (changed["slot"], changed["message"]) == ("category_top", "")
 
 
 def test_a_missing_category_is_refused(staff):
@@ -227,15 +235,15 @@ def test_staff_upload_images_on_a_draft_and_they_show_once_ready(staff, boss):
         == 200
     )
     go_live(boss, made)
-    assert shown()["home_hero"] == []  # not ready yet
+    assert on_a_category_page() == []  # not ready yet
 
     banners.process_image(made["id"], "image")
-    card = shown()["home_hero"][0]
+    card = on_a_category_page()[0]
     assert card["alt"] == "Yaz"
     assert [s["width"] for s in card["image"]] == [400, 800]
     assert card["mobile_image"] is None  # its derivatives are not made yet
     banners.process_image(made["id"], "mobile")
-    assert shown()["home_hero"][0]["mobile_image"]
+    assert on_a_category_page()[0]["mobile_image"]
 
 
 def test_staff_cannot_change_the_images_of_a_live_banner_but_the_owner_can(
@@ -294,7 +302,7 @@ def test_a_gif_banner_image_is_kept_as_uploaded_and_served(boss):
     banners.process_image(made["id"], "image")
     go_live(boss, made)
 
-    card = shown()["home_hero"][0]
+    card = on_a_category_page()[0]
     assert card["alt"] == ""  # alt text is optional
     assert [s["url"].endswith(".gif") for s in card["image"]] == [True]
 
@@ -318,7 +326,7 @@ def test_owner_deletes_any_banner_and_its_files(boss):
         action="approval_deleted",
         summary__contains="Banner silindi",
     ).exists()
-    assert shown()["home_hero"] == []
+    assert on_a_category_page() == []
 
 
 def test_staff_delete_a_draft_but_not_a_live_or_pending_banner(staff, boss):
@@ -371,19 +379,29 @@ def test_a_picture_slot_banner_without_a_ready_image_is_left_out(boss):
     made = hero(boss)
     go_live(boss, made)
 
-    assert shown()["home_hero"] == []
+    assert on_a_category_page() == []
 
 
 def test_slots_are_kept_apart(boss):
-    for slot in ("home_hero", "home_mid"):
-        made = create(boss, slot=slot, message="")
-        with_image(boss, made)
-        go_live(boss, made)
+    bar = create(boss)
+    go_live(boss, bar)
+    picture = hero(boss)
+    with_image(boss, picture)
+    go_live(boss, picture)
 
     body = shown()
+    on_page = on_a_category_page()
 
-    assert (len(body["home_hero"]), len(body["home_mid"])) == (1, 1)
-    assert body["announcement"] == body["category_top"] == []
+    assert [b["message"] for b in body["announcement"]] == ["Kargo bedava"]
+    assert len(on_page) == 1
+    assert set(body) == {"announcement", "category_top"}
+
+
+def test_the_home_slots_are_gone(staff):
+    for slot in ("home_hero", "home_mid"):
+        response = staff.post(ADMIN, {"slot": slot})
+
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_the_category_slot_is_filtered_by_category(boss):
@@ -417,8 +435,8 @@ def test_the_admin_list_filters_by_slot_and_status(staff):
     hero(staff)
 
     assert len(staff.get(ADMIN).json()) == 2
-    assert [b["slot"] for b in staff.get(f"{ADMIN}?slot=home_hero").json()] == [
-        "home_hero",
+    assert [b["slot"] for b in staff.get(f"{ADMIN}?slot=category_top").json()] == [
+        "category_top",
     ]
     assert staff.get(f"{ADMIN}?status=published").json() == []
     assert staff.get(f"{ADMIN}?status=nonsense").status_code == 422

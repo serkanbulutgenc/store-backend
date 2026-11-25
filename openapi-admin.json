@@ -1238,9 +1238,7 @@
               }
             ],
             "default": {
-              "banner_id": null,
-              "index": 0,
-              "slot": "home_mid"
+              "banner_id": null
             }
           },
           "title": {
@@ -1280,19 +1278,6 @@
               }
             ],
             "title": "Banner Id"
-          },
-          "index": {
-            "default": 0,
-            "maximum": 9,
-            "minimum": 0,
-            "title": "Index",
-            "type": "integer"
-          },
-          "slot": {
-            "const": "home_mid",
-            "default": "home_mid",
-            "title": "Slot",
-            "type": "string"
           }
         },
         "title": "BannerSettings",
@@ -10461,7 +10446,6 @@
             "default": "home",
             "enum": [
               "home",
-              "banners",
               "collection",
               "own"
             ],

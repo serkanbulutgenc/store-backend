@@ -348,8 +348,6 @@ class PictureBannerOut(Schema):
 
 class BannersOut(Schema):
     announcement: list[AnnouncementOut]
-    home_hero: list[PictureBannerOut]
-    home_mid: list[PictureBannerOut]
     category_top: list[PictureBannerOut]
 
 
