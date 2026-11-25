@@ -519,26 +519,10 @@
             },
             "title": "Category Top",
             "type": "array"
-          },
-          "home_hero": {
-            "items": {
-              "$ref": "#/components/schemas/PictureBannerOut"
-            },
-            "title": "Home Hero",
-            "type": "array"
-          },
-          "home_mid": {
-            "items": {
-              "$ref": "#/components/schemas/PictureBannerOut"
-            },
-            "title": "Home Mid",
-            "type": "array"
           }
         },
         "required": [
           "announcement",
-          "home_hero",
-          "home_mid",
           "category_top"
         ],
         "title": "BannersOut",
@@ -1407,6 +1391,138 @@
           "image_alt"
         ],
         "title": "HomeCategoryOut",
+        "type": "object"
+      },
+      "HomepageOut": {
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/HomepageSectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageOut",
+        "type": "object"
+      },
+      "HomepageSectionOut": {
+        "properties": {
+          "banners": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PictureBannerOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banners"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HomeCategoryOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "client_resolved": {
+            "default": false,
+            "description": "Recently viewed: the Shopper's browser fills it in.",
+            "title": "Client Resolved",
+            "type": "boolean"
+          },
+          "display": {
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "products": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProductCardOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Products"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where a section takes its items from (Products: latest, best_selling, on_sale, recently_viewed).",
+            "title": "Source"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "slider",
+              "products",
+              "categories",
+              "banner",
+              "rich_text"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "link",
+          "display"
+        ],
+        "title": "HomepageSectionOut",
         "type": "object"
       },
       "ImageSizeOut": {
@@ -4853,6 +4969,29 @@
           }
         },
         "summary": "List Home Categories",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/store/homepage": {
+      "get": {
+        "description": "The home page: the Owner's visible sections in order, each already resolved.\nA section with nothing to show is left out.",
+        "operationId": "catalog_get_homepage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Homepage",
         "tags": [
           "catalog"
         ]

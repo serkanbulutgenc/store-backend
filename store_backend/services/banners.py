@@ -3,7 +3,7 @@
 Staff draft a Banner and the Owner approves it under the shared approval rule
 (`services/approval.py`). Slot, message, link, order, dates and Category are the staged
 content. The images are not: Staff change them on a draft only, the Owner any time, as
-for Campaign pages. A Banner is image-led (hero, mid-page, category top) or
+for Campaign pages. A Banner is image-led (category top) or
 message-led (the announcement bar); the public endpoint shows only what is complete.
 """
 
@@ -52,10 +52,12 @@ FIELDS = ("slot", "message", "link", "position", "starts_at", "ends_at", "catego
 IMAGES = ("image", "mobile")  # the two image sets of a Banner
 SLOT_LABELS = {
     Banner.Slot.ANNOUNCEMENT: "Duyuru çubuğu",
-    Banner.Slot.HOME_HERO: "Ana sayfa vitrini",
-    Banner.Slot.HOME_MID: "Ana sayfa ortası",
     Banner.Slot.CATEGORY_TOP: "Kategori sayfası üstü",
+    Banner.Slot.LAYOUT: "Vitrin görseli",
 }
+#: The Slots the Afişler screen and the public endpoint know. The layout Slot is the
+#: Vitrin's own (`services/homepage_images.py`).
+SLOTS = [s for s in Banner.Slot.values if s != Banner.Slot.LAYOUT]
 
 
 def _refuse(field: str, message: str) -> NoReturn:
@@ -93,7 +95,7 @@ def _clean_placement(values: dict[str, Any]) -> dict[str, Any]:
     announcement bar, a Category to the category slot) and always returned together,
     so a change of slot leaves nothing stale behind."""
     slot = values.get("slot")
-    if slot not in Banner.Slot.values:
+    if slot not in SLOTS:
         _refuse("slot", "Geçerli bir alan seçin.")
     message = str(values.get("message") or "").strip()
     category_id = values.get("category_id")
@@ -126,6 +128,8 @@ def _clean_position(value: object) -> int:
 def _clean(changes: dict[str, Any], item: Banner | None) -> dict[str, Any]:
     """Validate the content given; the dates come back as ISO strings so the result
     survives the pending change's JSON round trip."""
+    if item is not None and item.slot == Banner.Slot.LAYOUT:
+        _refuse("slot", "Bu görsel Vitrin'e aittir; oradan değiştirin.")
     cleaned: dict[str, Any] = {}
 
     def current(field: str, default: Any = "") -> Any:
@@ -179,6 +183,7 @@ def _is_owner(actor: User) -> bool:
 def _get(banner_id: int) -> Banner:
     banner = (
         Banner.objects.select_related("submitted_by", "category")
+        .exclude(slot=Banner.Slot.LAYOUT)
         .filter(pk=banner_id)
         .first()
     )
@@ -253,9 +258,11 @@ def get(banner_id: int) -> dict[str, Any]:
 def listing(status: str | None = None, slot: str | None = None) -> list[dict[str, Any]]:
     if status is not None and status not in ApprovalStatus.values:
         _refuse("status", "Bilinmeyen durum.")
-    if slot is not None and slot not in Banner.Slot.values:
+    if slot is not None and slot not in SLOTS:
         _refuse("slot", "Bilinmeyen alan.")
-    banners = Banner.objects.select_related("submitted_by", "category")
+    banners = Banner.objects.select_related("submitted_by", "category").exclude(
+        slot=Banner.Slot.LAYOUT,
+    )
     if status:
         banners = banners.filter(status=status)
     if slot:
@@ -299,7 +306,12 @@ def _guard_image_edit(actor: User, banner: Banner) -> None:
 
 
 def _locked(banner_id: int) -> Banner:
-    banner = Banner.objects.select_for_update().filter(pk=banner_id).first()
+    banner = (
+        Banner.objects.select_for_update()
+        .exclude(slot=Banner.Slot.LAYOUT)
+        .filter(pk=banner_id)
+        .first()
+    )
     if banner is None:
         raise NotFoundError
     return banner
@@ -338,12 +350,25 @@ def upload_image(
     """Validate and store the `image` or `mobile` image (JPEG, PNG, WebP or GIF),
     replacing any old one; derivatives follow in the background. `alt_text`, when
     given, is the Banner's alt text (it covers both images)."""
-    prefix = _prefix(which)
+    _prefix(which)
     banner = _locked(banner_id)
     _guard_image_edit(actor, banner)
     if banner.slot == Banner.Slot.ANNOUNCEMENT:
         msg = "Duyuru çubuğu görsel almaz."
         raise ConflictError(msg, code="banner_no_image_slot")
+    return store_image(actor, banner, which, file, alt_text)
+
+
+def store_image(
+    actor: User,
+    banner: Banner,
+    which: str,
+    file: UploadedFile,
+    alt_text: str | None = None,
+) -> Banner:
+    """Check, store and queue one image of an already locked Banner. The caller has
+    decided who may do this (`upload_image`, or the Vitrin's own service)."""
+    prefix = _prefix(which)
     alt = _clean_alt(alt_text) if alt_text is not None else None
     data = file.read(media.MAX_BYTES + 1)
     data, extension, width, height = media._inspect(  # noqa: SLF001
@@ -368,6 +393,7 @@ def upload_image(
     except Exception:
         default_storage.delete(name)
         raise
+    banner_id = banner.pk
     transaction.on_commit(lambda: _enqueue_image(banner_id, which))
     return banner
 
@@ -422,10 +448,19 @@ def set_image_alt(actor: User, banner_id: int, alt_text: str) -> Banner:
 
 
 @transaction.atomic
-def remove_image(actor: User, banner_id: int, which: str) -> Banner:
+def remove_image(
+    actor: User,
+    banner_id: int,
+    which: str,
+    *,
+    banner: Banner | None = None,
+) -> Banner:
+    """Remove one image. The Vitrin's own service passes its locked `banner` and has
+    already decided who may."""
     prefix = _prefix(which)
-    banner = _locked(banner_id)
-    _guard_image_edit(actor, banner)
+    if banner is None:
+        banner = _locked(banner_id)
+        _guard_image_edit(actor, banner)
     if not getattr(banner, f"{prefix}original"):
         return banner
     media._schedule_names(banner.image_file_names(which))  # noqa: SLF001
@@ -516,6 +551,25 @@ def _card(banner: Banner) -> dict[str, Any] | None:
     }
 
 
+def picked(ids: list[int]) -> list[dict[str, Any]]:
+    """The chosen section images (`services/homepage_images.py`) as cards, in the order
+    given. One that is unpublished, outside its dates, incomplete or deleted is left
+    out."""
+    now = timezone.now()
+    live = (
+        Banner.objects.filter(
+            pk__in=ids,
+            status=ApprovalStatus.PUBLISHED,
+            slot=Banner.Slot.LAYOUT,
+        )
+        .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+        .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+    )
+    by_id = {b.pk: b for b in live}
+    cards = (_card(by_id[i]) for i in ids if i in by_id)
+    return [c for c in cards if c]
+
+
 def public(category_slug: str | None = None) -> dict[str, list[dict[str, Any]]]:
     """The active Banners per slot: published, inside their dates, in the Owner's
     order. The category slot is filled only when a Category is given, with the Banners
@@ -524,11 +578,12 @@ def public(category_slug: str | None = None) -> dict[str, list[dict[str, Any]]]:
     now = timezone.now()
     live = (
         Banner.objects.filter(status=ApprovalStatus.PUBLISHED)
+        .exclude(slot=Banner.Slot.LAYOUT)
         .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
         .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
         .order_by("position", "pk")
     )
-    result: dict[str, list[dict[str, Any]]] = {slot: [] for slot in Banner.Slot.values}
+    result: dict[str, list[dict[str, Any]]] = {slot: [] for slot in SLOTS}
     for banner in live:
         if banner.slot == Banner.Slot.CATEGORY_TOP and (
             category is None or banner.category_id not in (None, category.pk)

@@ -23,6 +23,7 @@ from oscar.apps.catalogue.models import Product
 
 from store_backend.catalog.sizes import SizeScheme
 from store_backend.staff.models import ApprovalFields
+from store_backend.staff.models import ApprovalStatus
 
 DEFAULT_LOW_STOCK_THRESHOLD = 2
 
@@ -836,9 +837,10 @@ class Banner(ApprovalFields):
 
     class Slot(models.TextChoices):
         ANNOUNCEMENT = "announcement", "Announcement bar"
-        HOME_HERO = "home_hero", "Home hero"
-        HOME_MID = "home_mid", "Home mid-page"
         CATEGORY_TOP = "category_top", "Category page top"
+        # Images that belong to one Homepage section, uploaded in the Vitrin editor
+        # (store-infra#168). Never listed with the Slots and never public by itself.
+        LAYOUT = "layout", "Homepage section image"
 
     slot = models.CharField(max_length=16, choices=Slot.choices)
     message = models.CharField(max_length=200, blank=True)
@@ -913,3 +915,29 @@ class Banner(ApprovalFields):
             {"width": d["width"], "url": media_url(d["name"])}
             for d in getattr(self, f"{prefix}derivatives")
         ]
+
+
+class HomepageLayout(ApprovalFields):
+    """The Storefront home page: one document for the whole shop, always row 1 (see
+    `store_backend.services.homepage`; ADR 0012). `sections` is the ordered list of
+    Homepage sections as JSON; their shape is checked in code, never trusted here."""
+
+    # The layout is always live: a Staff edit is a pending change, never a draft row.
+    status = models.CharField(
+        max_length=16,
+        choices=ApprovalStatus,
+        default=ApprovalStatus.PUBLISHED,
+    )
+    sections = models.JSONField(default=list)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(pk=1),
+                name="catalog_homepage_layout_singleton",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return "Homepage layout"

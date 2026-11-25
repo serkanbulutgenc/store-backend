@@ -1206,6 +1206,83 @@
         "title": "BannerRowOut",
         "type": "object"
       },
+      "BannerSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BannerSettings"
+              }
+            ],
+            "default": {
+              "banner_id": null
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "banner",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "BannerSection",
+        "type": "object"
+      },
+      "BannerSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "banner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Id"
+          }
+        },
+        "title": "BannerSettings",
+        "type": "object"
+      },
       "BasketCampaignIn": {
         "properties": {
           "benefit": {
@@ -2494,6 +2571,27 @@
         "title": "CampaignsVouchersReportOut",
         "type": "object"
       },
+      "CardImageOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Sizes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alt",
+          "sizes"
+        ],
+        "title": "CardImageOut",
+        "type": "object"
+      },
       "CarrierOut": {
         "properties": {
           "id": {
@@ -2510,6 +2608,98 @@
           "name"
         ],
         "title": "CarrierOut",
+        "type": "object"
+      },
+      "CategoriesSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CategoriesSettings"
+              }
+            ],
+            "default": {
+              "category_ids": [],
+              "count": 12,
+              "source": "home"
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "categories",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "CategoriesSection",
+        "type": "object"
+      },
+      "CategoriesSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "category_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 24,
+            "title": "Category Ids",
+            "type": "array"
+          },
+          "count": {
+            "default": 12,
+            "maximum": 24,
+            "minimum": 4,
+            "title": "Count",
+            "type": "integer"
+          },
+          "source": {
+            "default": "home",
+            "enum": [
+              "home",
+              "picked"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "CategoriesSettings",
         "type": "object"
       },
       "CategoryImageOut": {
@@ -3751,6 +3941,41 @@
         "title": "Group",
         "type": "string"
       },
+      "HomeCategoryOut": {
+        "properties": {
+          "image_alt": {
+            "title": "Image Alt",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "image_url",
+          "image_alt"
+        ],
+        "title": "HomeCategoryOut",
+        "type": "object"
+      },
       "HomeLayoutIn": {
         "properties": {
           "collapsed": {
@@ -3991,6 +4216,247 @@
         "title": "HomeReturnRow",
         "type": "object"
       },
+      "HomepageLayoutIn": {
+        "description": "The sections in page order. Hidden ones are kept, with their settings.",
+        "properties": {
+          "sections": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "banner": "#/components/schemas/BannerSection",
+                  "categories": "#/components/schemas/CategoriesSection",
+                  "products": "#/components/schemas/ProductsSection",
+                  "rich_text": "#/components/schemas/RichTextSection",
+                  "slider": "#/components/schemas/SliderSection"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SliderSection"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductsSection"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoriesSection"
+                },
+                {
+                  "$ref": "#/components/schemas/BannerSection"
+                },
+                {
+                  "$ref": "#/components/schemas/RichTextSection"
+                }
+              ]
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageLayoutIn",
+        "type": "object"
+      },
+      "HomepageLayoutOut": {
+        "description": "`sections` is the live layout. `pending` is the Staff change waiting for the\nOwner; `rejection_reason` says why the last one was turned down.",
+        "properties": {
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingLayoutOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection_reason": {
+            "default": "",
+            "title": "Rejection Reason",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "banner": "#/components/schemas/BannerSection",
+                  "categories": "#/components/schemas/CategoriesSection",
+                  "products": "#/components/schemas/ProductsSection",
+                  "rich_text": "#/components/schemas/RichTextSection",
+                  "slider": "#/components/schemas/SliderSection"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SliderSection"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductsSection"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoriesSection"
+                },
+                {
+                  "$ref": "#/components/schemas/BannerSection"
+                },
+                {
+                  "$ref": "#/components/schemas/RichTextSection"
+                }
+              ]
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "warnings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Warnings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageLayoutOut",
+        "type": "object"
+      },
+      "HomepageOut": {
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/HomepageSectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "HomepageOut",
+        "type": "object"
+      },
+      "HomepageSectionOut": {
+        "properties": {
+          "banners": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PictureBannerOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banners"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HomeCategoryOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "client_resolved": {
+            "default": false,
+            "description": "Recently viewed: the Shopper's browser fills it in.",
+            "title": "Client Resolved",
+            "type": "boolean"
+          },
+          "display": {
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "products": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProductCardOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Products"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where a section takes its items from (Products: latest, best_selling, on_sale, recently_viewed).",
+            "title": "Source"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "slider",
+              "products",
+              "categories",
+              "banner",
+              "rich_text"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "link",
+          "display"
+        ],
+        "title": "HomepageSectionOut",
+        "type": "object"
+      },
       "ImageAltIn": {
         "properties": {
           "alt_text": {
@@ -4036,6 +4502,24 @@
           "ids"
         ],
         "title": "ImageOrderIn",
+        "type": "object"
+      },
+      "ImageSizeOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "url"
+        ],
+        "title": "ImageSizeOut",
         "type": "object"
       },
       "ImageUploadIn": {
@@ -4571,6 +5055,116 @@
           }
         },
         "title": "KdvRangeParams",
+        "type": "object"
+      },
+      "LayoutImageIn": {
+        "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          }
+        },
+        "title": "LayoutImageIn",
+        "type": "object"
+      },
+      "LayoutImageOut": {
+        "description": "One image of a section: `processing` until its pictures exist.",
+        "properties": {
+          "alt_text": {
+            "title": "Alt Text",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "link",
+          "alt_text",
+          "image",
+          "mobile_image"
+        ],
+        "title": "LayoutImageOut",
+        "type": "object"
+      },
+      "LayoutVersionOut": {
+        "properties": {
+          "approved_at": {
+            "format": "date-time",
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "section_count": {
+            "title": "Section Count",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "approved_at",
+          "approved_by",
+          "section_count"
+        ],
+        "title": "LayoutVersionOut",
         "type": "object"
       },
       "LowStock": {
@@ -6644,6 +7238,74 @@
         "title": "PendingChangeOut",
         "type": "object"
       },
+      "PendingLayoutOut": {
+        "properties": {
+          "sections": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "banner": "#/components/schemas/BannerSection",
+                  "categories": "#/components/schemas/CategoriesSection",
+                  "products": "#/components/schemas/ProductsSection",
+                  "rich_text": "#/components/schemas/RichTextSection",
+                  "slider": "#/components/schemas/SliderSection"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SliderSection"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductsSection"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoriesSection"
+                },
+                {
+                  "$ref": "#/components/schemas/BannerSection"
+                },
+                {
+                  "$ref": "#/components/schemas/RichTextSection"
+                }
+              ]
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
+          },
+          "warnings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Warnings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sections",
+          "submitted_by",
+          "submitted_at"
+        ],
+        "title": "PendingLayoutOut",
+        "type": "object"
+      },
       "PendingOut": {
         "properties": {
           "orders": {
@@ -6684,6 +7346,52 @@
         "title": "PersonOut",
         "type": "object"
       },
+      "PictureBannerOut": {
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "items": {
+              "$ref": "#/components/schemas/ImageSizeOut"
+            },
+            "title": "Image",
+            "type": "array"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "mobile_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ImageSizeOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile Image"
+          }
+        },
+        "required": [
+          "id",
+          "alt",
+          "link",
+          "image",
+          "mobile_image"
+        ],
+        "title": "PictureBannerOut",
+        "type": "object"
+      },
       "Preset": {
         "enum": [
           "today",
@@ -6694,6 +7402,123 @@
         ],
         "title": "Preset",
         "type": "string"
+      },
+      "ProductCardOut": {
+        "properties": {
+          "campaign_percentage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Percentage"
+          },
+          "colours": {
+            "items": {
+              "$ref": "#/components/schemas/SwatchOut"
+            },
+            "title": "Colours",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "old_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Price"
+          },
+          "price": {
+            "examples": [
+              "349.90"
+            ],
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "title": "Price",
+            "type": "string"
+          },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_count": {
+            "title": "Rating Count",
+            "type": "integer"
+          },
+          "shelf_price": {
+            "anyOf": [
+              {
+                "examples": [
+                  "349.90"
+                ],
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shelf Price"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sold_out": {
+            "title": "Sold Out",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "price",
+          "old_price",
+          "shelf_price",
+          "campaign_percentage",
+          "sold_out",
+          "image",
+          "colours",
+          "rating_average",
+          "rating_count"
+        ],
+        "title": "ProductCardOut",
+        "type": "object"
       },
       "ProductClassIn": {
         "properties": {
@@ -7736,6 +8561,125 @@
         "title": "ProductsReportOut",
         "type": "object"
       },
+      "ProductsSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductsSettings"
+              }
+            ],
+            "default": {
+              "category_id": null,
+              "count": 12,
+              "product_ids": [],
+              "source": "latest",
+              "window": 30
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "products",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "ProductsSection",
+        "type": "object"
+      },
+      "ProductsSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "count": {
+            "default": 12,
+            "maximum": 24,
+            "minimum": 4,
+            "title": "Count",
+            "type": "integer"
+          },
+          "product_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 24,
+            "title": "Product Ids",
+            "type": "array"
+          },
+          "source": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "best_selling",
+              "on_sale",
+              "category",
+              "hand_picked",
+              "recently_viewed"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "window": {
+            "default": 30,
+            "enum": [
+              7,
+              30,
+              90
+            ],
+            "title": "Window",
+            "type": "integer"
+          }
+        },
+        "title": "ProductsSettings",
+        "type": "object"
+      },
       "ProductsWithoutPhotos": {
         "properties": {
           "count": {
@@ -8718,6 +9662,78 @@
         "title": "ReturnsReportOut",
         "type": "object"
       },
+      "RichTextSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RichTextSettings"
+              }
+            ],
+            "default": {
+              "body": ""
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "rich_text",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "RichTextSection",
+        "type": "object"
+      },
+      "RichTextSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "title": "RichTextSettings",
+        "type": "object"
+      },
       "SalesParams": {
         "properties": {
           "date_from": {
@@ -9335,6 +10351,111 @@
         "title": "SkippedCombinationOut",
         "type": "object"
       },
+      "SliderSection": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "default": "carousel",
+            "enum": [
+              "grid",
+              "carousel",
+              "list"
+            ],
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Link",
+            "type": "string"
+          },
+          "settings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SliderSettings"
+              }
+            ],
+            "default": {
+              "banner_ids": [],
+              "collection_id": null,
+              "count": 5,
+              "source": "home"
+            }
+          },
+          "title": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "slider",
+            "title": "Type",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "SliderSection",
+        "type": "object"
+      },
+      "SliderSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "banner_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 24,
+            "title": "Banner Ids",
+            "type": "array"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
+          "count": {
+            "default": 5,
+            "maximum": 24,
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "source": {
+            "default": "home",
+            "enum": [
+              "home",
+              "collection",
+              "own"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "SliderSettings",
+        "type": "object"
+      },
       "SlugIn": {
         "properties": {
           "slug": {
@@ -9599,6 +10720,29 @@
           }
         },
         "title": "SupplierPatch",
+        "type": "object"
+      },
+      "SwatchOut": {
+        "properties": {
+          "hex_code": {
+            "title": "Hex Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "hex_code"
+        ],
+        "title": "SwatchOut",
         "type": "object"
       },
       "TargetOut": {
@@ -15298,6 +16442,505 @@
         "summary": "Save Layout",
         "tags": [
           "home"
+        ]
+      }
+    },
+    "/api/admin/homepage": {
+      "get": {
+        "description": "Every section of the layout, hidden ones included, with its settings.",
+        "operationId": "homepage_get_for_editing",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageLayoutOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Get Homepage",
+        "tags": [
+          "homepage"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole layout atomically. The Owner's save is live at once; a Staff\nsave is held as a pending change. Every step is written to the Audit log. Section\nids must be unique and there are at most 20 sections.",
+        "operationId": "homepage_save",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomepageLayoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageLayoutOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Save Homepage",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images": {
+      "get": {
+        "description": "The section images among `ids` (at most 50), in the order given.",
+        "operationId": "homepage_images",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "items": {
+                "type": "integer"
+              },
+              "title": "Ids",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LayoutImageOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "List Images",
+        "tags": [
+          "homepage"
+        ]
+      },
+      "post": {
+        "description": "A new section image (JPEG, PNG, WebP or GIF). It shows on the Storefront only\nonce an approved layout uses it; Staff can upload too.",
+        "operationId": "homepage_upload_image",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Alt Text"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  },
+                  "link": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Link"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images/{image_id}": {
+      "patch": {
+        "description": "Change the alt text (it covers both pictures) or the link.",
+        "operationId": "homepage_edit_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutImageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Edit Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images/{image_id}/image": {
+      "post": {
+        "description": "Replace the main picture of a section image.",
+        "operationId": "homepage_replace_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "alt_text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Alt Text"
+                  },
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  },
+                  "link": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Link"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "MultiPartBodyParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Replace Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/images/{image_id}/mobile-image": {
+      "delete": {
+        "operationId": "homepage_delete_mobile_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Delete Mobile Image",
+        "tags": [
+          "homepage"
+        ]
+      },
+      "post": {
+        "description": "The picture phones get instead of the main one.",
+        "operationId": "homepage_upload_mobile_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Upload Mobile Image",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/preview": {
+      "get": {
+        "description": "The layout resolved the way the Storefront draws it, for the Dashboard's\npreview mode: the pending change if one waits for the Owner, else the live\nlayout. Signed-in Dashboard users only; the public endpoint has no preview.",
+        "operationId": "homepage_preview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Preview Homepage",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/versions": {
+      "get": {
+        "description": "Every approved version of the layout, newest first. Staff can read it.",
+        "operationId": "homepage_versions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LayoutVersionOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Homepage Versions",
+        "tags": [
+          "homepage"
+        ]
+      }
+    },
+    "/api/admin/homepage/versions/{version}/restore": {
+      "post": {
+        "description": "Owner only: put an earlier version back live. It becomes a new version and the\nhistory stays as it was. Refused while a Staff change is waiting.",
+        "operationId": "homepage_restore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomepageLayoutOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "RequiresPermission": []
+          }
+        ],
+        "summary": "Restore Homepage",
+        "tags": [
+          "homepage"
         ]
       }
     },

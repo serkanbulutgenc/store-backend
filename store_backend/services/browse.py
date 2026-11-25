@@ -63,6 +63,7 @@ from store_backend.shop.models import ReviewStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
     from django.db.models import QuerySet
 
@@ -90,6 +91,9 @@ class Filters:
     # The winning Campaign percentage per Product, resolved once per request by
     # `resolve` so that the many pools of one listing do not each look the rules up.
     campaign_pct: Any = None
+    # Count only Orders placed since then when sorting by `popular` (the homepage
+    # Best-selling window); None counts them all.
+    sold_since: datetime | None = None
 
 
 def resolve(f: Filters) -> Filters:
@@ -445,12 +449,16 @@ def photos_by_product(parent_ids: list[int]) -> dict[int, list[ProductPhoto]]:
     return out
 
 
-def _units_sold() -> Coalesce:
-    """Units sold across the Product's Variants, not counting undone Orders."""
+def _units_sold(since: datetime | None = None) -> Coalesce:
+    """Units sold across the Product's Variants, not counting undone Orders; only
+    Orders placed since `since` when given."""
+    lines = Line.objects.filter(product__parent_id=OuterRef("product_id")).exclude(
+        order__status__in=(STATUS_CANCELLED, STATUS_RETURNED),
+    )
+    if since is not None:
+        lines = lines.filter(order__date_placed__gte=since)
     sold = (
-        Line.objects.filter(product__parent_id=OuterRef("product_id"))
-        .exclude(order__status__in=(STATUS_CANCELLED, STATUS_RETURNED))
-        .values("product__parent_id")
+        lines.values("product__parent_id")
         .annotate(units=Sum("quantity"))
         .values("units")
     )
@@ -473,7 +481,7 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # 
         qs = qs.annotate(title_tr=Collate("product__title", "tr-x-icu"))
         return qs.order_by("-has_stock", "title_tr", "-product_id")
     if sort == "popular":
-        qs = qs.annotate(units_sold=_units_sold())
+        qs = qs.annotate(units_sold=_units_sold(f.sold_since))
         return qs.order_by("-has_stock", "-units_sold", "-product_id")
     if sort == "rating_desc":
         average = (
@@ -494,26 +502,21 @@ def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # 
     return qs.order_by("-has_stock", "-product_id")
 
 
+def cards(f: Filters, *, sort: str = "newest", limit: int = PAGE_SIZE) -> list[dict]:
+    """The first `limit` cards of a listing, without its count or facets."""
+    f = resolve(f)
+    qs = _order(matching(f).select_related("product"), sort, f)
+    return cards_for(list(qs[:limit]))
+
+
 def listing(f: Filters, *, sort: str = "newest", page: int = 1) -> dict:
     f = resolve(f)
     qs = _order(matching(f).select_related("product"), sort, f)
     total = qs.count()
     offset = (page - 1) * PAGE_SIZE
     profiles = list(qs[offset : offset + PAGE_SIZE])
-    ids = [p.product_id for p in profiles]
-    variants = variants_by_product(ids)
-    photos = photos_by_product(ids)
-    ratings = reviews.ratings_for(ids)
     return {
-        "items": [
-            product_card(
-                p,
-                variants[p.product_id],
-                photos[p.product_id],
-                ratings[p.product_id],
-            )
-            for p in profiles
-        ],
+        "items": cards_for(profiles),
         "total": total,
         "page": page,
         "page_size": PAGE_SIZE,
@@ -586,6 +589,17 @@ def home_categories() -> list[dict]:
         picked.select_related("profile"),
         key=lambda c: (c.profile.home_order, c.name.casefold()),
     )
+    return _category_cards(ordered)
+
+
+def picked_categories(ids: list[int]) -> list[dict]:
+    """The given Categories as homepage cards, in the order given. A hidden or deleted
+    one is left out."""
+    found = {c.pk: c for c in categories.visible().filter(pk__in=ids)}
+    return _category_cards([found[i] for i in ids if i in found])
+
+
+def _category_cards(ordered: list[Category]) -> list[dict]:
     return [
         {
             "name": c.name,
@@ -773,7 +787,7 @@ def _similar(slug: str) -> list[dict]:
         score=_similar_score(profile, own_ids),
         units_sold=_units_sold(),
     ).order_by("-score", "-units_sold", "-product_id")
-    return _cards(list(ranked[:SIMILAR_MAX]))
+    return cards_for(list(ranked[:SIMILAR_MAX]))
 
 
 def _similar_candidates(
@@ -849,7 +863,7 @@ def _similar_score(profile: ProductProfile, own_category_ids: list[int]) -> Any:
     )
 
 
-def _cards(profiles: list[ProductProfile]) -> list[dict]:
+def cards_for(profiles: list[ProductProfile]) -> list[dict]:
     ids = [p.product_id for p in profiles]
     variants = variants_by_product(ids)
     photos = photos_by_product(ids)
@@ -879,4 +893,4 @@ def recently_viewed(slugs: list[str]) -> list[dict]:
         raise UnprocessableError(msg, fields={"slugs": [msg]})
     found = {p.slug: p for p in published().filter(slug__in=slugs)}
     ordered = [found[s] for s in dict.fromkeys(slugs) if s in found]
-    return [card for card in _cards(ordered) if not card["sold_out"]]
+    return [card for card in cards_for(ordered) if not card["sold_out"]]
