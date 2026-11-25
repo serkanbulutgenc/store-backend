@@ -62,7 +62,9 @@ class Perm(StrEnum):
     MANAGE_BANNERS = "manage_banners"  # publish, unpublish, approve, reject
     MANAGE_CAMPAIGN_PAGES = "manage_campaign_pages"  # publish, approve, link a Campaign
     MANAGE_CONTACT = "manage_contact"  # approve, edit, reject and send replies
-    MANAGE_HOMEPAGE = "manage_homepage"  # save the Homepage layout live; approve, reject (ADR 0012)
+    MANAGE_HOMEPAGE = (
+        "manage_homepage"  # save the layout live; approve, reject (ADR 0012)
+    )
 
     @property
     def label(self) -> str:
