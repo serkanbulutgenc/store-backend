@@ -1,10 +1,10 @@
 {% autoescape off %}Merhaba,
 
-Aura Tekstil hesabınız için bu e-posta adresini doğrulamanız gerekiyor. Doğrulamak için bağlantıya tıklayın:
+Auraa Giyim hesabınız için bu e-posta adresini doğrulamanız gerekiyor. Doğrulamak için bağlantıya tıklayın:
 
 {{ activate_url }}
 
 Bu işlemi siz yapmadıysanız bu e-postayı yok sayabilirsiniz.
 
-Aura Tekstil
+Auraa Giyim
 {% endautoescape %}
