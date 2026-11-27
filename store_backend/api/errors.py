@@ -41,6 +41,10 @@ DEFAULTS: dict[int, tuple[str, str]] = {
         "server_error",
         "Beklenmeyen bir hata oluştu.",
     ),
+    HTTPStatus.SERVICE_UNAVAILABLE: (
+        "service_unavailable",
+        "Hizmet şu anda kullanılamıyor.",
+    ),
 }
 
 
@@ -96,6 +100,12 @@ class TooManyRequestsError(ApiError):
     status = HTTPStatus.TOO_MANY_REQUESTS
 
 
+class ServiceUnavailableError(ApiError):
+    """Something optional this request needs is switched off or not answering."""
+
+    status = HTTPStatus.SERVICE_UNAVAILABLE
+
+
 def envelope(
     status: int,
     *,
@@ -128,13 +138,18 @@ def install_error_handlers(api: NinjaAPI) -> None:
 
     @api.exception_handler(ApiError)
     def api_error(request: HttpRequest, exc: ApiError) -> HttpResponse:
-        return respond(
+        response = respond(
             request,
             exc.status,
             code=exc.code,
             message=exc.message,
             fields=exc.fields,
         )
+        if isinstance(exc, ServiceUnavailableError):
+            # Expected while something optional is off. Django would log every such
+            # response as an error: an email to the admins, query string included.
+            response._has_been_logged = True  # noqa: SLF001
+        return response
 
     @api.exception_handler(ValidationError)
     def validation(request: HttpRequest, exc: ValidationError) -> HttpResponse:

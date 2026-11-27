@@ -14,6 +14,7 @@ from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import browse
 from store_backend.services import campaign_pages
+from store_backend.services import catalog
 from store_backend.services import categories
 from store_backend.services import collections
 from store_backend.services import legal_pages
@@ -81,7 +82,7 @@ def _leaf(item: MenuItem) -> dict | None:  # noqa: C901, PLR0912
         profile = product_page(item.product)
         if profile is None or profile.status != ProductStatus.PUBLISHED:
             return None
-        label, url = item.product.title, f"/urun/{profile.slug}"
+        label, url = item.product.title, catalog.product_path(profile.slug)
     elif item.target_type == MenuItem.Target.BRAND:
         if not brand_is_public(item.brand_id):
             return None

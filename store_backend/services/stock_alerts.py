@@ -28,6 +28,7 @@ from store_backend.api.ratelimit import Rate
 from store_backend.api.ratelimit import count_attempt
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import campaign_pricing
+from store_backend.services import catalog
 from store_backend.services import legal_pages
 from store_backend.services import outbox
 from store_backend.services import pre_information
@@ -287,7 +288,7 @@ def notify_back(variant: Product) -> int:
         "colour": profile.colour.name,
         "size": profile.size,
         "price": pre_information.format_try(campaign_pricing.unit_price(variant)),
-        "product_url": f"{base}/urun/{variant.parent.profile.slug}",
+        "product_url": base + catalog.product_path(variant.parent.profile.slug),
     }
     for row in rows:
         token = reject_token(row.email, variant.pk)
