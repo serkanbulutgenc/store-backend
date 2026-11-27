@@ -4,6 +4,7 @@ from store_backend.services import contact_threads
 from store_backend.services import order_ops
 from store_backend.services import stock
 from store_backend.services import stock_alerts
+from store_backend.services import suggestions
 
 
 @shared_task
@@ -30,3 +31,9 @@ def purge_stock_alerts() -> dict[str, int]:
 def purge_contact_threads() -> int:
     """Anonymise contact threads three years after their last activity."""
     return contact_threads.purge()
+
+
+@shared_task
+def refresh_suggestions() -> int:
+    """Bring the Search suggestion index up to date with what is public."""
+    return suggestions.refresh()

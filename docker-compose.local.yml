@@ -2,6 +2,7 @@ volumes:
   store_backend_local_postgres_data: {}
   store_backend_local_postgres_data_backups: {}
   store_backend_local_redis_data: {}
+  store_backend_local_elasticsearch_data: {}
 
 services:
   django: &django
@@ -11,9 +12,16 @@ services:
     image: store_backend_local_django
     container_name: store_backend_local_django
     depends_on:
-      - postgres
-      - redis
-      - mailpit
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      mailpit:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
     volumes:
       - .:/app:z
     env_file:
@@ -49,6 +57,23 @@ services:
     container_name: store_backend_local_redis
     volumes:
       - store_backend_local_redis_data:/data
+
+  # Serves Search suggestions only. Local use: no security, a small heap.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.7
+    container_name: store_backend_local_elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - store_backend_local_elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   celeryworker:
     <<: *django

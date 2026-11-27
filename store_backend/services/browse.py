@@ -465,11 +465,13 @@ def _units_sold(since: datetime | None = None) -> Coalesce:
     return Coalesce(Subquery(sold), 0)
 
 
+def has_stock() -> Exists:
+    """Whether any Variant of the Product can be bought."""
+    return Exists(_variants(in_stock=True).filter(parent=OuterRef("product_id")))
+
+
 def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # noqa: PLR0911
-    sold_out_last = Exists(
-        _variants(in_stock=True).filter(parent=OuterRef("product_id")),
-    )
-    qs = qs.annotate(has_stock=sold_out_last)
+    qs = qs.annotate(has_stock=has_stock())
     if sort == "relevance" and f.q.strip():
         return qs.order_by("-has_stock", "-relevance", "-product_id")
     if sort == "price_asc":

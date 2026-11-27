@@ -1,4 +1,5 @@
-"""Storefront text search: the single swap point if Meilisearch replaces Postgres.
+"""Storefront text search on the results page: the single swap point if another engine
+replaces Postgres. Search suggestions are separate (`services.suggestions`).
 
 Each ProductProfile carries a folded `search_text` (name, brand, category names,
 colours, SKUs and attribute values) and a Turkish `search_vector` built from it.

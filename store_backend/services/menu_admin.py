@@ -27,6 +27,7 @@ from store_backend.catalog.models import Collection
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
 from store_backend.services import campaign_pages
+from store_backend.services import catalog
 from store_backend.services import categories
 from store_backend.services import collections
 from store_backend.services import legal_pages
@@ -83,7 +84,7 @@ def _product_target(item: MenuItem) -> tuple[str, str | None, Reason]:
     public = page.status == ProductStatus.PUBLISHED
     return (
         product.title,
-        f"/urun/{page.slug}",
+        catalog.product_path(page.slug),
         "" if public else "target_not_public",
     )
 

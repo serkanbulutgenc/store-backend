@@ -3429,6 +3429,80 @@
         "title": "SubscribeOut",
         "type": "object"
       },
+      "SuggestionGroupOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "category",
+              "brand",
+              "collection",
+              "campaign_page",
+              "product"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "items"
+        ],
+        "title": "SuggestionGroupOut",
+        "type": "object"
+      },
+      "SuggestionOut": {
+        "properties": {
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "image_url"
+        ],
+        "title": "SuggestionOut",
+        "type": "object"
+      },
+      "SuggestionsOut": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionGroupOut"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "title": "SuggestionsOut",
+        "type": "object"
+      },
       "SwatchOut": {
         "properties": {
           "hex_code": {
@@ -5695,6 +5769,40 @@
         "summary": "Reject",
         "tags": [
           "stock-alerts"
+        ]
+      }
+    },
+    "/api/store/suggestions": {
+      "get": {
+        "description": "What to offer under the search box for what has been typed so far.\n\nUnder 2 characters gives no groups and only the first 100 count. 503\n`suggestions_unavailable` when search is switched off, unreachable or not yet\nindexed: show nothing.",
+        "operationId": "search_list_suggestions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsOut"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Suggestions",
+        "tags": [
+          "search"
         ]
       }
     },

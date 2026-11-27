@@ -303,6 +303,11 @@ def create_product(  # noqa: PLR0913
     return product
 
 
+def product_path(slug: str) -> str:
+    """The Storefront page of the Product with this slug."""
+    return f"/urun/{slug}"
+
+
 def kdv_rate_for(product: Product) -> Decimal:
     """The KDV percentage: the Product's own override or its class default."""
     parent = product.parent or product

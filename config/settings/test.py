@@ -37,6 +37,9 @@ MEDIA_URL = "http://media.testserver/"
 # Your stuff...
 # ------------------------------------------------------------------------------
 
+# Off unless a test turns it on, whatever the environment says.
+ELASTICSEARCH_URL = ""
+
 # Run Celery tasks inline so tests need no broker.
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
