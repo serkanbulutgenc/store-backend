@@ -3,7 +3,8 @@ import importlib
 from http import HTTPStatus
 
 import pytest
-from django.apps import apps
+from django.db import connection
+from django.db.migrations.loader import MigrationLoader
 from oscar.apps.catalogue.models import ProductClass
 
 from store_backend.services import catalog
@@ -273,11 +274,17 @@ def test_staff_cannot_change_the_accounts(staff_user, api_for):
     assert response.status_code == HTTPStatus.FORBIDDEN
 
 
+def apps_at(migration_name):
+    """The models as a past release declared them, against today's tables."""
+    return MigrationLoader(connection).project_state(("shop", migration_name)).apps
+
+
 def test_the_old_single_account_becomes_the_first_bank_account():
     migration = importlib.import_module(
         "store_backend.shop.migrations.0023_bank_account",
     )
-    StoreSettings.objects.update_or_create(
+    apps = apps_at("0023_bank_account")
+    apps.get_model("shop", "StoreSettings").objects.update_or_create(
         pk=1,
         defaults={
             "bank_name": "Ziraat",
@@ -293,6 +300,7 @@ def test_nothing_is_copied_when_no_account_was_set():
     migration = importlib.import_module(
         "store_backend.shop.migrations.0023_bank_account",
     )
+    apps = apps_at("0023_bank_account")
     migration.copy_the_single_account(apps, None)
     assert not BankAccount.objects.exists()
 
@@ -301,9 +309,38 @@ def test_an_old_account_without_an_iban_is_not_copied():
     migration = importlib.import_module(
         "store_backend.shop.migrations.0023_bank_account",
     )
-    StoreSettings.objects.update_or_create(
+    apps = apps_at("0023_bank_account")
+    apps.get_model("shop", "StoreSettings").objects.update_or_create(
         pk=1,
         defaults={"bank_name": "Ziraat", "bank_account_holder": "Aura Tekstil"},
     )
     migration.copy_the_single_account(apps, None)
     assert not BankAccount.objects.exists()
+
+
+def test_the_previous_release_still_runs_on_the_settings_table():
+    """v0.9.0 (migration 0025) declares the retired columns, so it selects and writes
+    them: a rollback needs them there, filled even on a row this release created."""
+    StoreSettings.objects.all().delete()
+    shop_settings.get()
+    previous = apps_at("0025_basket_campaigns_per_order")
+    model = previous.get_model("shop", "StoreSettings")
+
+    row = model.objects.get(pk=1)
+    assert (row.bank_name, row.bank_account_holder, row.bank_iban) == ("", "", "")
+    assert (row.banner_image_url, row.banner_link, row.banner_alt) == ("", "", "")
+    assert row.free_shipping_threshold is None
+    row.save()
+
+
+def test_the_retired_columns_are_not_part_of_the_settings_any_more():
+    declared = {f.name for f in StoreSettings._meta.get_fields()}  # noqa: SLF001
+    assert not declared & {
+        "bank_name",
+        "bank_account_holder",
+        "bank_iban",
+        "banner_image_url",
+        "banner_link",
+        "banner_alt",
+        "free_shipping_threshold",
+    }

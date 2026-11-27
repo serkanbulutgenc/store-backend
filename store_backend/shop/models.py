@@ -50,13 +50,6 @@ class StoreSettings(models.Model):
 
     # Charges. Amounts are KDV-inclusive TRY.
     shipping_fee = _money(default=0)
-    # No longer read or written (free shipping will be a Campaign). The column stays for
-    # one release so the previous release still runs on this database; drop it then.
-    free_shipping_threshold = _money(
-        null=True,
-        blank=True,
-        help_text="Baskets at or above this get free shipping. Empty: never free.",
-    )
     cod_fee = _money(default=0)
     fee_kdv_rate = models.DecimalField(
         max_digits=5,
@@ -72,19 +65,7 @@ class StoreSettings(models.Model):
         "Owner has confirmed the İYS registration.",
     )
 
-    # Superseded by `BankAccount`; no longer read or written. The columns stay for one
-    # release so the previous release still runs on this database, then are dropped.
-    bank_name = models.CharField(max_length=100, blank=True)
-    bank_account_holder = models.CharField(max_length=150, blank=True)
-    bank_iban = models.CharField(max_length=34, blank=True)
-
     notification_emails = models.JSONField(default=list, blank=True)
-
-    # The home page banner now lives in Banners (`home_hero`). Unused; drop these in the
-    # release after this one, with the old bank columns above.
-    banner_image_url = models.CharField(max_length=500, blank=True)
-    banner_link = models.CharField(max_length=500, blank=True)
-    banner_alt = models.CharField(max_length=200, blank=True)
 
     # Seller identity (distance-sales law).
     seller_name = models.CharField(max_length=200, blank=True)

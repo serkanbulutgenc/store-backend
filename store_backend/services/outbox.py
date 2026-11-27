@@ -98,7 +98,7 @@ def render(template: str, context: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def shop_name(store: StoreSettings) -> str:
-    return store.seller_name or "Aura Tekstil"
+    return store.seller_name or "Auraa Giyim"
 
 
 def enqueue(
