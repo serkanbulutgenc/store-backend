@@ -279,6 +279,18 @@ def apps_at(migration_name):
     return MigrationLoader(connection).project_state(("shop", migration_name)).apps
 
 
+@pytest.fixture
+def old_columns():
+    """The retired columns put back, as migrations before 0027 find them. The test's
+    transaction takes them away again."""
+    migration = importlib.import_module(
+        "store_backend.shop.migrations.0027_drop_retired_settings_columns",
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(migration.ADD_COLUMNS)
+
+
+@pytest.mark.usefixtures("old_columns")
 def test_the_old_single_account_becomes_the_first_bank_account():
     migration = importlib.import_module(
         "store_backend.shop.migrations.0023_bank_account",
@@ -296,6 +308,7 @@ def test_the_old_single_account_becomes_the_first_bank_account():
     assert list(BankAccount.objects.values_list("name", "iban")) == [("Ziraat", IBAN_A)]
 
 
+@pytest.mark.usefixtures("old_columns")
 def test_nothing_is_copied_when_no_account_was_set():
     migration = importlib.import_module(
         "store_backend.shop.migrations.0023_bank_account",
@@ -305,6 +318,7 @@ def test_nothing_is_copied_when_no_account_was_set():
     assert not BankAccount.objects.exists()
 
 
+@pytest.mark.usefixtures("old_columns")
 def test_an_old_account_without_an_iban_is_not_copied():
     migration = importlib.import_module(
         "store_backend.shop.migrations.0023_bank_account",
@@ -318,29 +332,37 @@ def test_an_old_account_without_an_iban_is_not_copied():
     assert not BankAccount.objects.exists()
 
 
-def test_the_previous_release_still_runs_on_the_settings_table():
-    """v0.9.0 (migration 0025) declares the retired columns, so it selects and writes
-    them: a rollback needs them there, filled even on a row this release created."""
-    StoreSettings.objects.all().delete()
-    shop_settings.get()
-    previous = apps_at("0025_basket_campaigns_per_order")
-    model = previous.get_model("shop", "StoreSettings")
+RETIRED = {
+    "bank_name",
+    "bank_account_holder",
+    "bank_iban",
+    "banner_image_url",
+    "banner_link",
+    "banner_alt",
+    "free_shipping_threshold",
+}
 
-    row = model.objects.get(pk=1)
-    assert (row.bank_name, row.bank_account_holder, row.bank_iban) == ("", "", "")
-    assert (row.banner_image_url, row.banner_link, row.banner_alt) == ("", "", "")
-    assert row.free_shipping_threshold is None
-    row.save()
+
+def settings_columns():
+    with connection.cursor() as cursor:
+        table = StoreSettings._meta.db_table  # noqa: SLF001
+        description = connection.introspection.get_table_description(cursor, table)
+    return {column.name for column in description}
+
+
+def test_the_retired_columns_are_gone_from_the_database():
+    assert not settings_columns() & RETIRED
+
+
+def test_the_previous_release_still_runs_on_the_settings_table():
+    """v0.9.1 (migration 0026) no longer declares the retired columns, so a rollback
+    to it works without them."""
+    shop_settings.get()
+    previous = apps_at("0026_retire_old_settings_columns")
+
+    previous.get_model("shop", "StoreSettings").objects.get(pk=1).save()
 
 
 def test_the_retired_columns_are_not_part_of_the_settings_any_more():
     declared = {f.name for f in StoreSettings._meta.get_fields()}  # noqa: SLF001
-    assert not declared & {
-        "bank_name",
-        "bank_account_holder",
-        "bank_iban",
-        "banner_image_url",
-        "banner_link",
-        "banner_alt",
-        "free_shipping_threshold",
-    }
+    assert not declared & RETIRED
