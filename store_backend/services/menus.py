@@ -33,10 +33,7 @@ DEPTH_LIMIT = {Menu.Key.HEADER: 3, Menu.Key.FOOTER: 2}
 
 def brand_is_public(brand_id: int) -> bool:
     """A Brand is public while at least one published Product carries it."""
-    return ProductProfile.objects.filter(
-        brand_id=brand_id,
-        status=ProductStatus.PUBLISHED,
-    ).exists()
+    return browse.public_brands().filter(pk=brand_id).exists()
 
 
 def product_page(product: Product) -> ProductProfile | None:
@@ -51,7 +48,7 @@ def product_page(product: Product) -> ProductProfile | None:
 def _category_node(category: Category, label: str = "") -> dict:
     return {
         "label": label or category.name,
-        "url": f"/kategori/{category.slug}",
+        "url": categories.path(category),
         "external": False,
         "image_url": browse._thumbnail_url(category.profile),  # noqa: SLF001
         "children": [],
@@ -86,7 +83,7 @@ def _leaf(item: MenuItem) -> dict | None:  # noqa: C901, PLR0912
     elif item.target_type == MenuItem.Target.BRAND:
         if not brand_is_public(item.brand_id):
             return None
-        label, url = item.brand.name, f"/ara?brand={item.brand_id}"
+        label, url = item.brand.name, browse.brand_path(item.brand_id)
     elif item.target_type == MenuItem.Target.COLLECTION:
         if not collections.is_public(item.collection):
             return None
