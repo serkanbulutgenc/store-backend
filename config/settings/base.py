@@ -325,6 +325,14 @@ LOGGING = {
 REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
 REDIS_SSL = REDIS_URL.startswith("rediss://")
 
+# Search suggestions
+# ------------------------------------------------------------------------------
+# Elasticsearch serves the Storefront's Search suggestions only (ADR 0002 in
+# store-infra). Empty switches them off; everything else works without it.
+ELASTICSEARCH_URL = env("ELASTICSEARCH_URL", default="")
+# Prefix of the index names and of the alias the suggestions are read from.
+SUGGESTIONS_INDEX = "suggestions"
+
 # Celery
 # ------------------------------------------------------------------------------
 if USE_TZ:
@@ -386,6 +394,10 @@ CELERY_BEAT_SCHEDULE = {
     "purge-contact-threads": {
         "task": "store_backend.shop.tasks.purge_contact_threads",
         "schedule": crontab(hour=3, minute=30),
+    },
+    "refresh-search-suggestions": {
+        "task": "store_backend.shop.tasks.refresh_suggestions",
+        "schedule": 60,
     },
     "dispatch-due-messages": {
         "task": "store_backend.messaging.tasks.dispatch_due_messages",

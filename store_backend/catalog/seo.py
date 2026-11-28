@@ -10,6 +10,7 @@ from django.views.decorators.http import require_GET
 
 from store_backend.catalog.models import ProductProfile
 from store_backend.catalog.models import ProductStatus
+from store_backend.services import catalog
 from store_backend.services import categories
 
 DISALLOWED = (
@@ -42,7 +43,7 @@ def sitemap_xml(request):
     origin = public_origin(request)
     entries: list[tuple[str, str | None]] = [("/", None)]
     entries += [
-        (f"/kategori/{slug}", None)
+        (f"{categories.PATH_PREFIX}{slug}", None)
         for slug in categories.visible().order_by("path").values_list("slug", flat=True)
     ]
     products = (
@@ -51,7 +52,8 @@ def sitemap_xml(request):
         .values_list("slug", "product__date_updated")
     )
     entries += [
-        (f"/urun/{slug}", updated.date().isoformat()) for slug, updated in products
+        (catalog.product_path(slug), updated.date().isoformat())
+        for slug, updated in products
     ]
     body = "".join(
         f"<url><loc>{escape(origin + path)}</loc>"

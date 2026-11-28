@@ -465,11 +465,27 @@ def _units_sold(since: datetime | None = None) -> Coalesce:
     return Coalesce(Subquery(sold), 0)
 
 
-def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # noqa: PLR0911
-    sold_out_last = Exists(
-        _variants(in_stock=True).filter(parent=OuterRef("product_id")),
+def public_brands() -> QuerySet[Brand]:
+    """Brands the Storefront shows: at least one published Product carries them."""
+    carried = ProductProfile.objects.filter(
+        brand=OuterRef("pk"),
+        status=ProductStatus.PUBLISHED,
     )
-    qs = qs.annotate(has_stock=sold_out_last)
+    return Brand.objects.filter(Exists(carried))
+
+
+def brand_path(brand_id: int) -> str:
+    """A Brand has no page of its own: the search results filtered to it."""
+    return f"/ara?brand={brand_id}"
+
+
+def has_stock() -> Exists:
+    """Whether any Variant of the Product can be bought."""
+    return Exists(_variants(in_stock=True).filter(parent=OuterRef("product_id")))
+
+
+def _order(qs: QuerySet[ProductProfile], sort: str, f: Filters) -> QuerySet:  # noqa: PLR0911
+    qs = qs.annotate(has_stock=has_stock())
     if sort == "relevance" and f.q.strip():
         return qs.order_by("-has_stock", "-relevance", "-product_id")
     if sort == "price_asc":
@@ -616,12 +632,7 @@ def category_page(slug: str) -> dict:
     A hidden Category (or one under a hidden parent) is not found."""
     category = categories.get_visible(slug)
     profile = category.profile
-    image = None
-    if profile.image_status == CategoryProfile.ImageStatus.READY:
-        image = {
-            "alt": profile.image_alt or category.name,
-            "sizes": profile.image_derivative_urls(),
-        }
+    image = categories.cover_image(category)
     children = categories.ordered(
         categories.visible().filter(
             path__startswith=category.path,

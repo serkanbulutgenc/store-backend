@@ -49,6 +49,21 @@ To run the tests, check your test coverage, and generate an HTML coverage report
 
 Moved to [Live reloading and SASS compilation](https://cookiecutter-django.readthedocs.io/en/latest/2-local-development/developing-locally.html#using-webpack-or-gulp).
 
+### Search suggestions
+
+The suggestions under the Storefront search box come from Elasticsearch. It is
+optional: with `ELASTICSEARCH_URL` empty, `GET /api/store/suggestions` answers 503 and
+everything else works. The local Compose stack runs one. A Celery beat job refreshes the
+index each minute, and replaces an index built to older settings or mappings. To rebuild
+it by hand:
+
+```bash
+python manage.py rebuild_suggestions
+```
+
+Its tests need a running Elasticsearch and fail without one. `scripts/dev-test.sh`
+starts a throwaway one.
+
 ### Celery
 
 This app comes with Celery.
