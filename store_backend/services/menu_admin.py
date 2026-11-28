@@ -26,6 +26,7 @@ from store_backend.catalog.models import CampaignPage
 from store_backend.catalog.models import Collection
 from store_backend.catalog.models import ProductStatus
 from store_backend.services import audit
+from store_backend.services import browse
 from store_backend.services import campaign_pages
 from store_backend.services import catalog
 from store_backend.services import categories
@@ -92,7 +93,7 @@ def _product_target(item: MenuItem) -> tuple[str, str | None, Reason]:
 def _brand_target(item: MenuItem) -> tuple[str, str | None, Reason]:
     brand = Brand.objects.get(pk=item.brand_id)
     reason = "" if brand_is_public(brand.pk) else "target_not_public"
-    return brand.name, f"/ara?brand={brand.pk}", reason
+    return brand.name, browse.brand_path(brand.pk), reason
 
 
 def _collection_target(item: MenuItem) -> tuple[str, str | None, Reason]:
@@ -118,7 +119,7 @@ def _target(item: MenuItem) -> tuple[str, str | None, Reason]:  # noqa: C901, PL
         public = categories.visible().filter(pk=category.pk).exists()
         return (
             category.name,
-            f"/kategori/{category.slug}",
+            categories.path(category),
             "" if public else ("target_not_public"),
         )
     if item.target_type == kind.PRODUCT:

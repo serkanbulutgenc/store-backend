@@ -43,6 +43,8 @@ MAX_SEO_DESCRIPTION = 160
 MAX_DESCRIPTION = 5000
 MAX_ALT = 255
 MAX_HOME_ORDER = 9999
+# A Category's page on the Storefront is this followed by its slug.
+PATH_PREFIX = "/kategori/"
 
 EDITABLE = frozenset(
     {
@@ -105,6 +107,22 @@ def visible() -> QuerySet[Category]:
     if hidden:
         qs = qs.exclude(hidden)
     return qs.select_related("profile")
+
+
+def path(category: Category) -> str:
+    """The Category's page on the Storefront."""
+    return f"{PATH_PREFIX}{category.slug}"
+
+
+def cover_image(category: Category) -> dict | None:
+    """The Category's image once its derivatives are ready, else None."""
+    profile = category.profile
+    if profile.image_status != CategoryProfile.ImageStatus.READY:
+        return None
+    return {
+        "alt": profile.image_alt or category.name,
+        "sizes": profile.image_derivative_urls(),
+    }
 
 
 def sibling_key(category: Category) -> tuple[int, str]:

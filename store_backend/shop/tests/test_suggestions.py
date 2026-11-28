@@ -11,6 +11,7 @@ import threading
 import time
 import uuid
 from contextlib import contextmanager
+from datetime import timedelta
 from http import HTTPStatus
 from io import StringIO
 
@@ -18,12 +19,18 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
+from django.utils import timezone
 from elasticsearch import ConnectionTimeout
 from elasticsearch import Elasticsearch
 from elasticsearch.client import IndicesClient
 from oscar.apps.catalogue.models import Category
 from oscar.apps.catalogue.models import ProductClass
 
+from store_backend.catalog.models import Brand
+from store_backend.catalog.models import CampaignPage
+from store_backend.catalog.models import CategoryProfile
+from store_backend.catalog.models import Collection
+from store_backend.catalog.models import CollectionProduct
 from store_backend.catalog.models import Colour
 from store_backend.catalog.models import ProductPhoto
 from store_backend.catalog.models import ProductProfile
@@ -33,6 +40,7 @@ from store_backend.services import attributes
 from store_backend.services import catalog
 from store_backend.services import stock
 from store_backend.services import suggestions
+from store_backend.services.catalog import slugify_tr
 from store_backend.shop import tasks
 from store_backend.staff.tests.conftest import staff_member
 
@@ -93,8 +101,18 @@ def groups(client, q):
     return response.json()["groups"]
 
 
-def names(client, q):
-    return [item["name"] for group in groups(client, q) for item in group["items"]]
+def items(client, q, kind="product"):
+    """The suggestions of one type, empty when it has no group."""
+    return [
+        item
+        for group in groups(client, q)
+        if group["type"] == kind
+        for item in group["items"]
+    ]
+
+
+def names(client, q, kind="product"):
+    return [item["name"] for item in items(client, q, kind)]
 
 
 def test_a_published_product_is_suggested_by_its_name(client):
@@ -624,7 +642,7 @@ def test_an_index_that_refuses_writes_does_not_fail_the_job(client, settings):
     tasks.refresh_suggestions()
     with Elasticsearch(settings.ELASTICSEARCH_URL) as es:
         es.indices.put_settings(
-            index=settings.SUGGESTIONS_INDEX,
+            index=f"{settings.SUGGESTIONS_INDEX}-*",
             settings={"index.blocks.write": True},
         )
 
@@ -658,3 +676,427 @@ def test_a_lost_reply_to_the_switch_does_not_delete_the_new_index(client, monkey
         call_command("rebuild_suggestions", stdout=StringIO())
 
     assert names(client, "keten") == ["Keten Bluz", "Keten Elbise"]
+
+
+# --- the other types (store-infra#186) -------------------------------------------
+
+
+def picture(name, *, status="ready"):
+    """The image columns of a Category, Collection or Campaign page."""
+    return {
+        "image_original": f"x/{name}.jpg",
+        "image_status": status,
+        "image_derivatives": [
+            {"width": width, "name": f"x/{name}-{width}.webp"} for width in (800, 400)
+        ],
+    }
+
+
+def test_a_category_is_suggested_even_with_no_products(client):
+    parent = catalog.create_category("Kadın")
+    category = catalog.create_category("Abiye", parent=parent)
+    tasks.refresh_suggestions()
+
+    assert groups(client, "abiye") == [
+        {
+            "type": "category",
+            "items": [
+                {
+                    "name": "Abiye",
+                    "path": f"/kategori/{category.slug}",
+                    "image_url": None,
+                },
+            ],
+        },
+    ]
+
+
+@pytest.mark.parametrize("hidden", ["itself", "parent"])
+def test_a_hidden_category_or_one_under_a_hidden_one_is_left_out(client, hidden):
+    parent = catalog.create_category("Kadın")
+    category = catalog.create_category("Abiye", parent=parent)
+    tasks.refresh_suggestions()
+
+    target = category if hidden == "itself" else parent
+    CategoryProfile.objects.filter(category=target).update(is_hidden=True)
+    tasks.refresh_suggestions()
+
+    assert names(client, "abiye", "category") == []
+
+
+def test_the_other_types_match_by_name_only(client):
+    parent = catalog.create_category("Kadın")
+    catalog.create_category("Abiye", parent=parent)
+    tasks.refresh_suggestions()
+
+    assert names(client, "kadın", "category") == ["Kadın"]
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("ready", "http://media.testserver/x/abiye-400.webp"),
+        ("processing", None),
+    ],
+)
+def test_a_category_picture_is_its_smallest_ready_size(client, status, expected):
+    category = catalog.create_category("Abiye")
+    CategoryProfile.objects.filter(category=category).update(
+        **picture("abiye", status=status),
+    )
+    tasks.refresh_suggestions()
+
+    assert items(client, "abiye", "category")[0]["image_url"] == expected
+
+
+def test_a_brand_with_a_published_product_leads_to_its_search_results(client):
+    brand = catalog.create_brand("Zeytindalı")
+    make("Keten Elbise", brand=brand, stock=0)  # sold out still counts
+    tasks.refresh_suggestions()
+
+    assert items(client, "zeytin", "brand") == [
+        {"name": "Zeytindalı", "path": f"/ara?brand={brand.pk}", "image_url": None},
+    ]
+
+
+@pytest.mark.parametrize("products", ["none", "draft", "archived"])
+def test_a_brand_without_a_published_product_is_left_out(client, products):
+    brand = catalog.create_brand("Zeytindalı")
+    if products != "none":
+        product = make("Keten Elbise", brand=brand)
+        catalog.set_status(product, ProductStatus(products))
+    tasks.refresh_suggestions()
+
+    assert names(client, "zeytin", "brand") == []
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("ready", "http://media.testserver/x/logo-400.webp"),
+        ("processing", None),
+    ],
+)
+def test_a_brand_picture_is_its_smallest_ready_logo(client, status, expected):
+    brand = catalog.create_brand("Zeytindalı")
+    make("Keten Elbise", brand=brand)
+    Brand.objects.filter(pk=brand.pk).update(
+        logo_original="x/logo.png",
+        logo_status=status,
+        # Smallest first, as the logo job stores them.
+        logo_derivatives=[
+            {"width": width, "name": f"x/logo-{width}.webp"} for width in (400, 800)
+        ],
+    )
+    tasks.refresh_suggestions()
+
+    assert items(client, "zeytin", "brand")[0]["image_url"] == expected
+
+
+def make_collection(name="Yazlık Seçki", *products, status="published", **fields):
+    collection = Collection.objects.create(
+        name=name,
+        slug=slugify_tr(name),
+        status=status,
+        **fields,
+    )
+    for position, product in enumerate(products):
+        CollectionProduct.objects.create(
+            collection=collection,
+            product=product,
+            position=position,
+        )
+    return collection
+
+
+def test_a_published_collection_with_a_visible_product_is_suggested(client):
+    collection = make_collection("Yazlık Seçki", make("Keten Elbise", stock=0))
+    tasks.refresh_suggestions()
+
+    assert items(client, "secki", "collection") == [
+        {
+            "name": "Yazlık Seçki",
+            "path": f"/collections/{collection.slug}",
+            "image_url": None,
+        },
+    ]
+
+
+@pytest.mark.parametrize("why", ["draft", "pending", "empty", "no visible product"])
+def test_a_collection_the_storefront_does_not_show_is_left_out(client, why):
+    if why == "empty":
+        make_collection()
+    elif why == "no visible product":
+        make_collection("Yazlık Seçki", make("Keten Elbise", publish=False))
+    else:
+        make_collection("Yazlık Seçki", make("Keten Elbise"), status=why)
+    tasks.refresh_suggestions()
+
+    assert names(client, "secki", "collection") == []
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("ready", "http://media.testserver/x/kapak-400.webp"),
+        ("failed", None),
+    ],
+)
+def test_a_collection_picture_is_its_smallest_ready_cover(client, status, expected):
+    make_collection(
+        "Yazlık Seçki",
+        make("Keten Elbise"),
+        **picture("kapak", status=status),
+    )
+    tasks.refresh_suggestions()
+
+    assert items(client, "secki", "collection")[0]["image_url"] == expected
+
+
+def make_page(title="Bahar İndirimi", *, status="published", **fields):
+    return CampaignPage.objects.create(
+        title=title,
+        slug=slugify_tr(title),
+        status=status,
+        **fields,
+    )
+
+
+def day(offset):
+    return timezone.now() + timedelta(days=offset)
+
+
+@pytest.mark.parametrize(
+    ("starts", "ends"),
+    [(None, None), (-1, None), (None, 1), (-1, 1)],
+)
+def test_a_published_started_campaign_page_is_suggested(client, starts, ends):
+    page = make_page(
+        starts_at=None if starts is None else day(starts),
+        ends_at=None if ends is None else day(ends),
+    )
+    tasks.refresh_suggestions()
+
+    assert items(client, "bahar", "campaign_page") == [
+        {
+            "name": "Bahar İndirimi",
+            "path": f"/kampanyalar/{page.slug}",
+            "image_url": None,
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"status": "draft"},
+        {"status": "pending"},
+        {"starts_at": 1},  # not started
+        {"ends_at": -1},  # ended: its URL still works, but it is not suggested
+    ],
+    ids=["draft", "pending", "not started", "ended"],
+)
+def test_a_campaign_page_not_running_publicly_is_left_out(client, fields):
+    make_page(
+        **{k: day(v) if k.endswith("_at") else v for k, v in fields.items()},
+    )
+    tasks.refresh_suggestions()
+
+    assert names(client, "bahar", "campaign_page") == []
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("ready", "http://media.testserver/x/afis-400.webp"),
+        ("processing", None),
+    ],
+)
+def test_a_campaign_page_picture_is_its_smallest_ready_cover(client, status, expected):
+    make_page(**picture("afis", status=status))
+    tasks.refresh_suggestions()
+
+    assert items(client, "bahar", "campaign_page")[0]["image_url"] == expected
+
+
+def everything_called(word, count):
+    """`count` of each type, all with `word` in their name."""
+    brand = None
+    for n in range(count):
+        catalog.create_category(f"{word} Kategori {n}")
+        brand = catalog.create_brand(f"{word} Marka {n}")
+        product = make(f"{word} Ürün {n}", brand=brand)
+        make_collection(f"{word} Seçki {n}", product)
+        make_page(f"{word} Kampanya {n}")
+
+
+def test_groups_come_in_order_with_at_most_three_each_and_six_products(client):
+    everything_called("Nar", 8)
+    tasks.refresh_suggestions()
+
+    found = groups(client, "nar")
+
+    assert [(g["type"], len(g["items"])) for g in found] == [
+        ("category", 3),
+        ("brand", 3),
+        ("collection", 3),
+        ("campaign_page", 3),
+        ("product", 6),
+    ]
+
+
+def test_empty_groups_are_left_out(client):
+    catalog.create_category("Nar Kategori")
+    make_page("Nar Kampanya")
+    tasks.refresh_suggestions()
+
+    assert [g["type"] for g in groups(client, "nar")] == ["category", "campaign_page"]
+
+
+def test_names_as_typed_come_first_then_the_rest_alphabetically(client):
+    for name in ("Kol Çantası", "Bot Bakımı", "Kot Şort", "Kot Ceket"):
+        catalog.create_category(name)
+    tasks.refresh_suggestions()
+
+    assert names(client, "kot", "category") == [
+        "Kot Ceket",
+        "Kot Şort",
+        "Bot Bakımı",  # a letter away
+    ]
+
+
+@pytest.mark.parametrize(
+    "ordered",
+    [
+        # c before ç, s before ş; the limit of three leaves out the last.
+        ["Nar Cüzdan", "Nar Çanta", "Nar Sandalet", "Nar Şal"],
+        # Dotless ı comes before dotted i.
+        ["Nar Hırka", "Nar Işık", "Nar İnci"],
+        # An accented letter sorts with its base letter.
+        ["Nar Kağıt", "Nar Kâse", "Nar Kemer"],
+    ],
+)
+def test_alphabetical_means_the_turkish_alphabet(client, ordered):
+    for name in reversed(ordered):
+        catalog.create_category(name)
+    tasks.refresh_suggestions()
+
+    assert names(client, "nar", "category") == ordered[:3]
+
+
+# --- changes no signal reports ---------------------------------------------------
+
+
+def test_new_covers_and_logos_show_up_after_one_refresh(client):
+    brand = catalog.create_brand("Nar Marka")
+    product = make("Keten Elbise", brand=brand)
+    category = catalog.create_category("Nar Kategori")
+    collection = make_collection("Nar Seçki", product)
+    page = make_page("Nar Kampanya")
+    tasks.refresh_suggestions()
+
+    # What the background image jobs do: `.update()`, which sends no signal.
+    CategoryProfile.objects.filter(category=category).update(**picture("a"))
+    Collection.objects.filter(pk=collection.pk).update(**picture("b"))
+    CampaignPage.objects.filter(pk=page.pk).update(**picture("c"))
+    Brand.objects.filter(pk=brand.pk).update(
+        logo_status="ready",
+        logo_derivatives=[{"width": 400, "name": "x/d-400.webp"}],
+    )
+    tasks.refresh_suggestions()
+
+    shown = {
+        g["type"]: g["items"][0]["image_url"]
+        for g in groups(client, "nar")
+        if g["type"] != "product"  # the Product is found by its Brand
+    }
+    assert shown == {
+        kind: f"http://media.testserver/x/{name}-400.webp"
+        for kind, name in (
+            ("category", "a"),
+            ("collection", "b"),
+            ("campaign_page", "c"),
+            ("brand", "d"),
+        )
+    }
+
+
+def test_a_change_of_collection_membership_shows_up_after_one_refresh(client):
+    product = make("Keten Elbise")
+    collection = make_collection("Yazlık Seçki")
+    tasks.refresh_suggestions()
+    assert names(client, "secki", "collection") == []
+
+    CollectionProduct.objects.bulk_create(
+        [CollectionProduct(collection=collection, product=product)],
+    )
+    tasks.refresh_suggestions()
+    assert names(client, "secki", "collection") == ["Yazlık Seçki"]
+
+    CollectionProduct.objects.filter(collection=collection).delete()
+    tasks.refresh_suggestions()
+    assert names(client, "secki", "collection") == []
+
+
+def test_a_campaign_page_comes_and_goes_with_its_dates_alone(client, monkeypatch):
+    make_page(starts_at=day(1), ends_at=day(3))
+    real_now = timezone.now
+    shown = []
+    for days_later in (0, 2, 4):  # nothing is written in between
+        later = timedelta(days=days_later)
+        monkeypatch.setattr(timezone, "now", lambda later=later: real_now() + later)
+        tasks.refresh_suggestions()
+        shown.append(names(client, "bahar", "campaign_page"))
+
+    assert shown == [[], ["Bahar İndirimi"], []]
+
+
+# --- an index from an earlier release --------------------------------------------
+
+
+@pytest.fixture
+def old_index(settings):
+    """An index as an earlier release left it: its alias, and strict mappings without
+    today's fields."""
+    alias = settings.SUGGESTIONS_INDEX
+    with Elasticsearch(settings.ELASTICSEARCH_URL) as es:
+        es.indices.create(
+            index=f"{alias}-old",
+            aliases={alias: {}},
+            mappings={"dynamic": "strict", "properties": {"name": {"type": "text"}}},
+        )
+    return f"{alias}-old"
+
+
+def test_before_its_first_refresh_an_older_index_counts_as_not_indexed(
+    client,
+    old_index,
+):
+    response = client.get(URL, {"q": "keten"})
+
+    assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+
+
+def test_the_refresh_replaces_an_index_with_an_older_format(
+    client,
+    settings,
+    old_index,
+):
+    make("Keten Elbise")
+
+    assert tasks.refresh_suggestions() > 0
+
+    assert names(client, "keten") == ["Keten Elbise"]
+    with Elasticsearch(settings.ELASTICSEARCH_URL) as es:
+        assert old_index not in es.indices.get(index=f"{settings.SUGGESTIONS_INDEX}-*")
+
+
+def test_the_refresh_updates_a_current_index_in_place(client, settings):
+    make("Keten Elbise")
+    tasks.refresh_suggestions()
+    with Elasticsearch(settings.ELASTICSEARCH_URL) as es:
+        before = list(es.indices.get(index=f"{settings.SUGGESTIONS_INDEX}-*"))
+
+        tasks.refresh_suggestions()
+
+        assert list(es.indices.get(index=f"{settings.SUGGESTIONS_INDEX}-*")) == before

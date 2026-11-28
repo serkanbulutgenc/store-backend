@@ -54,7 +54,8 @@ Moved to [Live reloading and SASS compilation](https://cookiecutter-django.readt
 The suggestions under the Storefront search box come from Elasticsearch. It is
 optional: with `ELASTICSEARCH_URL` empty, `GET /api/store/suggestions` answers 503 and
 everything else works. The local Compose stack runs one. A Celery beat job refreshes the
-index each minute; rebuild it after changing the mappings in `services/suggestions.py`:
+index each minute, and replaces an index built to older settings or mappings. To rebuild
+it by hand:
 
 ```bash
 python manage.py rebuild_suggestions

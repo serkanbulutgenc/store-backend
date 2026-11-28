@@ -330,7 +330,7 @@ REDIS_SSL = REDIS_URL.startswith("rediss://")
 # Elasticsearch serves the Storefront's Search suggestions only (ADR 0002 in
 # store-infra). Empty switches them off; everything else works without it.
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL", default="")
-# Alias the suggestions are read from; the indices behind it are named after it.
+# Prefix of the index names and of the alias the suggestions are read from.
 SUGGESTIONS_INDEX = "suggestions"
 
 # Celery

@@ -43,7 +43,7 @@ def sitemap_xml(request):
     origin = public_origin(request)
     entries: list[tuple[str, str | None]] = [("/", None)]
     entries += [
-        (f"/kategori/{slug}", None)
+        (f"{categories.PATH_PREFIX}{slug}", None)
         for slug in categories.visible().order_by("path").values_list("slug", flat=True)
     ]
     products = (

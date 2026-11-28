@@ -474,10 +474,14 @@ def cover_image(page: CampaignPage) -> dict | None:
     }
 
 
+def running() -> QuerySet[CampaignPage]:
+    """Published pages that have started and not ended."""
+    return _public().exclude(ends_at__lte=timezone.now())
+
+
 def public_list() -> list[dict[str, Any]]:
-    """Published pages that have started and not ended, newest first."""
-    now = timezone.now()
-    pages = _public().exclude(ends_at__lte=now).order_by("-published_at", "-pk")
+    """The running pages, newest first."""
+    pages = running().order_by("-published_at", "-pk")
     return [
         {
             "title": page.title,
